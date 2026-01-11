@@ -1,23 +1,31 @@
+import { Injectable } from '@nestjs/common';
 import Stripe from 'stripe';
 import { PaymentProvider } from '../../modules/payments/providers/payment-provider.interface';
 
+@Injectable()
 export class StripePaymentProvider implements PaymentProvider {
-    async createPayout(input: {
-      amount: number;
-      currency: string;
-      destinationAccountId: string;
-    }): Promise<void> {
-      await this.stripe.transfers.create({
-        amount: input.amount,
-        currency: input.currency,
-        destination: input.destinationAccountId,
+  private stripe?: Stripe;
+
+  private getStripe(): Stripe {
+    if (!this.stripe) {
+      const apiKey = process.env.STRIPE_SECRET_KEY || 'sk_test_dummy';
+      this.stripe = new Stripe(apiKey, {
+        apiVersion: '2025-12-15.clover',
       });
     }
-  private stripe: Stripe;
+    return this.stripe;
+  }
 
-  constructor() {
-    this.stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-      apiVersion: '2025-12-15.clover',
+  async createPayout(input: {
+    amount: number;
+    currency: string;
+    destinationAccountId: string;
+  }): Promise<void> {
+    const stripe = this.getStripe();
+    await stripe.transfers.create({
+      amount: input.amount,
+      currency: input.currency,
+      destination: input.destinationAccountId,
     });
   }
 
@@ -26,7 +34,8 @@ export class StripePaymentProvider implements PaymentProvider {
     currency: string;
     metadata: Record<string, string>;
   }) {
-    const intent = await this.stripe.paymentIntents.create({
+    const stripe = this.getStripe();
+    const intent = await stripe.paymentIntents.create({
       amount: input.amount,
       currency: input.currency,
       metadata: input.metadata,
@@ -43,7 +52,8 @@ export class StripePaymentProvider implements PaymentProvider {
     providerPaymentId: string;
     amount?: number;
   }): Promise<void> {
-    await this.stripe.refunds.create({
+    const stripe = this.getStripe();
+    await stripe.refunds.create({
       payment_intent: input.providerPaymentId,
       amount: input.amount,
     });

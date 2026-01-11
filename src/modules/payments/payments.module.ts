@@ -1,3 +1,8 @@
+import { StripeOnboardingController } from './controllers/stripe-onboarding.controller';
+import { CreateStripeAccountUseCase } from './use-cases/stripe/create-stripe-account.use-case';
+import { StripeConnectService } from '../../infrastructure/payments/stripe-connect.service';
+import { ARTIST_REPOSITORY } from '../artists/repositories/artist-repository.token';
+import { DbArtistRepository } from '../../infrastructure/database/repositories/artist.repository';
 import { Module } from '@nestjs/common';
 
 import { ExecutePayoutUseCase } from './use-cases/payouts/execute-payout.use-case';
@@ -17,8 +22,15 @@ import { DbPayoutRepository } from '../../infrastructure/database/repositories/d
 import { StripePaymentProvider } from '../../infrastructure/payments/stripe-payment.provider';
 
 @Module({
+  controllers: [StripeOnboardingController],
   providers: [
     ExecutePayoutUseCase,
+    CreateStripeAccountUseCase,
+    StripeConnectService,
+    {
+      provide: ARTIST_REPOSITORY,
+      useClass: DbArtistRepository,
+    },
     {
       provide: BOOKING_REPOSITORY,
       useClass: BookingRepository,

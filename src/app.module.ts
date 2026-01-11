@@ -1,3 +1,4 @@
+import { PaymentsModule } from './modules/payments/payments.module';
 
 import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
@@ -6,7 +7,7 @@ import { DbSplitSummaryRepository } from './infrastructure/database/repositories
 import { SPLIT_SUMMARY_REPOSITORY } from './modules/payments/split/split-summary.tokens';
 
 @Module({
-  imports: [],
+  imports: [PaymentsModule],
   controllers: [AppController],
   providers: [
     AppService,
