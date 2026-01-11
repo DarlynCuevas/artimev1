@@ -1,6 +1,8 @@
 import { StripeOnboardingController } from './controllers/stripe-onboarding.controller';
+import { StripeWebhookController } from './controllers/stripe-webhook.controller';
 import { CreateStripeAccountUseCase } from './use-cases/stripe/create-stripe-account.use-case';
 import { StripeConnectService } from '../../infrastructure/payments/stripe-connect.service';
+import { StripeWebhookService } from '../../infrastructure/payments/stripe-webhook.service';
 import { ARTIST_REPOSITORY } from '../artists/repositories/artist-repository.token';
 import { DbArtistRepository } from '../../infrastructure/database/repositories/artist.repository';
 import { Module } from '@nestjs/common';
@@ -22,11 +24,12 @@ import { DbPayoutRepository } from '../../infrastructure/database/repositories/d
 import { StripePaymentProvider } from '../../infrastructure/payments/stripe-payment.provider';
 
 @Module({
-  controllers: [StripeOnboardingController],
+  controllers: [StripeOnboardingController, StripeWebhookController],
   providers: [
     ExecutePayoutUseCase,
     CreateStripeAccountUseCase,
     StripeConnectService,
+    StripeWebhookService,
     {
       provide: ARTIST_REPOSITORY,
       useClass: DbArtistRepository,
