@@ -3,20 +3,21 @@ import { PaymentRepository } from '../../../infrastructure/database/repositories
 import { PaymentProvider } from '../providers/payment-provider.interface';
 import { BookingStatus } from '../../bookings/booking-status.enum';
 import { PaymentMilestoneType } from '../payment-milestone.entity';
-import { PaymentMilestoneStatus } from '../payment-milestone-status.enum';
 
-export class RefundAdvanceUseCase {
+export class CreateAdvancePaymentIntentUseCase {
   constructor(
     private readonly bookingRepository: BookingRepository,
     private readonly paymentRepository: PaymentRepository,
     private readonly paymentProvider: PaymentProvider,
   ) {}
 
-  async execute(bookingId: string): Promise<void> {
-    const booking = await this.bookingRepository.findById(bookingId);
+  async execute(input: {
+    bookingId: string;
+  }): Promise<{ clientSecret: string }> {
+    const booking = await this.bookingRepository.findById(input.bookingId);
 
-    if (!booking || booking.status !== BookingStatus.CANCELLED) {
-      throw new Error('Booking is not eligible for refund');
+    if (!booking || booking.status !== BookingStatus.CONTRACT_SIGNED) {
+      throw new Error('Booking not eligible for advance payment');
     }
 
     const schedule =
@@ -33,27 +34,25 @@ export class RefundAdvanceUseCase {
       (m) => m.type === PaymentMilestoneType.ADVANCE,
     );
 
-    if (!advance) {
-      throw new Error('Advance milestone not found');
+    if (!advance || advance.status !== 'PENDING') {
+      throw new Error('Advance milestone not payable');
     }
 
-    if (advance.status !== PaymentMilestoneStatus.PAID) {
-      throw new Error('Advance milestone is not refundable');
-    }
-
-    if (!advance.providerPaymentId) {
-      throw new Error('Missing provider payment reference');
-    }
-
-    // 1️ Stripe refund
-    await this.paymentProvider.refundPayment({
-      providerPaymentId: advance.providerPaymentId,
+    const intent = await this.paymentProvider.createPaymentIntent({
+      amount: advance.amount,
+      currency: schedule.currency,
+      metadata: {
+        bookingId: booking.id,
+        milestoneId: advance.id,
+        type: 'ADVANCE',
+      },
     });
 
-    // 2️ Dominio
-    advance.markAsRefunded(new Date());
+    await this.paymentRepository.attachProviderPaymentId(
+      advance.id,
+      intent.providerPaymentId,
+    );
 
-    // 3️ Persistencia
-    await this.paymentRepository.updateMilestone(advance);
+    return { clientSecret: intent.clientSecret };
   }
 }

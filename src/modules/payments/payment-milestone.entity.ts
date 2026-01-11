@@ -15,9 +15,13 @@ interface PaymentMilestoneProps {
   dueDate?: Date;
   paidAt?: Date;
   resolvedAt?: Date;
+  providerPaymentId?: string;
 }
 
 export class PaymentMilestone {
+        get providerPaymentId(): string | undefined {
+          return this.props.providerPaymentId;
+        }
       get paidAt(): Date | undefined {
         return this.props.paidAt;
       }

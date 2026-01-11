@@ -10,9 +10,18 @@ interface BookingProps {
   promoterId?: string;
   status: BookingStatus;
   createdAt: Date;
+  artistStripeAccountId: string;
+  managerStripeAccountId?: string;
 }
 
 export class Booking {
+    get artistStripeAccountId(): string {
+      return this.props.artistStripeAccountId;
+    }
+
+    get managerStripeAccountId(): string | undefined {
+      return this.props.managerStripeAccountId;
+    }
   private props: BookingProps;
 
   constructor(props: BookingProps) {

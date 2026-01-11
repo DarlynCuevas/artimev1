@@ -5,6 +5,15 @@ import { PaymentSchedule } from '../../../modules/payments/payment-schedule.enti
 import { PaymentMilestone } from '../../../modules/payments/payment-milestone.entity';
 
 export class PaymentRepository {
+      async attachProviderPaymentId(
+        milestoneId: string,
+        providerPaymentId: string,
+      ): Promise<void> {
+        await supabase
+          .from('payment_milestones')
+          .update({ provider_payment_id: providerPaymentId })
+          .eq('id', milestoneId);
+      }
     async findMilestonesByScheduleId(
       scheduleId: string,
     ): Promise<PaymentMilestone[]> {

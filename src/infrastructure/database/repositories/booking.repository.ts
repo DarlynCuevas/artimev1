@@ -23,6 +23,8 @@ export class BookingRepository {
       promoterId: data.promoter_id,
       status: data.status as BookingStatus,
       createdAt: new Date(data.created_at),
+      artistStripeAccountId: data.artist_stripe_account_id,
+      managerStripeAccountId: data.manager_stripe_account_id,
     });
   }
 
