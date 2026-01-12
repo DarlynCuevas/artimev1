@@ -38,7 +38,7 @@ export class PaymentRepository {
             paidAt: row.paid_at ? new Date(row.paid_at) : undefined,
             resolvedAt: row.resolved_at ? new Date(row.resolved_at) : undefined,
             requiresManualPayment: row.requires_manual_payment,
-            paymentIntentId: row.payment_intent_id ?? undefined,
+            providerPaymentId: row.provider_payment_id ?? undefined,
           }),
       );
     }

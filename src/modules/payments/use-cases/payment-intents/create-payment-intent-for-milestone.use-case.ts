@@ -1,9 +1,14 @@
 
+import { Injectable, Inject } from '@nestjs/common';
 import { PaymentMilestoneStatus } from '../../payment-milestone-status.enum';
 import type { PaymentMilestoneRepository } from '../../payment-milestone.repository.interface';
 import type { BookingRepository } from '../../../bookings/repositories/booking.repository.interface';
 import type { ArtistRepository } from '../../../artists/repositories/artist.repository.interface';
 import type { PaymentProvider } from '../../providers/payment-provider.interface';
+import { PAYMENT_MILESTONE_REPOSITORY } from '../../payment-milestone-repository.token';
+import { BOOKING_REPOSITORY } from '../../../bookings/repositories/booking-repository.token';
+import { ARTIST_REPOSITORY } from '../../../artists/repositories/artist-repository.token';
+import { PAYMENT_PROVIDER } from '../../providers/payment-provider.token';
 import { StripeOnboardingStatus } from '../../stripe/stripe-onboarding-status.enum';
 
 interface CreatePaymentIntentForMilestoneInput {
@@ -14,18 +19,23 @@ interface CreatePaymentIntentForMilestoneOutput {
   clientSecret: string;
 }
 
+@Injectable()
 export class CreatePaymentIntentForMilestoneUseCase {
   constructor(
+    @Inject(PAYMENT_MILESTONE_REPOSITORY)
     private readonly milestoneRepository: PaymentMilestoneRepository,
+    @Inject(BOOKING_REPOSITORY)
     private readonly bookingRepository: BookingRepository,
+    @Inject(ARTIST_REPOSITORY)
     private readonly artistRepository: ArtistRepository,
+    @Inject(PAYMENT_PROVIDER)
     private readonly paymentProvider: PaymentProvider,
   ) {}
 
   async execute(
     input: CreatePaymentIntentForMilestoneInput,
   ): Promise<CreatePaymentIntentForMilestoneOutput> {
-    // 1️⃣ Load milestone
+    // 1️ Load milestone
     const milestone =
       await this.milestoneRepository.findById(
         input.paymentMilestoneId,
@@ -39,7 +49,7 @@ export class CreatePaymentIntentForMilestoneUseCase {
       throw new Error('Payment milestone cannot be paid');
     }
 
-    if (milestone.paymentIntentId) {
+    if (milestone.providerPaymentId) {
       throw new Error('Payment intent already exists for milestone');
     }
 
@@ -93,7 +103,7 @@ export class CreatePaymentIntentForMilestoneUseCase {
       });
 
     // 6️⃣ Persist reference in milestone
-    milestone.markPaymentIntentCreated(
+    milestone.markProviderPaymentIdCreated(
       paymentIntent.providerPaymentId,
     );
 

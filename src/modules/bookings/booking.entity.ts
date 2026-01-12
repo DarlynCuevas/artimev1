@@ -62,7 +62,14 @@ export class Booking {
       this.props.status,
       nextStatus,
     );
-
     this.props.status = newStatus;
+  }
+
+  markAsPaidPartial(): void {
+    this.changeStatus(BookingStatus.PAID_PARTIAL);
+  }
+
+  markAsPaidFull(): void {
+    this.changeStatus(BookingStatus.PAID_FULL);
   }
 }

@@ -19,7 +19,6 @@ export interface PaymentMilestoneProps {
   resolvedAt?: Date;
   providerPaymentId?: string;
   requiresManualPayment: boolean;
-  paymentIntentId?: string;
  
 }
 
@@ -42,9 +41,7 @@ export class PaymentMilestone {
     }
   private props: PaymentMilestoneProps;
 
-  get paymentIntentId(): string | undefined {
-    return this.props.paymentIntentId;
-  }
+ 
 
   constructor(props: PaymentMilestoneProps) {
     this.props = props;
@@ -70,6 +67,7 @@ export class PaymentMilestone {
       throw new Error('Payment milestone already paid');
     }
     this.props.paidAt = date ?? new Date();
+    this.props.status = PaymentMilestoneStatus.PAID;
   }
   
   markAsRefunded(refundedAt: Date): void {
@@ -96,7 +94,7 @@ export class PaymentMilestone {
     return this.props.requiresManualPayment;
   }
 
-  markPaymentIntentCreated(paymentIntentId: string) {
-    this.props.paymentIntentId = paymentIntentId;
+  markProviderPaymentIdCreated(providerPaymentId: string) {
+    this.props.providerPaymentId = providerPaymentId;
   }
 }

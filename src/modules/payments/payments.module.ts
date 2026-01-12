@@ -1,3 +1,5 @@
+import { PAYMENT_MILESTONE_REPOSITORY } from './payment-milestone-repository.token';
+import { DbPaymentMilestoneRepository } from '../../infrastructure/database/repositories/db-payment-milestone.repository';
 import { StripeOnboardingController } from './controllers/stripe-onboarding.controller';
 import { StripeWebhookController } from './controllers/stripe-webhook.controller';
 import { CreateStripeAccountUseCase } from './use-cases/stripe/create-stripe-account.use-case';
@@ -6,6 +8,7 @@ import { StripeWebhookService } from '../../infrastructure/payments/stripe-webho
 import { ARTIST_REPOSITORY } from '../artists/repositories/artist-repository.token';
 import { DbArtistRepository } from '../../infrastructure/database/repositories/artist.repository';
 import { Module } from '@nestjs/common';
+import { PaymentsController } from './payments.controller';
 
 import { ExecutePayoutUseCase } from './use-cases/payouts/execute-payout.use-case';
 
@@ -24,12 +27,14 @@ import { DbPayoutRepository } from '../../infrastructure/database/repositories/d
 import { StripePaymentProvider } from '../../infrastructure/payments/stripe-payment.provider';
 
 @Module({
-  controllers: [StripeOnboardingController, StripeWebhookController],
+  controllers: [StripeOnboardingController, StripeWebhookController, PaymentsController],
   providers: [
     ExecutePayoutUseCase,
     CreateStripeAccountUseCase,
     StripeConnectService,
     StripeWebhookService,
+    // Add the use case as provider
+    require('./use-cases/payment-intents/create-payment-intent-for-milestone.use-case').CreatePaymentIntentForMilestoneUseCase,
     {
       provide: ARTIST_REPOSITORY,
       useClass: DbArtistRepository,
@@ -37,6 +42,10 @@ import { StripePaymentProvider } from '../../infrastructure/payments/stripe-paym
     {
       provide: BOOKING_REPOSITORY,
       useClass: BookingRepository,
+    },
+    {
+      provide: PAYMENT_MILESTONE_REPOSITORY,
+      useClass: DbPaymentMilestoneRepository,
     },
     {
       provide: SPLIT_SUMMARY_REPOSITORY,

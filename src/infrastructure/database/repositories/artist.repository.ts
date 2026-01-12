@@ -8,11 +8,21 @@ import { supabase } from '../supabase';
 @Injectable()
 export class DbArtistRepository implements ArtistRepository {
   async findById(id: string): Promise<Artist | null> {
-    // Stub temporal
+    const { data, error } = await supabase
+      .from('artists')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (error || !data) {
+      return null;
+    }
+
     return new Artist({
-      id,
-      email: 'artist@test.com',
-      stripeOnboardingStatus: StripeOnboardingStatus.NOT_STARTED,
+      id: data.id,
+      email: data.email,
+      stripeAccountId: data.stripe_account_id,
+      stripeOnboardingStatus: data.stripe_onboarding_status,
     });
   }
 
