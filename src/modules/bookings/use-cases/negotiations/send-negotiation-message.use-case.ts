@@ -5,11 +5,15 @@ import {
   NegotiationMessage,
   NegotiationSenderRole,
 } from '../../negotiations/negotiation-message.entity';
-import { BookingRepository } from '../../../../infrastructure/database/repositories/booking.repository';
+import type { BookingRepository } from '../../repositories/booking.repository.interface';
+import { BOOKING_REPOSITORY } from '../../repositories/booking-repository.token';
+import { Inject, Injectable } from '@nestjs/common';
 import { NegotiationMessageRepository } from '../../../../infrastructure/database/repositories/negotiation-message.repository';
 
+@Injectable()
 export class SendNegotiationMessageUseCase {
   constructor(
+    @Inject(BOOKING_REPOSITORY)
     private readonly bookingRepository: BookingRepository,
     private readonly negotiationMessageRepository: NegotiationMessageRepository,
   ) {}

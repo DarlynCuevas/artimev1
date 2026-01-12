@@ -1,0 +1,1 @@
+export const PAYOUT_REPOSITORY = Symbol('PAYOUT_REPOSITORY');

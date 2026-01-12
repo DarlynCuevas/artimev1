@@ -45,6 +45,7 @@ export const BOOKING_TRANSITIONS: Record<
 
   [BookingStatus.PAID_FULL]: [
     BookingStatus.COMPLETED,
+    BookingStatus.CANCELLED,
   ],
 
   [BookingStatus.COMPLETED]: [],

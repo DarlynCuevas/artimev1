@@ -26,9 +26,11 @@ export class BookingRepository {
       artistStripeAccountId: data.artist_stripe_account_id,
       managerStripeAccountId: data.manager_stripe_account_id,
       currency: data.currency,
-      artimeCommissionPercentage: data.artime_commission_percentage ?? 0,
-      managerId: data.manager_id ?? null,
-      managerCommissionPercentage: data.manager_commission_percentage ?? 0,
+
+      artimeCommissionPercentage: data.artime_commission_percentage,
+      managerId: data.manager_id,
+      managerCommissionPercentage: data.manager_commission_percentage,
+       totalAmount: data.total_amount
     });
   }
 

@@ -1,10 +1,14 @@
-import { BookingRepository } from '../../../../infrastructure/database/repositories/booking.repository';
+import type { BookingRepository } from '../../repositories/booking.repository.interface';
+import { BOOKING_REPOSITORY } from '../../repositories/booking-repository.token';
+import { Inject, Injectable } from '@nestjs/common';
 import { CancellationRepository } from '../../../../infrastructure/database/repositories/cancellation.repository';
 import { BookingStatus } from '../../booking-status.enum';
 import { CancellationReviewStatus } from '../../cancellations/cancellation-review-status.enum';
 
+@Injectable()
 export class ApproveCancellationUseCase {
   constructor(
+    @Inject(BOOKING_REPOSITORY)
     private readonly bookingRepository: BookingRepository,
     private readonly cancellationRepository: CancellationRepository,
   ) {}

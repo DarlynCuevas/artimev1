@@ -1,4 +1,5 @@
-// booking.entity.ts
+
+
 
 import { BookingStatus } from './booking-status.enum';
 import { BookingStateMachine } from './booking-state-machine';
@@ -16,6 +17,7 @@ interface BookingProps {
   artimeCommissionPercentage: number;
   managerId?: string;
   managerCommissionPercentage?: number;
+  totalAmount: number;
 }
  
 export class Booking {
@@ -68,6 +70,10 @@ export class Booking {
 
   get managerCommissionPercentage(): number | undefined {
     return this.props.managerCommissionPercentage;
+  }
+
+    get totalAmount(): number {
+    return this.props.totalAmount;
   }
 
 

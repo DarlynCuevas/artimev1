@@ -1,18 +1,35 @@
+/**
+ * FUTURE USE CASE (v2)
+ *
+ * Executes real payouts via PaymentProvider (Stripe Connect).
+ * Not used in ARTIME v1.
+ *
+ * Depends on:
+ * - SplitSummary
+ * - PaymentProvider
+ * - Payout execution records
+ */
+
+
+
 import type { BookingRepository } from '../../../bookings/repositories/booking.repository.interface';
 
-import { Inject } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { SPLIT_SUMMARY_REPOSITORY } from '../../split/split-summary.tokens';
 import { BOOKING_REPOSITORY } from '../../../bookings/repositories/booking-repository.token';
-import { PAYOUT_REPOSITORY } from './payout-repository.token';
 import { PAYMENT_PROVIDER } from '../../providers/payment-provider.token';
 import type { SplitSummaryRepository } from '../../split/split-summary.repository.interface';
-import type { PayoutRepository } from '../../../../infrastructure/database/repositories/payout.repository';
 
 import { BookingStatus } from '../../../bookings/booking-status.enum';
 
 import type { PaymentProvider } from '../../providers/payment-provider.interface';
-import { PayoutRecord } from './entities/payout-record.entity';
+import { PayoutRecord } from '../payouts/entities/payout-record.entity';
+import { PAYOUT_REPOSITORY } from '../../repositories/payout.repository.token';
+import type { PayoutRepository } from '../../repositories/payout.repository';
+import { Payout, PayoutStatus } from '../../entities/payout.entity';
 
+
+@Injectable()
 export class ExecutePayoutUseCase {
   constructor(
     @Inject(BOOKING_REPOSITORY)
@@ -62,17 +79,23 @@ export class ExecutePayoutUseCase {
       });
     }
 
-    // Record payout
-    const record = new PayoutRecord({
-      bookingId: booking.id,
-      artistAmount: split.artistNetAmount,
-      managerAmount: split.managerCommission,
-      artimeAmount: split.artimeCommission,
-      currency: split.currency,
-      executedAt: new Date(),
-    });
+    //payout
+    const payout = new Payout(
+      crypto.randomUUID(),
+      booking.id,
+      booking.artistId,
+      booking.managerId ?? null,
 
-    await this.payoutRepository.save(record);
+      split.grossAmount,
+      split.artimeCommission,
+      split.managerCommission,
+      split.artistNetAmount,
+
+      split.currency,
+      PayoutStatus.READY_TO_PAY,
+    );
+
+    await this.payoutRepository.save(payout);
 
     // Close booking
     booking.changeStatus(BookingStatus.COMPLETED);

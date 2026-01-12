@@ -9,8 +9,10 @@ import { ARTIST_REPOSITORY } from '../artists/repositories/artist-repository.tok
 import { DbArtistRepository } from '../../infrastructure/database/repositories/artist.repository';
 import { Module } from '@nestjs/common';
 import { PaymentsController } from './payments.controller';
+import { PayoutsController } from './controllers/payouts.controller';
+import { CreatePayoutForBookingUseCase } from './use-cases/payouts/create-payout-for-booking.use-case';
+import { SplitCalculator } from './split/split-calculator.service';
 
-import { ExecutePayoutUseCase } from './use-cases/payouts/execute-payout.use-case';
 
 // Tokens
 import { SPLIT_SUMMARY_REPOSITORY } from './split/split-summary.tokens';
@@ -18,22 +20,26 @@ import { PAYMENT_PROVIDER } from './providers/payment-provider.token';
 
 // Interfaces
 import { BOOKING_REPOSITORY } from '../bookings/repositories/booking-repository.token';
-import { PAYOUT_REPOSITORY } from './use-cases/payouts/payout-repository.token';
+import { PAYOUT_REPOSITORY } from './repositories/payout.repository.token';
 
 // Implementations (infra)
 import { BookingRepository } from '../../infrastructure/database/repositories/booking.repository';
 import { DbSplitSummaryRepository } from '../../infrastructure/database/repositories/split-summary.repository';
-import { DbPayoutRepository } from '../../infrastructure/database/repositories/db-payout.repository';
 import { StripePaymentProvider } from '../../infrastructure/payments/stripe-payment.provider';
+import { DbPayoutRepository } from '../../infrastructure/database/db-payout-repository';
+import { SupabaseClient } from '@supabase/supabase-js';
+import { supabase } from '../../infrastructure/database/supabase.client';
+import { CANCELLATION_REPOSITORY } from './cancellations/cancellation.repository.token';
+import { DbCancellationRepository } from 'src/infrastructure/database/repositories/db-cancellation.repository';
+import { CancelBookingUseCase } from './cancellations/use-cases/cancel-booking.use-case';
+import { CancellationsController } from './cancellations/controllers/cancellations.controller';
 
 @Module({
-  controllers: [StripeOnboardingController, StripeWebhookController, PaymentsController],
+  controllers: [StripeOnboardingController, StripeWebhookController, PaymentsController, PayoutsController, CancellationsController],
   providers: [
-    ExecutePayoutUseCase,
     CreateStripeAccountUseCase,
     StripeConnectService,
     StripeWebhookService,
-    // Add the use case as provider
     require('./use-cases/payment-intents/create-payment-intent-for-milestone.use-case').CreatePaymentIntentForMilestoneUseCase,
     {
       provide: ARTIST_REPOSITORY,
@@ -59,7 +65,21 @@ import { StripePaymentProvider } from '../../infrastructure/payments/stripe-paym
       provide: PAYMENT_PROVIDER,
       useClass: StripePaymentProvider,
     },
+    {
+      provide: SupabaseClient,
+      useValue: supabase,
+    },
+    {
+      provide: CANCELLATION_REPOSITORY,
+      useClass: DbCancellationRepository,
+    },
+    // --- TEMPORAL para pruebas internas ---
+    CreatePayoutForBookingUseCase,
+    SplitCalculator,
+    DbPayoutRepository,
+    BookingRepository,
+    CancelBookingUseCase
   ],
-  exports: [ExecutePayoutUseCase],
+  exports: [PAYOUT_REPOSITORY, BOOKING_REPOSITORY],
 })
 export class PaymentsModule {}

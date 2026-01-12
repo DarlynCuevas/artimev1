@@ -1,8 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { SupabaseClient } from '@supabase/supabase-js';
 
-import { PayoutRepository } from '../../modules/payments/repositories/payout.repository';
 import { Payout, PayoutStatus } from '../../modules/payments/entities/payout.entity';
+import { PayoutRepository } from 'src/modules/payments/repositories/payout.repository';
+
 
 @Injectable()
 export class DbPayoutRepository implements PayoutRepository {

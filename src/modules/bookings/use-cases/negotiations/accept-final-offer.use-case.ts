@@ -1,10 +1,14 @@
 // accept-final-offer.use-case.ts
 
 import { BookingStatus } from '../../booking-status.enum';
-import { BookingRepository } from '../../../../infrastructure/database/repositories/booking.repository';
+import type { BookingRepository } from '../../repositories/booking.repository.interface';
+import { BOOKING_REPOSITORY } from '../../repositories/booking-repository.token';
+import { Inject, Injectable } from '@nestjs/common';
 
+@Injectable()
 export class AcceptFinalOfferUseCase {
   constructor(
+    @Inject(BOOKING_REPOSITORY)
     private readonly bookingRepository: BookingRepository,
   ) {}
 
