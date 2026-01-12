@@ -25,6 +25,7 @@ export class BookingRepository {
       createdAt: new Date(data.created_at),
       artistStripeAccountId: data.artist_stripe_account_id,
       managerStripeAccountId: data.manager_stripe_account_id,
+      currency: data.currency,
     });
   }
 

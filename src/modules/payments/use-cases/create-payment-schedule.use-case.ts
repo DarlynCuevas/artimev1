@@ -56,18 +56,22 @@ export class CreatePaymentScheduleUseCase {
 
     const advanceMilestone = new PaymentMilestone({
       id: crypto.randomUUID(),
+      bookingId: booking.id,
       type: PaymentMilestoneType.ADVANCE,
       amount: input.advanceAmount,
       status: PaymentMilestoneStatus.PENDING,
+      requiresManualPayment: false, // o true según tu lógica
     });
 
 
     const finalMilestone = new PaymentMilestone({
       id: crypto.randomUUID(),
+      bookingId: booking.id,
       type: PaymentMilestoneType.FINAL,
       amount: input.totalAmount - input.advanceAmount,
       dueDate: input.finalPaymentDueDate,
       status: PaymentMilestoneStatus.PENDING,
+      requiresManualPayment: true, // o false según tu lógica
     });
 
     await this.paymentRepository.saveSchedule(schedule);

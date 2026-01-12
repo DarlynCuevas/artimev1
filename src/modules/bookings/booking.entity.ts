@@ -12,8 +12,9 @@ interface BookingProps {
   createdAt: Date;
   artistStripeAccountId: string;
   managerStripeAccountId?: string;
+  currency: string;
 }
-
+ 
 export class Booking {
     get artistStripeAccountId(): string {
       return this.props.artistStripeAccountId;
@@ -49,6 +50,11 @@ export class Booking {
   get createdAt(): Date {
     return this.props.createdAt;
   }
+
+   get currency(): string {
+    return this.props.currency;
+  }
+
 
   //  Comportamiento de dominio
   changeStatus(nextStatus: BookingStatus): void {

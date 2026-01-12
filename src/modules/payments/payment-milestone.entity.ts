@@ -1,3 +1,4 @@
+
 // payment-milestone.entity.ts
 
 import { PaymentMilestoneStatus } from './payment-milestone-status.enum';
@@ -7,8 +8,9 @@ export enum PaymentMilestoneType {
   // Added new status enum
 }
 
-interface PaymentMilestoneProps {
+export interface PaymentMilestoneProps {
   id: string;
+  bookingId: string;
   type: PaymentMilestoneType;
   amount: number;
   status: PaymentMilestoneStatus;
@@ -16,6 +18,9 @@ interface PaymentMilestoneProps {
   paidAt?: Date;
   resolvedAt?: Date;
   providerPaymentId?: string;
+  requiresManualPayment: boolean;
+  paymentIntentId?: string;
+ 
 }
 
 export class PaymentMilestone {
@@ -37,6 +42,10 @@ export class PaymentMilestone {
     }
   private props: PaymentMilestoneProps;
 
+  get paymentIntentId(): string | undefined {
+    return this.props.paymentIntentId;
+  }
+
   constructor(props: PaymentMilestoneProps) {
     this.props = props;
   }
@@ -47,6 +56,9 @@ export class PaymentMilestone {
 
   get amount(): number {
     return this.props.amount;
+  }
+   get bookingId(): string {
+    return this.props.bookingId;
   }
 
   isPaid(): boolean {
@@ -74,5 +86,17 @@ export class PaymentMilestone {
     }
     this.props.status = PaymentMilestoneStatus.FINALIZED;
     this.props.resolvedAt = finalizedAt;
+  }
+
+    canBePaid(): boolean {
+    return this.props.status === PaymentMilestoneStatus.PENDING;
+  }
+
+  requiresManualPayment(): boolean {
+    return this.props.requiresManualPayment;
+  }
+
+  markPaymentIntentCreated(paymentIntentId: string) {
+    this.props.paymentIntentId = paymentIntentId;
   }
 }

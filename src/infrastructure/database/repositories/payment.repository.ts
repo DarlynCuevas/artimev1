@@ -30,12 +30,15 @@ export class PaymentRepository {
         (row: any) =>
           new PaymentMilestone({
             id: row.id,
+            bookingId: row.booking_id,
             type: row.type,
             amount: row.amount,
             status: row.status,
             dueDate: row.due_date ? new Date(row.due_date) : undefined,
             paidAt: row.paid_at ? new Date(row.paid_at) : undefined,
             resolvedAt: row.resolved_at ? new Date(row.resolved_at) : undefined,
+            requiresManualPayment: row.requires_manual_payment,
+            paymentIntentId: row.payment_intent_id ?? undefined,
           }),
       );
     }
