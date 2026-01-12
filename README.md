@@ -1,3 +1,7 @@
+# Para cambiar el puerto del backend, usa la variable de entorno PORT. Por defecto es 3000.
+# Ejemplo:
+#
+#     PORT=3000 npm run start
 <p align="center">
   <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
 </p>

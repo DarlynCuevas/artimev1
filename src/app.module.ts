@@ -5,9 +5,10 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { DbSplitSummaryRepository } from './infrastructure/database/repositories/split-summary.repository';
 import { SPLIT_SUMMARY_REPOSITORY } from './modules/payments/split/split-summary.tokens';
+import { BookingsModule } from './modules/bookings/bookings.module';
 
 @Module({
-  imports: [PaymentsModule],
+  imports: [PaymentsModule, BookingsModule],
   controllers: [AppController],
   providers: [
     AppService,

@@ -95,7 +95,11 @@ export class ExecutePayoutUseCase {
       PayoutStatus.READY_TO_PAY,
     );
 
-    await this.payoutRepository.save(payout);
+    // Persistencia final — ÉXITO
+    await this.payoutRepository.markAsPaid({
+      payoutId: payout.id,
+      executedAt: new Date(),
+    });
 
     // Close booking
     booking.changeStatus(BookingStatus.COMPLETED);

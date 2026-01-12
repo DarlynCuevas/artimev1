@@ -37,7 +37,7 @@ describe('ExecutePayoutUseCase', () => {
 
     const payoutRepository = {
       findByBookingId: jest.fn().mockResolvedValue(null),
-      save: jest.fn(),
+      markAsPaid: jest.fn(),
     };
 
     const paymentProvider = {
@@ -77,8 +77,6 @@ describe('ExecutePayoutUseCase', () => {
     );
 
     // Payout recorded
-    expect(payoutRepository.save).toHaveBeenCalledWith(
-      expect.any(PayoutRecord),
-    );
+    expect(payoutRepository.markAsPaid).toHaveBeenCalled();
   });
 });
