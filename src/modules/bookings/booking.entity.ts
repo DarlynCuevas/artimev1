@@ -13,6 +13,9 @@ interface BookingProps {
   artistStripeAccountId: string;
   managerStripeAccountId?: string;
   currency: string;
+  artimeCommissionPercentage: number;
+  managerId?: string;
+  managerCommissionPercentage?: number;
 }
  
 export class Booking {
@@ -53,6 +56,18 @@ export class Booking {
 
    get currency(): string {
     return this.props.currency;
+  }
+
+  get artimeCommissionPercentage(): number {
+    return this.props.artimeCommissionPercentage;
+  }
+
+  get managerId(): string | undefined {
+    return this.props.managerId;
+  }
+
+  get managerCommissionPercentage(): number | undefined {
+    return this.props.managerCommissionPercentage;
   }
 
 
