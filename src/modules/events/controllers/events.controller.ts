@@ -50,7 +50,7 @@ async create(@Req() req: AuthenticatedRequest, @Body() dto: CreateEventDto) {
     await this.createEventUseCase.execute({
       name: dto.name,
       ownerId: userId,
-      startDate: new Date(dto.startDate),
+      start_date: new Date(dto.start_date),
       endDate: dto.endDate ? new Date(dto.endDate) : null,
       venueId: dto.venueId ?? null,
       type: dto.type ?? null,

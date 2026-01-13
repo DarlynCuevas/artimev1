@@ -9,7 +9,7 @@ export class EventMapper {
       name: event.name,
       status: event.status,
 
-      startDate: event.startDate,
+      start_date: event.start_date,
       endDate: event.endDate,
 
       venueId: event.venueId,

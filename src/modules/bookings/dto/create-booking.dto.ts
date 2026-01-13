@@ -5,4 +5,7 @@ export class CreateBookingDto {
 
   // 👇 opcional (viene de Event)
   eventId?: string;
+
+  // Fecha de inicio del evento (opcional)
+  start_date: string;
 }

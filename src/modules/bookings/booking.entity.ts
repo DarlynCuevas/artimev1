@@ -19,6 +19,7 @@ interface BookingProps {
   artistStripeAccountId?: string | null;
   managerStripeAccountId?: string | null;
   artimeCommissionPercentage?: number;
+  start_date: string;
 }
  
  
@@ -34,6 +35,10 @@ export class Booking {
 
   constructor(props: BookingProps) {
     this.props = props;
+  }
+
+  get start_date(): string {
+    return this.props.start_date;
   }
 
   //  Getters (lectura segura)

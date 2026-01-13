@@ -32,6 +32,7 @@ export class BookingsController {
       status: booking.status,
       currency: booking.currency,
       totalAmount: booking.totalAmount,
+      start_date: booking.start_date,
     };
   }
 
@@ -50,6 +51,7 @@ async getMyBookings(
     status: booking.status,
     currency: booking.currency,
     totalAmount: booking.totalAmount,
+    start_date: booking.start_date,
   }));
 }
 
@@ -67,6 +69,7 @@ async getMyBookings(
       eventId: dto.eventId,
       currency: dto.currency,
       totalAmount: dto.totalAmount,
+      start_date: dto.start_date,
     });
 
     return {
@@ -77,6 +80,7 @@ async getMyBookings(
       status: booking.status,
       currency: booking.currency,
       totalAmount: booking.totalAmount,
+      start_date: booking.start_date,
     };
   }
 }

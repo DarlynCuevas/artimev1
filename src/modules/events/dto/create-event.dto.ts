@@ -6,7 +6,7 @@ export class CreateEventDto {
   name: string;
 
   @IsDateString()
-  startDate: string;
+  start_date: string;
 
   @IsOptional()
   @IsDateString()

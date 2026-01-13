@@ -9,7 +9,7 @@ export interface UpdateEventCommand {
   requesterId: string;
 
   name?: string;
-  startDate?: Date;
+  start_date?: Date;
   endDate?: Date | null;
 
   venueId?: string | null;
@@ -43,8 +43,8 @@ export class UpdateEventUseCase {
       event.name = command.name;
     }
 
-    if (command.startDate !== undefined) {
-      event.startDate = command.startDate;
+    if (command.start_date !== undefined) {
+      event.start_date = command.start_date;
     }
 
     if (command.endDate !== undefined) {

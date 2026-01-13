@@ -17,7 +17,7 @@ export class SupabaseEventRepository implements EventRepository {
       owner_id: event.ownerId,
       status: event.status,
 
-      start_date: event.startDate,
+      start_date: event.start_date,
       end_date: event.endDate,
 
       venue_id: event.venueId,
@@ -42,7 +42,7 @@ export class SupabaseEventRepository implements EventRepository {
         name: event.name,
         status: event.status,
 
-        start_date: event.startDate,
+        start_date: event.start_date,
         end_date: event.endDate,
 
         venue_id: event.venueId,

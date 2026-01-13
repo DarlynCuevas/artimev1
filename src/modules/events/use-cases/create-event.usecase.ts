@@ -10,7 +10,7 @@ export interface CreateEventCommand {
   name: string;
   ownerId: string;
 
-  startDate: Date;
+  start_date: Date;
   endDate?: Date | null;
 
   venueId?: string | null;
@@ -39,7 +39,7 @@ export class CreateEventUseCase {
       EventStatus.DRAFT,
 
       // Marco temporal
-      command.startDate,
+      command.start_date,
       command.endDate ?? null,
 
       // Contexto opcional

@@ -14,7 +14,7 @@ export class Event {
     public status: EventStatus,
 
     // Marco temporal
-    public startDate: Date,
+    public start_date: Date,
     public endDate: Date | null,
 
     // Contexto opcional

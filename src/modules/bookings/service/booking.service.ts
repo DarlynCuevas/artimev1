@@ -49,6 +49,7 @@ export class BookingService {
   /**
    * Crea un nuevo booking (flujo oficial)
    */
+
   async createBooking(params: {
     artistId: string;
     venueId: string;
@@ -56,6 +57,7 @@ export class BookingService {
     eventId?: string;
     currency: string;
     totalAmount: number;
+    start_date: string;
   }): Promise<Booking> {
     const booking = new Booking({
       id: randomUUID(),
@@ -69,11 +71,11 @@ export class BookingService {
       currency: params.currency,
       totalAmount: params.totalAmount,
       createdAt: new Date(),
-
+      start_date: params.start_date,
     });
 
     await this.bookingRepository.save(booking);
-
+ 
     return booking;
   }
 

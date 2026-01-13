@@ -26,11 +26,11 @@ export class SupabaseBookingRepository  {
       artistStripeAccountId: data.artist_stripe_account_id,
       managerStripeAccountId: data.manager_stripe_account_id,
       currency: data.currency,
-
+      start_date: data.start_date,
       artimeCommissionPercentage: data.artime_commission_percentage,
       managerId: data.manager_id,
       managerCommissionPercentage: data.manager_commission_percentage,
-       totalAmount: data.total_amount
+      totalAmount: data.total_amount
     });
   }
 
@@ -40,10 +40,27 @@ export class SupabaseBookingRepository  {
       artist_id: booking.artistId,
       venue_id: booking.venueId,
       promoter_id: booking.promoterId,
+      event_id: booking.eventId,
+      start_date: booking.start_date,
       status: booking.status,
+
+      currency: booking.currency,
+      total_amount: booking.totalAmount,
+ 
+      artist_stripe_account_id: booking.artistStripeAccountId,
+      manager_stripe_account_id: booking.managerStripeAccountId,
+      artime_commission_percentage: booking.artimeCommissionPercentage,
+
+      created_at: booking.createdAt,
     };
 
-    await supabase.from('bookings').insert(persistence);
+    const { error } = await supabase
+      .from('bookings')
+      .insert(persistence);
+
+    if (error) {
+      throw new Error(`Error saving booking: ${error.message}`);
+    }
   }
 
   async update(booking: Booking): Promise<void> {
