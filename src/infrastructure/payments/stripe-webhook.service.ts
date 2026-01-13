@@ -12,7 +12,7 @@ import { PaymentMilestoneStatus } from '../../modules/payments/payment-milestone
 import { PAYMENT_MILESTONE_REPOSITORY } from '../../modules/payments/payment-milestone-repository.token';
 import type { PaymentMilestoneRepository } from '../../modules/payments/payment-milestone.repository.interface';
 import { BOOKING_REPOSITORY } from '../../modules/bookings/repositories/booking-repository.token';
-import type { BookingRepository } from '../../infrastructure/database/repositories/booking.repository';
+import type { SupabaseBookingRepository } from '../database/repositories/SupabaseBookingRepository ';
 import { BookingStatus } from '../../modules/bookings/booking-status.enum';
 
 @Injectable()
@@ -23,7 +23,7 @@ export class StripeWebhookService {
     @Inject(PAYMENT_MILESTONE_REPOSITORY)
     private readonly milestoneRepository: PaymentMilestoneRepository,
     @Inject(BOOKING_REPOSITORY)
-    private readonly bookingRepository: BookingRepository,
+    private readonly supabaseBookingRepository: SupabaseBookingRepository,
   ) {}
 
   async handleWebhook(
@@ -113,7 +113,7 @@ export class StripeWebhookService {
     console.log('[Webhook] milestone actualizado en BD');
 
     // 3️ Recalculate booking status
-    const booking = await this.bookingRepository.findById(bookingId);
+    const booking = await this.supabaseBookingRepository.findById(bookingId);
     console.log('[Webhook] booking:', booking);
 
     if (!booking) {
@@ -137,7 +137,7 @@ export class StripeWebhookService {
       console.log('[Webhook] booking marcado como PAID_PARTIAL');
     }
 
-    await this.bookingRepository.update(booking);
+    await this.supabaseBookingRepository.update(booking);
     console.log('[Webhook] booking actualizado en BD');
   }
 

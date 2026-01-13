@@ -5,17 +5,17 @@ import {
   Contract,
   ContractStatus,
 } from '../contract.entity';
-import { BookingRepository } from '../../../infrastructure/database/repositories/booking.repository';
+import { SupabaseBookingRepository } from '../../../infrastructure/database/repositories/SupabaseBookingRepository ';
 import { ContractRepository } from '../../../infrastructure/database/repositories/contract.repository';
 
 export class GenerateContractUseCase {
   constructor(
-    private readonly bookingRepository: BookingRepository,
+    private readonly supabaseBookingRepository: SupabaseBookingRepository,
     private readonly contractRepository: ContractRepository,
   ) {}
 
   async execute(bookingId: string): Promise<void> {
-    const booking = await this.bookingRepository.findById(bookingId);
+    const booking = await this.supabaseBookingRepository.findById(bookingId);
 
     if (!booking) {
       throw new Error('Booking not found');

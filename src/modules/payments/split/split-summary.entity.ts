@@ -4,6 +4,7 @@ export interface SplitSummaryProps {
   artimeCommission: number;
   managerInvolved: boolean;
   managerCommission?: number;
+   grossAmount: number; 
   paymentCosts: number;
   artistNetAmount: number;
   totalPayable: number;
@@ -56,5 +57,9 @@ export class SplitSummary {
 
   get frozenAt() {
     return this.props.frozenAt;
+  }
+
+  get grossAmount() {
+    return this.props.grossAmount;
   }
 }

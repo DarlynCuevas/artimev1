@@ -1,4 +1,4 @@
-import { BookingRepository } from '../../../infrastructure/database/repositories/booking.repository';
+import { SupabaseBookingRepository } from '../../../infrastructure/database/repositories/SupabaseBookingRepository ';
 import { PaymentRepository } from '../../../infrastructure/database/repositories/payment.repository';
 import { PaymentProvider } from '../providers/payment-provider.interface';
 import { BookingStatus } from '../../bookings/booking-status.enum';
@@ -7,13 +7,13 @@ import { PaymentMilestoneStatus } from '../payment-milestone-status.enum';
 
 export class RefundAdvanceUseCase {
   constructor(
-    private readonly bookingRepository: BookingRepository,
+    private readonly supabaseBookingRepository: SupabaseBookingRepository,
     private readonly paymentRepository: PaymentRepository,
     private readonly paymentProvider: PaymentProvider,
   ) {}
 
   async execute(bookingId: string): Promise<void> {
-    const booking = await this.bookingRepository.findById(bookingId);
+    const booking = await this.supabaseBookingRepository.findById(bookingId);
 
     if (!booking || booking.status !== BookingStatus.CANCELLED) {
       throw new Error('Booking is not eligible for refund');

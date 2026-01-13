@@ -8,24 +8,26 @@ interface BookingProps {
   id: string;
   artistId: string;
   venueId?: string;
-  promoterId?: string;
+  promoterId: string | null;
   status: BookingStatus;
   createdAt: Date;
-  artistStripeAccountId: string;
-  managerStripeAccountId?: string;
   currency: string;
-  artimeCommissionPercentage: number;
   managerId?: string;
   managerCommissionPercentage?: number;
   totalAmount: number;
+  eventId?: string | null;
+  artistStripeAccountId?: string | null;
+  managerStripeAccountId?: string | null;
+  artimeCommissionPercentage?: number;
 }
  
+ 
 export class Booking {
-    get artistStripeAccountId(): string {
+    get artistStripeAccountId(): string | null | undefined {
       return this.props.artistStripeAccountId;
     }
 
-    get managerStripeAccountId(): string | undefined {
+    get managerStripeAccountId(): string | null | undefined {
       return this.props.managerStripeAccountId;
     }
   private props: BookingProps;
@@ -48,8 +50,8 @@ export class Booking {
   get venueId(): string | undefined {
     return this.props.venueId;
   }
-  get promoterId(): string | undefined {
-    return this.props.promoterId;
+  get promoterId(): string | null |undefined{
+    return this.props.promoterId;;
   }
 
   get createdAt(): Date {
@@ -60,7 +62,7 @@ export class Booking {
     return this.props.currency;
   }
 
-  get artimeCommissionPercentage(): number {
+  get artimeCommissionPercentage(): number | undefined {
     return this.props.artimeCommissionPercentage;
   }
 
@@ -74,6 +76,11 @@ export class Booking {
 
     get totalAmount(): number {
     return this.props.totalAmount;
+  }
+
+   // 👇 NUEVO Getter (opcional)
+  get eventId(): string | null | undefined {
+    return this.props.eventId;
   }
 
 

@@ -1,11 +1,11 @@
-import { BookingRepository } from '../../../infrastructure/database/repositories/booking.repository';
+import { SupabaseBookingRepository } from '../../../infrastructure/database/repositories/SupabaseBookingRepository ';
 import { PaymentRepository } from '../../../infrastructure/database/repositories/payment.repository';
 import { BookingStatus } from '../../bookings/booking-status.enum';
 import { PaymentMilestoneType } from '../payment-milestone.entity';
 
 export class ConfirmAdvancePaymentUseCase {
   constructor(
-    private readonly bookingRepository: BookingRepository,
+    private readonly supabaseBookingRepository: SupabaseBookingRepository,
     private readonly paymentRepository: PaymentRepository,
   ) {}
 
@@ -13,7 +13,7 @@ export class ConfirmAdvancePaymentUseCase {
     bookingId: string;
     providerPaymentId: string;
   }): Promise<void> {
-    const booking = await this.bookingRepository.findById(input.bookingId);
+    const booking = await this.supabaseBookingRepository.findById(input.bookingId);
 
     if (!booking || booking.status !== BookingStatus.CONTRACT_SIGNED) {
       throw new Error('Booking not eligible for confirmation');
@@ -41,6 +41,6 @@ export class ConfirmAdvancePaymentUseCase {
     await this.paymentRepository.updateMilestone(advance);
 
     booking.changeStatus(BookingStatus.PAID_PARTIAL);
-    await this.bookingRepository.update(booking);
+    await this.supabaseBookingRepository.update(booking);
   }
 }

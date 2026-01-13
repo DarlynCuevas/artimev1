@@ -1,18 +1,18 @@
-import { BookingRepository } from '../../../../infrastructure/database/repositories/booking.repository';
+import { SupabaseBookingRepository } from '../../../../infrastructure/database/repositories/SupabaseBookingRepository ';
 import { CancellationRepository } from '../../../../infrastructure/database/repositories/cancellation.repository';
 import { BookingStatus } from '../../booking-status.enum';
 import { CancellationReviewStatus } from '../../cancellations/cancellation-review-status.enum';
 
 export class RejectCancellationUseCase {
   constructor(
-    private readonly bookingRepository: BookingRepository,
+    private readonly supabaseBookingRepository: SupabaseBookingRepository,
     private readonly cancellationRepository: CancellationRepository,
   ) {}
 
   async execute(input: {
     bookingId: string;
   }): Promise<{ bookingStatus: BookingStatus }> {
-    const booking = await this.bookingRepository.findById(input.bookingId);
+    const booking = await this.supabaseBookingRepository.findById(input.bookingId);
 
     if (!booking) {
       throw new Error('Booking not found');
@@ -39,7 +39,7 @@ export class RejectCancellationUseCase {
     );
 
     booking.changeStatus(BookingStatus.CANCELLED);
-    await this.bookingRepository.update(booking);
+    await this.supabaseBookingRepository.update(booking);
 
     return { bookingStatus: BookingStatus.CANCELLED };
   }

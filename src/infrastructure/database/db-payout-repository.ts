@@ -7,7 +7,7 @@ import { PayoutRepository } from 'src/modules/payments/repositories/payout.repos
 
 @Injectable()
 export class DbPayoutRepository implements PayoutRepository {
-  constructor(private readonly supabase: SupabaseClient) {}
+  constructor(private readonly supabase: SupabaseClient) { }
 
   async findByBookingId(bookingId: string): Promise<Payout | null> {
     const { data, error } = await this.supabase
@@ -65,4 +65,49 @@ export class DbPayoutRepository implements PayoutRepository {
       row.paid_at ? new Date(row.paid_at) : null,
     );
   }
+  async findByArtistId(artistId: string): Promise<Payout[]> {
+    const { data, error } = await this.supabase
+      .from('payouts')
+      .select('*')
+      .eq('artist_id', artistId)
+      .order('created_at', { ascending: false });
+      console.log('dataaaaaa', data);
+      
+
+    if (error || !data) {
+      return [];
+    }
+
+    return data.map(row => this.mapToEntity(row));
+  }
+
+  async findByManagerId(managerId: string): Promise<Payout[]> {
+    const { data, error } = await this.supabase
+      .from('payouts')
+      .select('*')
+      .eq('manager_id', managerId)
+      .order('created_at', { ascending: false });
+
+    if (error || !data) {
+      return [];
+    }
+
+    return data.map(row => this.mapToEntity(row));
+  }
+
+  async findById(payoutId: string): Promise<Payout | null> {
+    const { data, error } = await this.supabase
+      .from('payouts')
+      .select('*')
+      .eq('id', payoutId)
+      .single();
+
+    if (error || !data) {
+      return null;
+    }
+
+    return this.mapToEntity(data);
+  }
+
+
 }

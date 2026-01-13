@@ -4,7 +4,7 @@ import { supabase } from '../supabase.client';
 import { Booking } from '../../../modules/bookings/booking.entity';
 import { BookingStatus } from '../../../modules/bookings/booking-status.enum';
 
-export class BookingRepository {
+export class SupabaseBookingRepository  {
   async findById(id: string): Promise<Booking | null> {
     const { data, error } = await supabase
       .from('bookings')

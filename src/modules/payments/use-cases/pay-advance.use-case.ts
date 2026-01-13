@@ -3,17 +3,17 @@
 
 import { BookingStatus } from '../../bookings/booking-status.enum';
 import { PaymentMilestoneType } from '../payment-milestone.entity';
-import { BookingRepository } from '../../../infrastructure/database/repositories/booking.repository';
+import { SupabaseBookingRepository } from '../../../infrastructure/database/repositories/SupabaseBookingRepository ';
 import { PaymentRepository } from '../../../infrastructure/database/repositories/payment.repository';
 
 export class PayAdvanceUseCase {
   constructor(
-    private readonly bookingRepository: BookingRepository,
+    private readonly supabaseBookingRepository: SupabaseBookingRepository,
     private readonly paymentRepository: PaymentRepository,
   ) {}
 
   async execute(bookingId: string): Promise<void> {
-    const booking = await this.bookingRepository.findById(bookingId);
+    const booking = await this.supabaseBookingRepository.findById(bookingId);
 
     if (!booking) {
       throw new Error('Booking not found');
@@ -45,6 +45,6 @@ export class PayAdvanceUseCase {
     await this.paymentRepository.updateMilestone(advance);
 
     booking.changeStatus(BookingStatus.PAID_PARTIAL);
-    await this.bookingRepository.update(booking);
+    await this.supabaseBookingRepository.update(booking);
   }
 }

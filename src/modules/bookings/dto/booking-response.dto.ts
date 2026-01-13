@@ -6,4 +6,5 @@ export class BookingResponseDto {
   status: string;
   currency: string;
   totalAmount: number;
+  eventId?: string;
 }

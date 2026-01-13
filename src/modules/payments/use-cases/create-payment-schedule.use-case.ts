@@ -2,7 +2,7 @@
 
 
 import { BookingStatus } from '../../bookings/booking-status.enum';
-import { BookingRepository } from '../../../infrastructure/database/repositories/booking.repository';
+import { SupabaseBookingRepository } from '../../../infrastructure/database/repositories/SupabaseBookingRepository ';
 import { PaymentRepository } from '../../../infrastructure/database/repositories/payment.repository';
 import { PaymentSchedule } from '../payment-schedule.entity';
 import {
@@ -14,7 +14,7 @@ import { PaymentMilestoneStatus } from '../payment-milestone-status.enum';
 
 export class CreatePaymentScheduleUseCase {
   constructor(
-    private readonly bookingRepository: BookingRepository,
+    private readonly supabaseBookingRepository: SupabaseBookingRepository,
     private readonly paymentRepository: PaymentRepository,
   ) {}
 
@@ -25,7 +25,7 @@ export class CreatePaymentScheduleUseCase {
     advanceAmount: number;
     finalPaymentDueDate?: Date;
   }): Promise<void> {
-    const booking = await this.bookingRepository.findById(input.bookingId);
+    const booking = await this.supabaseBookingRepository.findById(input.bookingId);
 
     if (!booking) {
       throw new Error('Booking not found');

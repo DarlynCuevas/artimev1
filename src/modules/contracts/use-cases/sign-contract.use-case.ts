@@ -3,17 +3,17 @@
 
 import { BookingStatus } from '../../bookings/booking-status.enum';
 import { ContractStatus } from '../contract.entity';
-import { BookingRepository } from '../../../infrastructure/database/repositories/booking.repository';
+import { SupabaseBookingRepository } from '../../../infrastructure/database/repositories/SupabaseBookingRepository ';
 import { ContractRepository } from '../../../infrastructure/database/repositories/contract.repository';
 
 export class SignContractUseCase {
   constructor(
-    private readonly bookingRepository: BookingRepository,
+    private readonly supabaseBookingRepository: SupabaseBookingRepository,
     private readonly contractRepository: ContractRepository,
   ) {}
 
   async execute(bookingId: string): Promise<void> {
-    const booking = await this.bookingRepository.findById(bookingId);
+    const booking = await this.supabaseBookingRepository.findById(bookingId);
     if (!booking) {
       throw new Error('Booking not found');
     }
@@ -31,6 +31,6 @@ export class SignContractUseCase {
     await this.contractRepository.update(contract);
 
     booking.changeStatus(BookingStatus.CONTRACT_SIGNED);
-    await this.bookingRepository.update(booking);
+    await this.supabaseBookingRepository.update(booking);
   }
 }

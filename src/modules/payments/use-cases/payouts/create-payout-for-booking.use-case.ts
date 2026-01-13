@@ -6,7 +6,10 @@ import { SplitCalculator } from '../../split/split-calculator.service';
 import { BOOKING_REPOSITORY } from 'src/modules/bookings/repositories/booking-repository.token';
 import type { BookingRepository } from 'src/modules/bookings/repositories/booking.repository.interface';
 import { BookingStatus } from 'src/modules/bookings/booking-status.enum';
-
+const eligibleStatuses = [
+    BookingStatus.COMPLETED,
+    BookingStatus.PAID_FULL,
+];
 @Injectable()
 export class CreatePayoutForBookingUseCase {
     constructor(
@@ -17,26 +20,37 @@ export class CreatePayoutForBookingUseCase {
         private readonly splitCalculator: SplitCalculator,
     ) { }
 
-    async execute(input: { bookingId: string }): Promise<Payout> {
-        const booking = await this.bookingRepository.findById(input.bookingId);
 
-        if (!booking || booking.status !== BookingStatus.COMPLETED) {
+    async execute(input: { bookingId: string }): Promise<Payout> {
+        console.log('BOOKING ID RECEIVED →', input.bookingId);
+
+const booking = await this.bookingRepository.findById(input.bookingId);
+
+console.log('BOOKING FOUND →', booking);
+       
+
+
+
+        if (!booking) {
+            throw new Error('Booking not found');
+        }
+
+        const eligibleStatuses = [
+            BookingStatus.COMPLETED,
+            BookingStatus.PAID_FULL,
+        ];
+
+        if (!eligibleStatuses.includes(booking.status)) {
             throw new Error('Booking not eligible for payout');
         }
 
-        const existingPayout =
-            await this.payoutRepository.findByBookingId(booking.id);
-
-        if (existingPayout) {
-            return existingPayout;
-        }
 
         const split = this.splitCalculator.calculateForPayout({
             bookingId: booking.id,
             totalAmount: booking.totalAmount,
-            artimeCommissionPercentage: booking.artimeCommissionPercentage,
+            artimeCommissionPercentage: booking.artimeCommissionPercentage ?? 0,
             managerId: booking.managerId,
-            managerCommissionPercentage: booking.managerCommissionPercentage,
+            managerCommissionPercentage: booking.managerCommissionPercentage ?? 0,
             currency: booking.currency,
         });
 
