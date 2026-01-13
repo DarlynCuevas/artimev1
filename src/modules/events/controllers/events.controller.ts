@@ -28,6 +28,7 @@ import { CreateEventDto } from '../dto/create-event.dto';
 import type { AuthenticatedRequest } from 'src/shared/authenticated-request';
 import { EventStatus } from '../enums/event-status.enum';
 import { GetEventInterestedArtistsQuery } from '../queries/get-event-interested-artists.query';
+import { GetEventBookingsQuery } from '../queries/get-event-bookings.query';
 @Controller('events')
 @UseGuards(JwtAuthGuard)
 export class EventsController {
@@ -41,6 +42,7 @@ export class EventsController {
     private readonly getEventsQuery: GetEventsQuery,
     private readonly getEventDetailQuery: GetEventDetailQuery,
     private readonly getEventInterestedArtistsQuery: GetEventInterestedArtistsQuery,
+     private readonly getEventBookingsQuery: GetEventBookingsQuery
   ) {}
 
   @Post()
@@ -72,6 +74,8 @@ async create(@Req() req: AuthenticatedRequest, @Body() dto: CreateEventDto) {
 
     return this.getEventDetailQuery.execute(id, userId);
   }
+
+
 
   @Patch(':id')
   async update(
@@ -135,5 +139,12 @@ async interestedArtists(
   return this.getEventInterestedArtistsQuery.execute(id);
 }
 
+//Obtener Bookings de un Evento
+@Get(':id/bookings')
+  async getEventBookings(
+    @Req() req: AuthenticatedRequest,
+    @Param('id') id: string) {
+    return this.getEventBookingsQuery.execute(id);
+  }
 
 }

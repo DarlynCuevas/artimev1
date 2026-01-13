@@ -8,9 +8,10 @@ import { DbSplitSummaryRepository } from './infrastructure/database/repositories
 import { SPLIT_SUMMARY_REPOSITORY } from './modules/payments/split/split-summary.tokens';
 import { BookingsModule } from './modules/bookings/bookings.module';
 import { EventsModule } from './modules/events/events.module';
+import { ArtistsModule } from './modules/artists/artists.module';
 
 @Module({
-  imports: [AuthModule, PaymentsModule, BookingsModule, EventsModule],
+  imports: [AuthModule, PaymentsModule, BookingsModule, EventsModule, ArtistsModule],
   controllers: [AppController],
   providers: [
     AppService,

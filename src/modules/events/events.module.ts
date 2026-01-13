@@ -19,6 +19,7 @@ import { AcceptInvitationUseCase } from './use-cases/accept-invitation.usecase';
 import { DeclineInvitationUseCase } from './use-cases/decline-invitation.usecase';
 import { SupabaseEventInvitationRepository } from 'src/infrastructure/database/repositories/event-invitation.supabase.repository';
 import { GetEventInterestedArtistsQuery } from './queries/get-event-interested-artists.query';
+import { GetEventBookingsQuery } from './queries/get-event-bookings.query';
 
 import { SupabaseClient } from '@supabase/supabase-js';
 import { supabase } from 'src/infrastructure/database/supabase.client';
@@ -46,6 +47,7 @@ import { supabase } from 'src/infrastructure/database/supabase.client';
         AcceptInvitationUseCase,
         DeclineInvitationUseCase,
         GetEventInterestedArtistsQuery,
+        GetEventBookingsQuery,
         {
             provide: EVENT_REPOSITORY,
             useClass: SupabaseEventRepository,
