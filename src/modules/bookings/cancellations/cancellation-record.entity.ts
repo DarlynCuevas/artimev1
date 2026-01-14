@@ -6,6 +6,10 @@ import { BookingStatus } from '../booking-status.enum';
 interface CancellationRecordProps {
   id: string;
   bookingId: string;
+  /**
+   * Reservado para v2/admin. No usar en ARTIME v1.
+   */
+  initiated_by?: string;
   initiator: CancellationInitiator;
   reason: CancellationReason;
   description?: string;
@@ -32,6 +36,13 @@ export class CancellationRecord {
 
   get initiator() {
     return this.props.initiator;
+  }
+
+  /**
+   * Reservado para v2/admin. No usar en ARTIME v1.
+   */
+  get initiatedBy() {
+    return this.props.initiated_by;
   }
 
   get reason() {

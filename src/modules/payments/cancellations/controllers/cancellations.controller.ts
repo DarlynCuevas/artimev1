@@ -1,5 +1,6 @@
 import { Controller, Post, Param, Body } from '@nestjs/common';
 import { CancelBookingUseCase } from '../use-cases/cancel-booking.use-case';
+import { CancellationInitiator } from 'src/modules/bookings/cancellations/cancellation-initiator.enum';
 
 @Controller('internal/cancellations')
 export class CancellationsController {
@@ -16,13 +17,13 @@ export class CancellationsController {
     @Param('bookingId') bookingId: string,
     @Body()
     body: {
-      initiatedBy: 'ARTIST' | 'VENUE' | 'SYSTEM';
+      initiator: CancellationInitiator;
       reason?: string;
     },
   ) {
     await this.cancelBookingUseCase.execute({
       bookingId,
-      initiatedBy: body.initiatedBy,
+      initiator: body.initiator,
       reason: body.reason,
     });
 

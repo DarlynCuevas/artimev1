@@ -1,4 +1,6 @@
 import { SupabaseClient } from '@supabase/supabase-js';
+import { Inject } from '@nestjs/common';
+import { SUPABASE_CLIENT } from '../supabase.module';
 import { Injectable } from '@nestjs/common';
 import { CancellationRepository } from '../../../modules/payments/cancellations/cancellation.repository';
 import { CancellationRecord } from '../../../modules/payments/cancellations/cancellation-record.entity';
@@ -6,7 +8,10 @@ import { CancellationStatus } from '../../../modules/payments/cancellations/canc
 
 @Injectable()
 export class DbCancellationRepository implements CancellationRepository {
-  constructor(private readonly supabase: SupabaseClient) {}
+  constructor(
+    @Inject(SUPABASE_CLIENT)
+    private readonly supabase: SupabaseClient,
+  ) { }
 
   async findByBookingId(
     bookingId: string,
@@ -22,7 +27,7 @@ export class DbCancellationRepository implements CancellationRepository {
     return new CancellationRecord(
       data.id,
       data.booking_id,
-      data.initiated_by,
+      data.initiator,
       data.reason,
       data.status as CancellationStatus,
       new Date(data.created_at),
@@ -31,12 +36,26 @@ export class DbCancellationRepository implements CancellationRepository {
   }
 
   async save(record: CancellationRecord): Promise<void> {
-    await this.supabase.from('cancellation_records').insert({
+    const payload = {
       id: record.id,
       booking_id: record.bookingId,
-      initiated_by: record.initiatedBy,
+      initiator: record.initiator,
+      initiated_by: record.initiator,
       reason: record.reason,
-      status: record.status,
-    });
+      description: record.description ?? null,
+      previous_status: record.previousStatus,
+      resulting_status: record.resultingStatus,
+      review_status: record.reviewStatus,
+      status: record.resultingStatus,
+      created_at: record.createdAt,
+    };
+
+    const { error } = await this.supabase
+      .from('cancellation_records')
+      .insert(payload);
+
+    if (error) {
+      throw new Error(`Error saving cancellation record: ${error.message}`);
+    }
   }
 }

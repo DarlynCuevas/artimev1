@@ -6,6 +6,7 @@ import { BookingStatus } from 'src/modules/bookings/booking-status.enum';
 import { CANCELLATION_REPOSITORY } from '../cancellation.repository.token';
 import type { CancellationRepository } from '../cancellation.repository';
 import { CancellationRecord } from '../cancellation-record.entity';
+import { CancellationInitiator } from 'src/modules/bookings/cancellations/cancellation-initiator.enum';
 
 @Injectable()
 export class CancelBookingUseCase {
@@ -18,8 +19,9 @@ export class CancelBookingUseCase {
 
   async execute(input: {
     bookingId: string;
-    initiatedBy: 'ARTIST' | 'VENUE' | 'SYSTEM';
+    initiator: CancellationInitiator;
     reason?: string;
+    description?: string;
   }): Promise<void> {
     const booking = await this.bookingRepository.findById(input.bookingId);
 
@@ -34,8 +36,9 @@ export class CancelBookingUseCase {
     const record = CancellationRecord.create({
       id: randomUUID(),
       bookingId: booking.id,
-      initiatedBy: input.initiatedBy,
+      initiator: input.initiator,
       reason: input.reason,
+      
     });
 
     await this.cancellationRepository.save(record);

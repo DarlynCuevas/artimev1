@@ -1,5 +1,6 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Inject } from '@nestjs/common';
 import { SupabaseClient } from '@supabase/supabase-js';
+import { SUPABASE_CLIENT } from './supabase.module';
 
 import { Payout, PayoutStatus } from '../../modules/payments/entities/payout.entity';
 import { PayoutRepository } from 'src/modules/payments/repositories/payout.repository';
@@ -7,7 +8,10 @@ import { PayoutRepository } from 'src/modules/payments/repositories/payout.repos
 
 @Injectable()
 export class DbPayoutRepository implements PayoutRepository {
-  constructor(private readonly supabase: SupabaseClient) { }
+  constructor(
+    @Inject(SUPABASE_CLIENT)
+    private readonly supabase: SupabaseClient,
+  ) {}
 
   async findByBookingId(bookingId: string): Promise<Payout | null> {
     const { data, error } = await this.supabase

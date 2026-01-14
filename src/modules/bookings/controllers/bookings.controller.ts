@@ -5,11 +5,14 @@ import { BookingService } from '../service/booking.service';
 import type { AuthenticatedRequest } from 'src/shared/authenticated-request';
 import { CreateBookingDto } from '../dto/create-booking.dto';
 import { JwtAuthGuard } from 'src/modules/auth/jwt-auth.guard';
+import { CancelBookingDto } from '../dto/cancel-booking.dto';
+import { CancellationInitiator } from '../cancellations/cancellation-initiator.enum';
+import { CancelBookingUseCase } from '../cancellations/use-cases/cancel-booking.use-case';
 
 @Controller('bookings')
 export class BookingsController {
   constructor(
-    private readonly bookingService: BookingService
+    private readonly bookingService: BookingService,private readonly cancelBookingUseCase: CancelBookingUseCase,
   ) { }
 
   @UseGuards(JwtAuthGuard)
@@ -37,23 +40,23 @@ export class BookingsController {
   }
 
   @UseGuards(JwtAuthGuard)
-@Get()
-async getMyBookings(
-  @Req() req: AuthenticatedRequest,
-): Promise<BookingResponseDto[]> {
-  const bookings = await this.bookingService.getForUser(req.user);
+  @Get()
+  async getMyBookings(
+    @Req() req: AuthenticatedRequest,
+  ): Promise<BookingResponseDto[]> {
+    const bookings = await this.bookingService.getForUser(req.user);
 
-  return bookings.map((booking) => ({
-    id: booking.id,
-    artistId: booking.artistId,
-    venueId: booking.venueId ?? '',
-    promoterId: booking.promoterId ?? null,
-    status: booking.status,
-    currency: booking.currency,
-    totalAmount: booking.totalAmount,
-    start_date: booking.start_date,
-  }));
-}
+    return bookings.map((booking) => ({
+      id: booking.id,
+      artistId: booking.artistId,
+      venueId: booking.venueId ?? '',
+      promoterId: booking.promoterId ?? null,
+      status: booking.status,
+      currency: booking.currency,
+      totalAmount: booking.totalAmount,
+      start_date: booking.start_date,
+    }));
+  }
 
 
 
@@ -83,4 +86,39 @@ async getMyBookings(
       start_date: booking.start_date,
     };
   }
+
+  //CANCELACIONES
+  @UseGuards(JwtAuthGuard)
+@Post(':id/cancel')
+async cancelBooking(
+  @Param('id') bookingId: string,
+  @Body() body: CancelBookingDto,
+  @Req() req: AuthenticatedRequest,
+) {
+  const user = req.user;
+
+  let initiator: CancellationInitiator;
+
+  switch (user.role) {
+    case 'ARTIST':
+      initiator = CancellationInitiator.ARTIST;
+      break;
+    case 'VENUE':
+      initiator = CancellationInitiator.VENUE;
+      break;
+    case 'PROMOTER':
+      initiator = CancellationInitiator.PROMOTER;
+      break;
+    default:
+      initiator = CancellationInitiator.SYSTEM;
+  } 
+
+  return this.cancelBookingUseCase.execute({
+    bookingId,
+    initiator: CancellationInitiator[initiator],
+    reason: body.reason,
+    description: body.description,
+  });
+}
+
 }

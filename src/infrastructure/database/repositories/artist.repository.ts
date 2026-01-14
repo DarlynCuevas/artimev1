@@ -3,7 +3,7 @@ import { Injectable } from '@nestjs/common';
 import type { ArtistRepository } from '../../../modules/artists/repositories/artist.repository.interface';
 import { Artist } from '../../../modules/artists/entities/artist.entity';
 import { StripeOnboardingStatus } from '../../../modules/payments/stripe/stripe-onboarding-status.enum';
-import { supabase } from '../supabase';
+import { supabase } from '../supabase.client';
 
 @Injectable()
 export class DbArtistRepository implements ArtistRepository {

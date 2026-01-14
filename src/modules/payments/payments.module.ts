@@ -27,8 +27,7 @@ import { SupabaseBookingRepository } from '../../infrastructure/database/reposit
 import { DbSplitSummaryRepository } from '../../infrastructure/database/repositories/split-summary.repository';
 import { StripePaymentProvider } from '../../infrastructure/payments/stripe-payment.provider';
 import { DbPayoutRepository } from '../../infrastructure/database/db-payout-repository';
-import { SupabaseClient } from '@supabase/supabase-js';
-import { supabase } from '../../infrastructure/database/supabase.client';
+import { SupabaseModule } from '../../infrastructure/database/supabase.module';
 import { CANCELLATION_REPOSITORY } from './cancellations/cancellation.repository.token';
 import { DbCancellationRepository } from 'src/infrastructure/database/repositories/db-cancellation.repository';
 import { CancelBookingUseCase } from './cancellations/use-cases/cancel-booking.use-case';
@@ -39,7 +38,7 @@ import { PayoutsQueryService } from './payouts/queries/payouts-query.service';
 import { BookingsModule } from '../bookings/bookings.module';
 
 @Module({
-  imports: [BookingsModule],
+  imports: [BookingsModule, SupabaseModule],
   controllers: [StripeOnboardingController, StripeWebhookController, PaymentsController, PayoutsController, CancellationsController],
   providers: [
     CreateStripeAccountUseCase,
@@ -71,10 +70,6 @@ import { BookingsModule } from '../bookings/bookings.module';
     {
       provide: PAYMENT_PROVIDER,
       useClass: StripePaymentProvider,
-    },
-    {
-      provide: SupabaseClient,
-      useValue: supabase,
     },
     {
       provide: CANCELLATION_REPOSITORY,

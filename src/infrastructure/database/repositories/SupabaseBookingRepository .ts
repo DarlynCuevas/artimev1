@@ -56,7 +56,7 @@ export class SupabaseBookingRepository  {
 
     const { error } = await supabase
       .from('bookings')
-      .insert(persistence);
+      .upsert(persistence, { onConflict: 'id' });
 
     if (error) {
       throw new Error(`Error saving booking: ${error.message}`);

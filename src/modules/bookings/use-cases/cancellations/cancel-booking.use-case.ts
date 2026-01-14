@@ -1,18 +1,20 @@
 import type { BookingRepository } from '../../repositories/booking.repository.interface';
 import { BOOKING_REPOSITORY } from '../../repositories/booking-repository.token';
 import { Inject, Injectable } from '@nestjs/common';
-import { CancellationRepository } from '../../../../infrastructure/database/repositories/cancellation.repository';
 import { BookingStatus } from '../../booking-status.enum';
 import { CancellationInitiator } from '../../cancellations/cancellation-initiator.enum';
 import { CancellationReason } from '../../cancellations/cancellation-reason.enum';
 import { CancellationReviewStatus } from '../../cancellations/cancellation-review-status.enum';
 import { CancellationRecord } from '../../cancellations/cancellation-record.entity';
+import type { CancellationRepository } from '../../cancellations/repositories/cancellation.repository.interface';
+import { CANCELLATION_REPOSITORY } from '../repositories/cancellation.repository.token';
 
 @Injectable()
 export class CancelBookingUseCase {
   constructor(
     @Inject(BOOKING_REPOSITORY)
     private readonly bookingRepository: BookingRepository,
+    @Inject(CANCELLATION_REPOSITORY)
     private readonly cancellationRepository: CancellationRepository,
   ) {}
 
