@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { SupabaseClient } from '@supabase/supabase-js';
+import { EventEntity } from '../entities/event.entity';
 
 
 @Injectable()
@@ -8,7 +9,7 @@ export class GetEventBookingsQuery {
     private readonly supabase: SupabaseClient,
   ) {}
 
-  async execute(eventId: string) {
+  async execute(event: EventEntity) {
     const { data, error } = await this.supabase
       .from('bookings')
       .select(`
@@ -20,7 +21,7 @@ export class GetEventBookingsQuery {
           name
         )
       `)
-      .eq('event_id', eventId);
+      .eq('event_id', event.id);
 
     if (error) {
       throw new Error(error.message);

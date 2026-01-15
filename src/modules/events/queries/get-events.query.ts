@@ -7,6 +7,7 @@ export class GetEventsQuery {
   constructor(private readonly eventRepository: EventRepository) {}
 
   async execute(ownerId: string): Promise<EventReadDto[]> {
+    
     const events = await this.eventRepository.findByOwner(ownerId);
     return events.map(EventMapper.toReadDto);
   }

@@ -16,11 +16,9 @@ export class PayoutsQueryService {
     private readonly bookingRepository: any,
     private readonly payoutMapper: PayoutResponseMapper,
   ) {
-    console.log('PAYOUT REPO CLASS →', payoutRepository.constructor.name);
   }
 
   async getPayoutsForUser(user: { id: string; role: string }) {
-    console.log('PAYOUT QUERY USER →', user);
     if (user.role === StripeTransferRole.ARTIST) {
       const payouts = await this.payoutRepository.findByArtistId(user.id);
       return Promise.all(
@@ -65,7 +63,6 @@ export class PayoutsQueryService {
     const payout = await this.payoutRepository.findById(
       payoutId,
     );
-console.log('PAYOUT FOUND →', payout);
     if (!payout) return null;
 
     if (

@@ -28,7 +28,6 @@ export class PayoutsController {
   @Get()
   async getMyPayouts(@Req() req: AuthRequest) {
     const user = req.user;
-    console.log('ENTER PAYOUTS CONTROLLER');
     return this.payoutsQueryService.getPayoutsForUser(user);
   }
 
@@ -38,7 +37,6 @@ export class PayoutsController {
     @Param('payoutId') payoutId: string,
   ) {
     const user = req.user;
-    console.log('AUTH USER by ID →', user);
     const payout = await this.payoutsQueryService.getPayoutByIdForUser(
       payoutId,
       user,

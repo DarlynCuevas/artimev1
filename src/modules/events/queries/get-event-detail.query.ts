@@ -2,19 +2,17 @@
 import { EventRepository } from '../repositories/event.repository';
 import { EventReadDto } from '../dto/event-read.dto';
 import { EventMapper } from '../mappers/event.mapper';
+import { EventEntity } from '../entities/event.entity';
 
 export class GetEventDetailQuery {
   constructor(private readonly eventRepository: EventRepository) {}
 
-  async execute(eventId: string, requesterId: string): Promise<EventReadDto> {
-    const event = await this.eventRepository.findById(eventId);
+  async execute(event: EventEntity): Promise<EventReadDto> {
+    
+    const data = await this.eventRepository.findById(event.id);
 
-    if (!event) {
+    if (!data) {
       throw new Error('EVENT_NOT_FOUND');
-    }
-
-    if (event.ownerId !== requesterId) {
-      throw new Error('FORBIDDEN');
     }
 
     return EventMapper.toReadDto(event);

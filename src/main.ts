@@ -10,7 +10,7 @@ async function bootstrap() {
   // Configuración CRÍTICA para Stripe Webhook: raw body
   app.enableCors({
   origin: 'http://localhost:8080',
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   credentials: true,
 });
   app.use(

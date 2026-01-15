@@ -1,6 +1,7 @@
 import { EventStatus } from '../enums/event-status.enum';
+import { EventVisibility } from '../enums/event-visibility.enum';
 
-export class Event {
+export class EventEntity {
   constructor(
     public readonly id: string,
 
@@ -30,5 +31,14 @@ export class Event {
     // Auditoría
     public createdAt: Date,
     public updatedAt: Date,
+    //Visibilidad
+    public visibility: EventVisibility = EventVisibility.PRIVATE
   ) {}
+
+  changeVisibility(visibility: EventVisibility) {
+    this.visibility = visibility;
+  }
+
+  
 }
+ 

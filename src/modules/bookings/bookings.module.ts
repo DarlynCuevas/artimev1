@@ -25,6 +25,6 @@ import { SupabaseModule } from 'src/infrastructure/database/supabase.module';
       useClass: DbCancellationRepository,
     }
   ],
-  exports: [BookingService],
+  exports: [BookingService, BOOKING_REPOSITORY],
 })
 export class BookingsModule {}

@@ -1,8 +1,9 @@
-import type { Request } from 'express';
-
+import { Request } from 'express';
+import { EventEntity } from '../modules/events/entities/event.entity';
 export interface AuthenticatedRequest extends Request {
   user: {
-    id: string;
+    sub: string;
     role: string;
   };
+  event?: EventEntity;
 }

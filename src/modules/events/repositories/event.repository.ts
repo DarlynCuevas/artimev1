@@ -1,11 +1,11 @@
-import { Event } from '../entities/event.entity';
+import { EventEntity } from '../entities/event.entity';
 
 export interface EventRepository {
-  save(event: Event): Promise<void>;
+  save(event: EventEntity): Promise<void>;
 
-  findById(eventId: string): Promise<Event | null>;
+  findById(eventId: string): Promise<EventEntity | null>;
 
-  findByOwner(ownerId: string): Promise<Event[]>;
+  findByOwner(ownerId: string): Promise<EventEntity[]>;
 
-  update(event: Event): Promise<void>;
+  update(event: EventEntity): Promise<void>;
 }

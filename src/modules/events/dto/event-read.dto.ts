@@ -1,5 +1,6 @@
 // event-read.dto.ts
 import { EventStatus } from '../enums/event-status.enum';
+import { EventVisibility } from '../enums/event-visibility.enum';
 
 export interface EventReadDto {
   id: string;
@@ -17,4 +18,5 @@ export interface EventReadDto {
 
   createdAt: Date;
   updatedAt: Date;
+  visibility: EventVisibility;
 }

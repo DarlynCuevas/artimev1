@@ -2,14 +2,15 @@ import { Injectable } from '@nestjs/common';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { EventRepository } from 'src/modules/events/repositories/event.repository';
 
-import { Event } from 'src/modules/events/entities/event.entity';
+import { EventEntity } from 'src/modules/events/entities/event.entity';
 import { EventStatus } from 'src/modules/events/enums/event-status.enum';
+import { EventVisibility } from '@/src/modules/events/enums/event-visibility.enum';
 
 @Injectable()
 export class SupabaseEventRepository implements EventRepository {
   constructor(private readonly supabase: SupabaseClient) {}
 
-  async save(event: Event): Promise<void> {
+  async save(event: EventEntity): Promise<void> {
     const { error } = await this.supabase.from('events').insert({
       id: event.id,
       name: event.name,
@@ -35,7 +36,8 @@ export class SupabaseEventRepository implements EventRepository {
     }
   }
 
-  async update(event: Event): Promise<void> {
+  async update(event: EventEntity): Promise<void> {
+    
     const { error } = await this.supabase
       .from('events')
       .update({
@@ -52,6 +54,7 @@ export class SupabaseEventRepository implements EventRepository {
         description: event.description,
 
         updated_at: event.updatedAt,
+        visibility: event.visibility,
       })
       .eq('id', event.id);
 
@@ -60,7 +63,7 @@ export class SupabaseEventRepository implements EventRepository {
     }
   }
 
-  async findById(eventId: string): Promise<Event | null> {
+  async findById(eventId: string): Promise<EventEntity | null> {
     const { data, error } = await this.supabase
       .from('events')
       .select('*')
@@ -74,7 +77,7 @@ export class SupabaseEventRepository implements EventRepository {
     return this.mapRowToEvent(data);
   }
 
-  async findByOwner(ownerId: string): Promise<Event[]> {
+  async findByOwner(ownerId: string): Promise<EventEntity[]> {
     const { data, error } = await this.supabase
       .from('events')
       .select('*')
@@ -88,8 +91,8 @@ export class SupabaseEventRepository implements EventRepository {
     return data.map(this.mapRowToEvent);
   }
 
-  private mapRowToEvent(row: any): Event {
-    return new Event(
+  private mapRowToEvent(row: any):  EventEntity {
+    return new EventEntity(
       row.id,
       row.name,
       row.owner_id,
@@ -99,9 +102,10 @@ export class SupabaseEventRepository implements EventRepository {
       row.venue_id,
       row.type,
       row.estimated_budget,
-      row.description,
+      row.description, 
       new Date(row.created_at),
       new Date(row.updated_at),
+      row.visibility ?? EventVisibility.PRIVATE,
     );
   }
 }

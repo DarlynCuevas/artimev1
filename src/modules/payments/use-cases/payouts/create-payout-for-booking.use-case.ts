@@ -22,13 +22,8 @@ export class CreatePayoutForBookingUseCase {
 
 
     async execute(input: { bookingId: string }): Promise<Payout> {
-        console.log('BOOKING ID RECEIVED →', input.bookingId);
 
 const booking = await this.bookingRepository.findById(input.bookingId);
-
-console.log('BOOKING FOUND →', booking);
-       
-
 
 
         if (!booking) {

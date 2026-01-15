@@ -1,5 +1,5 @@
 // create-event.usecase.ts
-import { Event } from '../entities/event.entity';
+import { EventEntity } from '../entities/event.entity';
 import type { EventRepository } from '../repositories/event.repository';
 import { EventStatus } from '../enums/event-status.enum';
 import { randomUUID } from 'crypto';
@@ -26,7 +26,7 @@ export class CreateEventUseCase {
                 private readonly eventRepository: EventRepository) {}
 
   async execute(command: CreateEventCommand): Promise<void> {
-    const event = new Event(
+    const event = new EventEntity(
       randomUUID(),
 
       // Identidad
@@ -55,6 +55,7 @@ export class CreateEventUseCase {
       // Auditoría
       new Date(),
       new Date(),
+      
     );
 
     await this.eventRepository.save(event);

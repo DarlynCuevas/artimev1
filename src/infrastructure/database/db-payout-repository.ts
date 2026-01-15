@@ -75,7 +75,6 @@ export class DbPayoutRepository implements PayoutRepository {
       .select('*')
       .eq('artist_id', artistId)
       .order('created_at', { ascending: false });
-      console.log('dataaaaaa', data);
       
 
     if (error || !data) {

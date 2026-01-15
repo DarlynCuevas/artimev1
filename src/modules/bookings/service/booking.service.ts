@@ -30,16 +30,16 @@ export class BookingService {
     return booking;
   }
 
-  async getForUser(user: { id: string; role: string }): Promise<Booking[]> {
-  switch (user.role) {
+  async getForUser(id: string, role: string): Promise<Booking[]> {
+  switch (role) {
     case 'ARTIST':
-      return this.bookingRepository.findByArtistId(user.id);
+      return this.bookingRepository.findByArtistId(id);
 
     case 'VENUE':
-      return this.bookingRepository.findByVenueId(user.id);
+      return this.bookingRepository.findByVenueId(id);
 
     case 'MANAGER':
-      return this.bookingRepository.findByManagerId(user.id);
+      return this.bookingRepository.findByManagerId(id);
 
     default:
       return [];

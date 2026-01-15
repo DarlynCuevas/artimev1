@@ -44,7 +44,7 @@ export class BookingsController {
   async getMyBookings(
     @Req() req: AuthenticatedRequest,
   ): Promise<BookingResponseDto[]> {
-    const bookings = await this.bookingService.getForUser(req.user);
+    const bookings = await this.bookingService.getForUser(req.user.sub, req.user.role);
 
     return bookings.map((booking) => ({
       id: booking.id,
@@ -68,7 +68,7 @@ export class BookingsController {
   ): Promise<BookingResponseDto> {
     const booking = await this.bookingService.createBooking({
       artistId: dto.artistId,
-      venueId: req.user.id,
+      venueId: req.user.sub,
       eventId: dto.eventId,
       currency: dto.currency,
       totalAmount: dto.totalAmount,

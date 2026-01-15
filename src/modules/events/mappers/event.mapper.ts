@@ -1,9 +1,9 @@
 // event.mapper.ts
-import { Event } from '../entities/event.entity';
+import { EventEntity } from '../entities/event.entity';
 import { EventReadDto } from '../dto/event-read.dto';
 
 export class EventMapper {
-  static toReadDto(event: Event): EventReadDto {
+  static toReadDto(event: EventEntity): EventReadDto {
     return {
       id: event.id,
       name: event.name,
@@ -20,6 +20,7 @@ export class EventMapper {
 
       createdAt: event.createdAt,
       updatedAt: event.updatedAt,
+      visibility: event.visibility,
     };
   }
 }

@@ -75,7 +75,6 @@ export class CancelBookingUseCase {
       createdAt: new Date(),
     });
 
-    console.log('Intentando guardar cancellation:', cancellation);
     await this.cancellationRepo.save(cancellation);
 
     booking.changeStatus(resultingStatus);
