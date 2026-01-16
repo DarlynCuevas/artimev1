@@ -3,7 +3,7 @@
 
 import { BookingStatus } from '../../bookings/booking-status.enum';
 import { ContractStatus } from '../contract.entity';
-import { SupabaseBookingRepository } from '../../../infrastructure/database/repositories/SupabaseBookingRepository ';
+import { SupabaseBookingRepository } from '../../../infrastructure/database/repositories/boobking/SupabaseBookingRepository ';
 import { ContractRepository } from '../../../infrastructure/database/repositories/contract.repository';
 
 export class SignContractUseCase {

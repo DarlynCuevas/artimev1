@@ -12,7 +12,7 @@ import { PaymentMilestoneStatus } from '../../modules/payments/payment-milestone
 import { PAYMENT_MILESTONE_REPOSITORY } from '../../modules/payments/payment-milestone-repository.token';
 import type { PaymentMilestoneRepository } from '../../modules/payments/payment-milestone.repository.interface';
 import { BOOKING_REPOSITORY } from '../../modules/bookings/repositories/booking-repository.token';
-import type { SupabaseBookingRepository } from '../database/repositories/SupabaseBookingRepository ';
+import type { SupabaseBookingRepository } from '../database/repositories/boobking/SupabaseBookingRepository ';
 import { BookingStatus } from '../../modules/bookings/booking-status.enum';
 
 @Injectable()

@@ -1,4 +1,4 @@
-import { SupabaseBookingRepository } from '../../../../infrastructure/database/repositories/SupabaseBookingRepository ';
+import { SupabaseBookingRepository } from '../../../../infrastructure/database/repositories/boobking/SupabaseBookingRepository ';
 import { CancellationRepository } from '../../../../infrastructure/database/repositories/cancellation.repository';
 import { BookingStatus } from '../../booking-status.enum';
 import { CancellationReviewStatus } from '../../cancellations/cancellation-review-status.enum';

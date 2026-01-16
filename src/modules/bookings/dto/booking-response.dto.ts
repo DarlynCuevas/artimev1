@@ -8,4 +8,9 @@ export class BookingResponseDto {
   totalAmount: number;
   eventId?: string;
   start_date: string;
+  messagesCount: number;
+  lastMessage: {
+    senderRole: string;
+    senderUserId: string;
+  } | null;
 }

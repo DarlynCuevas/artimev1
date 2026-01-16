@@ -11,6 +11,7 @@ interface NegotiationMessageProps {
   id: string;
   bookingId: string;
   senderRole: NegotiationSenderRole;
+  senderUserId: string;
   message?: string;
   proposedFee?: number;
   isFinalOffer: boolean;
@@ -18,26 +19,14 @@ interface NegotiationMessageProps {
 }
 
 export class NegotiationMessage {
-    get message(): string | undefined {
-      return this.props.message;
-    }
-
-    get createdAt(): Date {
-      return this.props.createdAt;
-    }
   private props: NegotiationMessageProps;
 
   constructor(props: NegotiationMessageProps) {
     this.props = props;
   }
 
-
   get id(): string {
     return this.props.id;
-  }
-
-  get isFinalOffer(): boolean {
-    return this.props.isFinalOffer;
   }
 
   get bookingId(): string {
@@ -48,7 +37,24 @@ export class NegotiationMessage {
     return this.props.senderRole;
   }
 
+  get senderUserId(): string {
+    return this.props.senderUserId;
+  }
+
+  get message(): string | undefined {
+    return this.props.message;
+  }
+
   get proposedFee(): number | undefined {
     return this.props.proposedFee;
   }
+
+  get isFinalOffer(): boolean {
+    return this.props.isFinalOffer;
+  }
+
+  get createdAt(): Date {
+    return this.props.createdAt;
+  }
 }
+

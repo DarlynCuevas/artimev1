@@ -11,13 +11,13 @@ export class LoadBookingMiddleware implements NestMiddleware {
   ) { }
 
   async use(req: Request, res: Response, next: NextFunction) {
-    const { bookingId } = req.params;
+    const { id } = req.params;
 
-    if (!bookingId || Array.isArray(bookingId)) {
+    if (!id || Array.isArray(id)) {
       throw new NotFoundException('Invalid booking id');
     }
 
-    const booking = await this.bookingRepository.findById(bookingId);
+    const booking = await this.bookingRepository.findById(id);
 
     if (!booking) {
       throw new NotFoundException('Booking not found');

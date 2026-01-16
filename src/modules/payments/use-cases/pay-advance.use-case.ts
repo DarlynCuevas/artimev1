@@ -3,7 +3,7 @@
 
 import { BookingStatus } from '../../bookings/booking-status.enum';
 import { PaymentMilestoneType } from '../payment-milestone.entity';
-import { SupabaseBookingRepository } from '../../../infrastructure/database/repositories/SupabaseBookingRepository ';
+import { SupabaseBookingRepository } from '../../../infrastructure/database/repositories/boobking/SupabaseBookingRepository ';
 import { PaymentRepository } from '../../../infrastructure/database/repositories/payment.repository';
 
 export class PayAdvanceUseCase {

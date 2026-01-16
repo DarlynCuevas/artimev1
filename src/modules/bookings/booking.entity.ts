@@ -3,6 +3,8 @@
 
 import { BookingStatus } from './booking-status.enum';
 import { BookingStateMachine } from './booking-state-machine';
+import { NegotiationSenderRole } from './negotiations/negotiation-message.entity';
+import { BookingHandlerRole } from './domain/booking-handler.mapper';
 
 interface BookingProps {
   id: string;
@@ -20,17 +22,20 @@ interface BookingProps {
   managerStripeAccountId?: string | null;
   artimeCommissionPercentage?: number;
   start_date: string;
-}
- 
- 
-export class Booking {
-    get artistStripeAccountId(): string | null | undefined {
-      return this.props.artistStripeAccountId;
-    }
 
-    get managerStripeAccountId(): string | null | undefined {
-      return this.props.managerStripeAccountId;
-    }
+  handledByRole: BookingHandlerRole | null;
+  handledByUserId: string | null;
+  handledAt: Date | null;
+}
+
+export class Booking {
+  get artistStripeAccountId(): string | null | undefined {
+    return this.props.artistStripeAccountId;
+  }
+
+  get managerStripeAccountId(): string | null | undefined {
+    return this.props.managerStripeAccountId;
+  }
   private props: BookingProps;
 
   constructor(props: BookingProps) {
@@ -55,7 +60,7 @@ export class Booking {
   get venueId(): string | undefined {
     return this.props.venueId;
   }
-  get promoterId(): string | null |undefined{
+  get promoterId(): string | null | undefined {
     return this.props.promoterId;;
   }
 
@@ -63,7 +68,7 @@ export class Booking {
     return this.props.createdAt;
   }
 
-   get currency(): string {
+  get currency(): string {
     return this.props.currency;
   }
 
@@ -79,11 +84,22 @@ export class Booking {
     return this.props.managerCommissionPercentage;
   }
 
-    get totalAmount(): number {
+  get totalAmount(): number {
     return this.props.totalAmount;
   }
 
-   // 👇 NUEVO Getter (opcional)
+  get handledByRole(): BookingHandlerRole | null {
+    return this.props.handledByRole;
+  }
+
+  get handledByUserId(): string | null {
+    return this.props.handledByUserId;
+  }
+
+  get handledAt(): Date | null {
+    return this.props.handledAt;
+  }
+
   get eventId(): string | null | undefined {
     return this.props.eventId;
   }
@@ -105,4 +121,48 @@ export class Booking {
   markAsPaidFull(): void {
     this.changeStatus(BookingStatus.PAID_FULL);
   }
+
+  assignHandler(params: {
+    role: BookingHandlerRole
+    userId: string;
+    at?: Date;
+  }): Booking {
+    return new Booking({
+      ...this.toPrimitives(),
+
+      handledByRole: params.role,
+      handledByUserId: params.userId,
+      handledAt: params.at ?? new Date(),
+    });
+  }
+
+  toPrimitives(): BookingProps {
+    return {
+      id: this.id,
+      artistId: this.artistId,
+      venueId: this.venueId,
+      promoterId: this.promoterId ?? null,
+      eventId: this.eventId ?? null,
+      status: this.status,
+
+      currency: this.currency,
+      totalAmount: this.totalAmount,
+      start_date: this.start_date,
+
+      artistStripeAccountId: this.artistStripeAccountId,
+      managerStripeAccountId: this.managerStripeAccountId,
+      artimeCommissionPercentage: this.artimeCommissionPercentage,
+      managerCommissionPercentage: this.managerCommissionPercentage,
+      managerId: this.managerId,
+
+      createdAt: this.createdAt,
+
+      handledByRole: this.handledByRole,
+      handledByUserId: this.handledByUserId,
+      handledAt: this.handledAt,
+    };
+  }
+
+
 }
+

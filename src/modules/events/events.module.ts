@@ -8,14 +8,14 @@ import { GetEventsQuery } from './queries/get-events.query';
 import { GetEventDetailQuery } from './queries/get-event-detail.query';
 import { EVENT_REPOSITORY } from './repositories/event.repository.token';
 import { EventRepository } from './repositories/event.repository';
-import { SupabaseEventRepository } from 'src/infrastructure/database/repositories/event.supabase.repository';
+import { SupabaseEventRepository } from '@/src/infrastructure/database/repositories/event/event.supabase.repository';
 import { ChangeEventStatusUseCase } from './use-cases/change-event-status.usecase';
 import { EVENT_INVITATION_REPOSITORY } from './repositories/event-invitation.repository.token';
 
 import { SendInvitationUseCase } from './use-cases/send-invitation.usecase';
 import { AcceptInvitationUseCase } from './use-cases/accept-invitation.usecase';
 import { DeclineInvitationUseCase } from './use-cases/decline-invitation.usecase';
-import { SupabaseEventInvitationRepository } from 'src/infrastructure/database/repositories/event-invitation.supabase.repository';
+import { SupabaseEventInvitationRepository } from '@/src/infrastructure/database/repositories/event/event-invitation.supabase.repository';
 import { GetEventInterestedArtistsQuery } from './queries/get-event-interested-artists.query';
 import { GetEventBookingsQuery } from './queries/get-event-bookings.query';
 

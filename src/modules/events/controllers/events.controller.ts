@@ -78,6 +78,7 @@ export class EventsController {
     if (!req.user || !req.user.sub) {
       throw new Error('User or user.sub not found in request. Check JWT and guard.');
     }
+
     const userId = req.user.sub;
     return this.getEventsQuery.execute(userId);
   }

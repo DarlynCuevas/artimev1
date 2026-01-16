@@ -2,7 +2,7 @@
 
 
 import { BookingStatus } from '../../bookings/booking-status.enum';
-import { SupabaseBookingRepository } from '../../../infrastructure/database/repositories/SupabaseBookingRepository ';
+import { SupabaseBookingRepository } from '../../../infrastructure/database/repositories/boobking/SupabaseBookingRepository ';
 import { PaymentRepository } from '../../../infrastructure/database/repositories/payment.repository';
 import { PaymentSchedule } from '../payment-schedule.entity';
 import {
