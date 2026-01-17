@@ -22,7 +22,7 @@ interface BookingProps {
   managerStripeAccountId?: string | null;
   artimeCommissionPercentage?: number;
   start_date: string;
-
+  message?: string;
   handledByRole: BookingHandlerRole | null;
   handledByUserId: string | null;
   handledAt: Date | null;
@@ -53,6 +53,9 @@ export class Booking {
 
   get status(): BookingStatus {
     return this.props.status;
+  }
+  set status(value: BookingStatus) {
+    this.props.status = value;
   }
   get artistId(): string {
     return this.props.artistId;
@@ -104,6 +107,10 @@ export class Booking {
     return this.props.eventId;
   }
 
+  get message(): string | undefined {
+    return this.props.message;
+  }
+
 
   //  Comportamiento de dominio
   changeStatus(nextStatus: BookingStatus): void {
@@ -144,22 +151,19 @@ export class Booking {
       promoterId: this.promoterId ?? null,
       eventId: this.eventId ?? null,
       status: this.status,
-
       currency: this.currency,
       totalAmount: this.totalAmount,
       start_date: this.start_date,
-
       artistStripeAccountId: this.artistStripeAccountId,
       managerStripeAccountId: this.managerStripeAccountId,
       artimeCommissionPercentage: this.artimeCommissionPercentage,
       managerCommissionPercentage: this.managerCommissionPercentage,
       managerId: this.managerId,
-
       createdAt: this.createdAt,
-
       handledByRole: this.handledByRole,
       handledByUserId: this.handledByUserId,
       handledAt: this.handledAt,
+      message: this.props.message,
     };
   }
 

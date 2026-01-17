@@ -1,24 +1,18 @@
-import {
-  ForbiddenException,
-  Inject,
-  Injectable,
-} from '@nestjs/common';
-import { BOOKING_REPOSITORY } from '../../repositories/booking-repository.token';
-import type { BookingRepository } from '../../repositories/booking.repository.interface';
-import { BookingStatus } from '../../booking-status.enum';
-import { NegotiationMessage, NegotiationSenderRole } from '../../negotiations/negotiation-message.entity';
-import { NegotiationMessageRepository } from '@/src/infrastructure/database/repositories/negotiation-message.repository';
-import { mapSenderToHandlerRole } from '../../domain/booking-handler.mapper';
-import { ARTIST_MANAGER_REPRESENTATION_REPOSITORY } from '../../../managers/repositories/artist-manager-representation.repository.token';
-import type { ArtistManagerRepresentationRepository } from '../../../managers/repositories/artist-manager-representation.repository.interface';
-import { GenerateContractUseCase } from '@/src/modules/contracts/use-cases/generate-contract.use-case';
+import { ForbiddenException, Inject, Injectable } from "@nestjs/common";
+import { BOOKING_REPOSITORY } from "../../repositories/booking-repository.token";
+import type { BookingRepository } from "../../repositories/booking.repository.interface";
+import { GenerateContractUseCase } from "@/src/modules/contracts/use-cases/generate-contract.use-case";
+import { BookingStatus } from "../../booking-status.enum";
+import { mapSenderToHandlerRole } from "../../domain/booking-handler.mapper";
+import { NegotiationSenderRole } from "../../negotiations/negotiation-message.entity";
+import type { ArtistManagerRepresentationRepository } from "@/src/modules/managers/repositories/artist-manager-representation.repository.interface";
+import { ARTIST_MANAGER_REPRESENTATION_REPOSITORY } from "@/src/modules/managers/repositories/artist-manager-representation.repository.token";
 
 @Injectable()
-export class AcceptFinalOfferUseCase {
+export class AcceptBookingUseCase {
   constructor(
     @Inject(BOOKING_REPOSITORY)
     private readonly bookingRepository: BookingRepository,
-    private readonly negotiationMessageRepository: NegotiationMessageRepository,
     @Inject(ARTIST_MANAGER_REPRESENTATION_REPOSITORY)
     private readonly artistManagerRepository: ArtistManagerRepresentationRepository,
     private readonly generateContractUseCase: GenerateContractUseCase,
@@ -34,10 +28,13 @@ export class AcceptFinalOfferUseCase {
       throw new ForbiddenException('Booking not found');
     }
 
-    // Solo se puede aceptar una oferta final explícita
-    if (booking.status !== BookingStatus.FINAL_OFFER_SENT) {
+    // Validar estado: se puede aceptar sin negociación previa
+    if (
+      booking.status !== BookingStatus.PENDING &&
+      booking.status !== BookingStatus.FINAL_OFFER_SENT
+    ) {
       throw new ForbiddenException(
-        'No hay una oferta final pendiente de aceptar',
+        'La contratación no puede aceptarse en el estado actual',
       );
     }
 
@@ -56,20 +53,6 @@ export class AcceptFinalOfferUseCase {
       }
     }
 
-    // Cargar mensajes y validar oferta final
-    const messages =
-      await this.negotiationMessageRepository.findByBookingId(
-        booking.id,
-      );
-
-    const finalOffer = messages.find((m) => m.isFinalOffer);
-
-    if (!finalOffer) {
-      throw new ForbiddenException(
-        'No existe una oferta final para aceptar',
-      );
-    }
-
     // Validar handler
     const handlerRole = mapSenderToHandlerRole(input.senderRole);
 
@@ -85,7 +68,7 @@ export class AcceptFinalOfferUseCase {
       );
     }
 
-    // ACEPTACIÓN REAL
+    // Cierre contractual
     booking.changeStatus(BookingStatus.ACCEPTED);
     await this.bookingRepository.update(booking);
 
@@ -93,4 +76,3 @@ export class AcceptFinalOfferUseCase {
     await this.generateContractUseCase.execute(booking.id);
   }
 }
-

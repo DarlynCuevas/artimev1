@@ -1,17 +1,13 @@
-import {
-  ForbiddenException,
-  Inject,
-  Injectable,
-} from '@nestjs/common';
+import { Injectable, Inject, ForbiddenException } from '@nestjs/common';
 import { BOOKING_REPOSITORY } from '../../bookings/repositories/booking-repository.token';
 import type { BookingRepository } from '../../bookings/repositories/booking.repository.interface';
-import { Contract } from '../contract.entity';
 import { BookingStatus } from '../../bookings/booking-status.enum';
-import { ContractRepository } from '@/src/infrastructure/database/repositories/contract.repository';
+import { ContractRepository } from '../../../infrastructure/database/repositories/contract.repository';
+import { Contract } from '../contract.entity';
 import { ContractStatus } from '../enum/contractStatus.enum';
 
 @Injectable()
-export class GenerateContractUseCase {
+export class GenerateContractOnAcceptedUseCase {
   constructor(
     @Inject(BOOKING_REPOSITORY)
     private readonly bookingRepository: BookingRepository,
@@ -19,28 +15,27 @@ export class GenerateContractUseCase {
   ) {}
 
   async execute(bookingId: string): Promise<void> {
+    // 1. Cargar booking
     const booking = await this.bookingRepository.findById(bookingId);
     if (!booking) {
       throw new ForbiddenException('Booking not found');
     }
 
+    // 2. Validar estado
     if (booking.status !== BookingStatus.ACCEPTED) {
-      throw new ForbiddenException(
-        'Contract can only be generated for ACCEPTED bookings',
-      );
+      return;
     }
 
+    // 3. Evitar duplicados
     const existing =
-      await this.contractRepository.findByBookingId(
-        booking.id,
-      );
+      await this.contractRepository.findByBookingId(bookingId);
 
     if (existing) {
-      throw new ForbiddenException(
-        'Contract already exists for this booking',
-      );
+      return;
     }
 
+
+    // 4. Crear contrato (consolidación del acuerdo)
     const contract = new Contract({
       id: crypto.randomUUID(),
       bookingId: booking.id,
@@ -56,6 +51,7 @@ export class GenerateContractUseCase {
       createdAt: new Date(),
     });
 
+    // 5. Guardar contrato
     await this.contractRepository.save(contract);
   }
 }

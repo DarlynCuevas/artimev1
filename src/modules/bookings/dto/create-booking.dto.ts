@@ -8,4 +8,7 @@ export class CreateBookingDto {
 
   // Fecha de inicio del evento (opcional)
   start_date: string;
+
+  // Mensaje inicial de negociación (opcional)
+  message?: string;
 }

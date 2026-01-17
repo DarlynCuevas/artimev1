@@ -33,17 +33,24 @@ export class CancelBookingUseCase {
       throw new Error('Booking already cancelled');
     }
 
+    // Guardar el estado previo y el resultante
+    const previousStatus = booking.status;
+    const resultingStatus = BookingStatus.CANCELLED;
     const record = CancellationRecord.create({
       id: randomUUID(),
       bookingId: booking.id,
       initiator: input.initiator,
       reason: input.reason,
-      
+      previousStatus,
+      resultingStatus,
     });
+
+    record.previousStatus = previousStatus;
+    record.resultingStatus = resultingStatus;
 
     await this.cancellationRepository.save(record);
 
-    booking.changeStatus(BookingStatus.CANCELLED);
+    booking.changeStatus(resultingStatus);
     await this.bookingRepository.update(booking);
   }
 }

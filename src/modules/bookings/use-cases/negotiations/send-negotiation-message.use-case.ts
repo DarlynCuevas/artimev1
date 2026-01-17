@@ -129,6 +129,14 @@ export class SendNegotiationMessageUseCase {
     /**
      * 💾 Guardar mensaje
      */
+    console.log('[NEGOTIATION USECASE] Creando NegotiationMessage:', {
+      bookingId: booking.id,
+      senderRole: input.senderRole,
+      senderUserId: input.senderUserId,
+      message: input.message,
+      proposedFee: input.proposedFee,
+      isFinalOffer: input.isFinalOffer ?? false,
+    });
     const negotiationMessage = new NegotiationMessage({
       id: crypto.randomUUID(),
       bookingId: booking.id,
@@ -139,8 +147,9 @@ export class SendNegotiationMessageUseCase {
       isFinalOffer: input.isFinalOffer ?? false,
       createdAt: new Date(),
     });
-
+    console.log('[NEGOTIATION USECASE] NegotiationMessage instanciado:', negotiationMessage);
     await this.negotiationMessageRepository.save(negotiationMessage);
+    console.log('[NEGOTIATION USECASE] NegotiationMessage guardado en repositorio');
 
     /**
      * 🔚 Oferta final

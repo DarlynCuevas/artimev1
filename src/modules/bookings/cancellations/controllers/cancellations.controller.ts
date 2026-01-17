@@ -1,6 +1,7 @@
-import { Controller, Post, Param, Body } from '@nestjs/common';
-import { CancelBookingUseCase } from '../use-cases/cancel-booking.use-case';
-import { CancellationInitiator } from 'src/modules/bookings/cancellations/cancellation-initiator.enum';
+import { Body, Controller, Param, Post } from "@nestjs/common";
+import { CancelBookingUseCase } from "../use-cases/cancel-booking.use-case";
+import { CancellationInitiator } from "../cancellation-initiator.enum";
+import { CancellationReason } from "../cancellation-reason.enum";
 
 @Controller('internal/cancellations')
 export class CancellationsController {
@@ -9,7 +10,7 @@ export class CancellationsController {
   ) {}
 
   /**
-   * Endpoint técnico de prueba (v1)
+   * Endpoint (v1)
    * Cancela un booking y crea un cancellation_record
    */
   @Post(':bookingId')
@@ -18,13 +19,15 @@ export class CancellationsController {
     @Body()
     body: {
       initiator: CancellationInitiator;
-      reason?: string;
+      reason?: CancellationReason;
+      description?: string;
     },
   ) {
     await this.cancelBookingUseCase.execute({
       bookingId,
       initiator: body.initiator,
-      reason: body.reason,
+      reason: body.reason as CancellationReason,
+      description: body.description,
     });
 
     return { status: 'CANCELLED' };

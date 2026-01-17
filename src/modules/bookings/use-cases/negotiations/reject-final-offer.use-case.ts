@@ -2,7 +2,11 @@ import { ForbiddenException, Inject, Injectable } from '@nestjs/common';
 import { BOOKING_REPOSITORY } from '../../repositories/booking-repository.token';
 import type { BookingRepository } from '../../repositories/booking.repository.interface';
 import { BookingStatus } from '../../booking-status.enum';
+import {
+  NegotiationSenderRole,
+} from '../../negotiations/negotiation-message.entity';
 import { NegotiationMessageRepository } from '@/src/infrastructure/database/repositories/negotiation-message.repository';
+import { mapSenderToHandlerRole } from '../../domain/booking-handler.mapper';
 
 @Injectable()
 export class RejectFinalOfferUseCase {
@@ -15,30 +19,50 @@ export class RejectFinalOfferUseCase {
   async execute(input: {
     bookingId: string;
     senderUserId: string;
+    senderRole: NegotiationSenderRole;
   }): Promise<void> {
-    const booking = await this.bookingRepository.findById(input.bookingId);
-    if (!booking) throw new ForbiddenException('Booking not found');
 
+    const booking = await this.bookingRepository.findById(input.bookingId);
+    if (!booking) {
+      throw new ForbiddenException('Booking not found');
+    }
+
+    // Debe existir una oferta final
+    const lastMessage =
+      await this.negotiationMessageRepository.findLastByBookingId(
+        booking.id,
+      );
+
+    if (!lastMessage || !lastMessage.isFinalOffer) {
+      throw new ForbiddenException(
+        'No hay una oferta final para rechazar',
+      );
+    }
+
+    // No puedes rechazar tu propia oferta final
+    if (lastMessage.senderUserId === input.senderUserId) {
+      throw new ForbiddenException(
+        'No puedes rechazar tu propia oferta final',
+      );
+    }
+
+    // El booking debe estar en estado FINAL_OFFER_SENT
     if (booking.status !== BookingStatus.FINAL_OFFER_SENT) {
       throw new ForbiddenException(
-        'No hay ninguna oferta final para rechazar',
+        'El booking no está en oferta final',
       );
     }
 
-    const messages =
-      await this.negotiationMessageRepository.findByBookingId(booking.id);
-
-    const finalOffer = messages.find((m) => m.isFinalOffer);
-    if (!finalOffer) {
-      throw new ForbiddenException('Oferta final no encontrada');
+    // Asignar handler si aún no existe
+    if (!booking.handledByRole) {
+      booking.assignHandler({
+        role: mapSenderToHandlerRole(input.senderRole),
+        userId: input.senderUserId,
+        at: new Date(),
+      });
     }
 
-    if (finalOffer.senderUserId === input.senderUserId) {
-      throw new ForbiddenException(
-        'No puedes rechazar tu propia oferta',
-      );
-    }
-
+    // Rechazo definitivo
     booking.changeStatus(BookingStatus.REJECTED);
     await this.bookingRepository.update(booking);
   }

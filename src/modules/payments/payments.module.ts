@@ -31,7 +31,6 @@ import { SupabaseModule } from '../../infrastructure/database/supabase.module';
 import { CANCELLATION_REPOSITORY } from './cancellations/cancellation.repository.token';
 import { DbCancellationRepository } from 'src/infrastructure/database/repositories/db-cancellation.repository';
 import { CancelBookingUseCase } from './cancellations/use-cases/cancel-booking.use-case';
-import { CancellationsController } from './cancellations/controllers/cancellations.controller';
 import { PayoutResponseMapper } from './payouts/mappers/payout-response.mapper';
 import { PayoutsQueryService } from './payouts/queries/payouts-query.service';
 
@@ -39,7 +38,7 @@ import { BookingsModule } from '../bookings/bookings.module';
 
 @Module({
   imports: [BookingsModule, SupabaseModule],
-  controllers: [StripeOnboardingController, StripeWebhookController, PaymentsController, PayoutsController, CancellationsController],
+  controllers: [StripeOnboardingController, StripeWebhookController, PaymentsController, PayoutsController],
   providers: [
     CreateStripeAccountUseCase,
     StripeConnectService,

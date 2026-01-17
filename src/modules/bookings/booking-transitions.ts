@@ -12,16 +12,17 @@ export const BOOKING_TRANSITIONS: Record<
 
   [BookingStatus.PENDING]: [
     BookingStatus.NEGOTIATING,
-    BookingStatus.ACCEPTED,
     BookingStatus.REJECTED,
     BookingStatus.CANCELLED,
+    BookingStatus.FINAL_OFFER_SENT,
+    BookingStatus.ACCEPTED,
   ],
 
   [BookingStatus.NEGOTIATING]: [
-    BookingStatus.FINAL_OFFER_SENT,
     BookingStatus.CANCELLED,
     BookingStatus.ACCEPTED,
     BookingStatus.REJECTED,
+    BookingStatus.FINAL_OFFER_SENT,
   ],
 
   [BookingStatus.FINAL_OFFER_SENT]: [
@@ -38,6 +39,7 @@ export const BOOKING_TRANSITIONS: Record<
   [BookingStatus.CONTRACT_SIGNED]: [
     BookingStatus.PAID_PARTIAL,
     BookingStatus.CANCELLED,
+    BookingStatus.CANCELLED_PENDING_REVIEW,
   ],
 
   [BookingStatus.PAID_PARTIAL]: [

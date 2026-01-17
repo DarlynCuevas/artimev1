@@ -81,4 +81,22 @@ async findLastByBookingId(
   });
 }
 
+
+  async findAcceptedFinalOffer(bookingId: string) {
+    const { data, error } = await supabase
+      .from('negotiation_messages')
+      .select('*')
+      .eq('booking_id', bookingId)
+      .eq('is_final_offer', true)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single();
+
+    if (error) {
+      // No hay oferta final aceptada
+      return null;
+    }
+
+    return data;
+  }
 }

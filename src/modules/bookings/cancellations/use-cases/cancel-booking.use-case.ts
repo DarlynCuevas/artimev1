@@ -1,24 +1,23 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { v4 as uuid } from 'uuid';
 
 import { BookingStatus } from '../../booking-status.enum';
-import { BookingStateMachine } from '../../booking-state-machine';
-
-
-
-import { v4 as uuid } from 'uuid';
 import { BookingRepository } from '../../repositories/booking.repository.interface';
+import { BOOKING_REPOSITORY } from '../../repositories/booking-repository.token';
+
 import { CancellationRepository } from 'src/infrastructure/database/repositories/cancellation.repository';
+import { CANCELLATION_REPOSITORY } from '../cancellation.repository.token';
+
 import { CancellationInitiator } from '../cancellation-initiator.enum';
 import { CancellationReason } from '../cancellation-reason.enum';
 import { CancellationReviewStatus } from '../cancellation-review-status.enum';
 import { CancellationRecord } from '../cancellation-record.entity';
-import { BOOKING_REPOSITORY } from '../../repositories/booking-repository.token';
-import { CANCELLATION_REPOSITORY } from '../cancellation.repository.token';
 
 @Injectable()
 export class CancelBookingUseCase {
   private readonly bookingRepo: BookingRepository;
   private readonly cancellationRepo: CancellationRepository;
+
   constructor(
     @Inject(BOOKING_REPOSITORY) bookingRepository: any,
     @Inject(CANCELLATION_REPOSITORY) cancellationRepository: any,
@@ -26,7 +25,6 @@ export class CancelBookingUseCase {
     this.bookingRepo = bookingRepository;
     this.cancellationRepo = cancellationRepository;
   }
-
 
   async execute(params: {
     bookingId: string;
@@ -42,10 +40,20 @@ export class CancelBookingUseCase {
       throw new Error('BOOKING_NOT_FOUND');
     }
 
+    // Estados desde los que NO se puede cancelar
     if (
       booking.status === BookingStatus.CANCELLED ||
       booking.status === BookingStatus.CANCELLED_PENDING_REVIEW ||
       booking.status === BookingStatus.COMPLETED
+    ) {
+      throw new Error('BOOKING_CANNOT_BE_CANCELLED');
+    }
+
+    // Estados desde los que SÍ se puede cancelar (v1)
+    if (
+      booking.status !== BookingStatus.FINAL_OFFER_SENT &&
+      booking.status !== BookingStatus.ACCEPTED &&
+      booking.status !== BookingStatus.CONTRACT_SIGNED
     ) {
       throw new Error('BOOKING_CANNOT_BE_CANCELLED');
     }
@@ -59,9 +67,16 @@ export class CancelBookingUseCase {
 
     const previousStatus = booking.status;
 
-    const resultingStatus = BookingStatus.CANCELLED_PENDING_REVIEW;
-    const reviewStatus = CancellationReviewStatus.PENDING;
+    let resultingStatus: BookingStatus;
+    let reviewStatus: CancellationReviewStatus;
 
+    if (booking.status === BookingStatus.CONTRACT_SIGNED) {
+      resultingStatus = BookingStatus.CANCELLED_PENDING_REVIEW;
+      reviewStatus = CancellationReviewStatus.PENDING;
+    } else {
+      resultingStatus = BookingStatus.CANCELLED;
+      reviewStatus = CancellationReviewStatus.NOT_REQUIRED;
+    }
 
     const cancellation = new CancellationRecord({
       id: uuid(),
@@ -78,9 +93,9 @@ export class CancelBookingUseCase {
     await this.cancellationRepo.save(cancellation);
 
     booking.changeStatus(resultingStatus);
-
     await this.bookingRepo.save(booking);
 
     return booking;
   }
 }
+

@@ -7,6 +7,8 @@ export interface BookingRepository {
   findByArtistId(artistId: string): Promise<Booking[]>;
   findByVenueId(venueId: string): Promise<Booking[]>;
   findByManagerId(managerId: string): Promise<Booking[]>;
+  
+
 
 }
 

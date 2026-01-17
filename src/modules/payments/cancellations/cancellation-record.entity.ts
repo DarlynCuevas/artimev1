@@ -26,8 +26,10 @@ export class CancellationRecord {
     bookingId: string;
     initiator: CancellationInitiator;
     reason?: string;
+    previousStatus?: any;
+    resultingStatus?: any;
   }): CancellationRecord {
-    return new CancellationRecord(
+    const record = new CancellationRecord(
       params.id,
       params.bookingId,
       params.initiator,
@@ -36,5 +38,8 @@ export class CancellationRecord {
       new Date(),
       null,
     );
+    record.previousStatus = params.previousStatus ?? null;
+    record.resultingStatus = params.resultingStatus ?? null;
+    return record;
   }
 }
