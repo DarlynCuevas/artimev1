@@ -6,7 +6,7 @@ import { BookingStatus } from 'src/modules/bookings/booking-status.enum';
 import { CANCELLATION_REPOSITORY } from '../cancellation.repository.token';
 import type { CancellationRepository } from '../cancellation.repository';
 import { CancellationRecord } from '../cancellation-record.entity';
-import { CancellationInitiator } from 'src/modules/bookings/cancellations/cancellation-initiator.enum';
+import { CancellationInitiator } from '@/src/modules/bookings/cancellations/enums/cancellation-initiator.enum';
 
 @Injectable()
 export class CancelBookingUseCase {

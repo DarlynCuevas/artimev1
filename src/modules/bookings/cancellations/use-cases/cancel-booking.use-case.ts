@@ -8,10 +8,10 @@ import { BOOKING_REPOSITORY } from '../../repositories/booking-repository.token'
 import { CancellationRepository } from 'src/infrastructure/database/repositories/cancellation.repository';
 import { CANCELLATION_REPOSITORY } from '../cancellation.repository.token';
 
-import { CancellationInitiator } from '../cancellation-initiator.enum';
-import { CancellationReason } from '../cancellation-reason.enum';
-import { CancellationReviewStatus } from '../cancellation-review-status.enum';
-import { CancellationRecord } from '../cancellation-record.entity';
+import { CancellationInitiator } from '../enums/cancellation-initiator.enum';
+import { CancellationReason } from '../enums/cancellation-reason.enum';
+import { CancellationReviewStatus } from '../enums/cancellation-review-status.enum';
+import { CancellationRecord } from '../entities/cancellation-record.entity';
 
 @Injectable()
 export class CancelBookingUseCase {

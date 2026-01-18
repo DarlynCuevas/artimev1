@@ -5,7 +5,7 @@ import type { AuthenticatedRequest } from 'src/shared/authenticated-request';
 import { CreateBookingDto } from '../dto/create-booking.dto';
 import { JwtAuthGuard } from 'src/modules/auth/jwt-auth.guard';
 import { CancelBookingDto } from '../dto/cancel-booking.dto';
-import { CancellationInitiator } from '../cancellations/cancellation-initiator.enum';
+import { CancellationInitiator } from '../cancellations/enums/cancellation-initiator.enum';
 import { CancelBookingUseCase } from '../cancellations/use-cases/cancel-booking.use-case';
 import { SendNegotiationMessageUseCase } from '../use-cases/negotiations/send-negotiation-message.use-case';
 import { NegotiationSenderRole } from '../negotiations/negotiation-message.entity';

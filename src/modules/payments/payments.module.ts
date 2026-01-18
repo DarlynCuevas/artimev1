@@ -23,7 +23,7 @@ import { BOOKING_REPOSITORY } from '../bookings/repositories/booking-repository.
 import { PAYOUT_REPOSITORY } from './repositories/payout.repository.token';
 
 // Implementations (infra)
-import { SupabaseBookingRepository } from '../../infrastructure/database/repositories/boobking/SupabaseBookingRepository ';
+import { SupabaseBookingRepository } from '../../infrastructure/database/repositories/bookings/SupabaseBookingRepository ';
 import { DbSplitSummaryRepository } from '../../infrastructure/database/repositories/split-summary.repository';
 import { StripePaymentProvider } from '../../infrastructure/payments/stripe-payment.provider';
 import { DbPayoutRepository } from '../../infrastructure/database/db-payout-repository';

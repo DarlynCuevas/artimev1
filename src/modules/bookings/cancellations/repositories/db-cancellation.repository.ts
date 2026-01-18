@@ -1,7 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { SUPABASE_CLIENT } from 'src/infrastructure/database/supabase.module';
-import { CancellationRecord } from '../cancellation-record.entity';
+import { CancellationRecord } from '../entities/cancellation-record.entity';
 import { CancellationRepository } from './cancellation.repository.interface';
 
 

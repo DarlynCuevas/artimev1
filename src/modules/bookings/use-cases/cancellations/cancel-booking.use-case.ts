@@ -2,10 +2,10 @@ import type { BookingRepository } from '../../repositories/booking.repository.in
 import { BOOKING_REPOSITORY } from '../../repositories/booking-repository.token';
 import { Inject, Injectable } from '@nestjs/common';
 import { BookingStatus } from '../../booking-status.enum';
-import { CancellationInitiator } from '../../cancellations/cancellation-initiator.enum';
-import { CancellationReason } from '../../cancellations/cancellation-reason.enum';
-import { CancellationReviewStatus } from '../../cancellations/cancellation-review-status.enum';
-import { CancellationRecord } from '../../cancellations/cancellation-record.entity';
+import { CancellationInitiator } from '../../cancellations/enums/cancellation-initiator.enum';
+import { CancellationReason } from '../../cancellations/enums/cancellation-reason.enum';
+import { CancellationReviewStatus } from '../../cancellations/enums/cancellation-review-status.enum';
+import { CancellationRecord } from '../../cancellations/entities/cancellation-record.entity';
 import type { CancellationRepository } from '../../cancellations/repositories/cancellation.repository.interface';
 import { CANCELLATION_REPOSITORY } from '../repositories/cancellation.repository.token';
 

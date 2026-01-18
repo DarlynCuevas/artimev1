@@ -1,21 +1,18 @@
-import { CancellationInitiator } from './cancellation-initiator.enum';
-import { CancellationReason } from './cancellation-reason.enum';
-import { CancellationReviewStatus } from './cancellation-review-status.enum';
-import { BookingStatus } from '../booking-status.enum';
+import { CancellationInitiator } from '../enums/cancellation-initiator.enum';
+import { CancellationReason } from '../enums/cancellation-reason.enum';
+import { CancellationReviewStatus } from '../enums/cancellation-review-status.enum';
+import { BookingStatus } from '../../booking-status.enum';
 
 interface CancellationRecordProps {
   id: string;
   bookingId: string;
-  /**
-   * Reservado para v2/admin. No usar en ARTIME v1.
-   */
   initiated_by?: string;
   initiator: CancellationInitiator;
   reason: CancellationReason;
   description?: string;
   previousStatus: BookingStatus;
   resultingStatus: BookingStatus;
-  reviewStatus: CancellationReviewStatus;
+  reviewStatus: CancellationReviewStatus; 
   createdAt: Date;
 }
 
@@ -38,9 +35,6 @@ export class CancellationRecord {
     return this.props.initiator;
   }
 
-  /**
-   * Reservado para v2/admin. No usar en ARTIME v1.
-   */
   get initiatedBy() {
     return this.props.initiated_by;
   }

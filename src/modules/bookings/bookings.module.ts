@@ -2,7 +2,7 @@
 
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { BookingsController } from './controllers/bookings.controller';
-import { SupabaseBookingRepository } from '../../infrastructure/database/repositories/boobking/SupabaseBookingRepository ';
+import { SupabaseBookingRepository } from '../../infrastructure/database/repositories/bookings/SupabaseBookingRepository ';
 import { BOOKING_REPOSITORY } from './repositories/booking-repository.token';
 import { BookingService } from './service/booking.service';
 import { CancelBookingUseCase } from './cancellations/use-cases/cancel-booking.use-case';
@@ -24,10 +24,20 @@ import { ContractRepository } from '@/src/infrastructure/database/repositories/c
 import { SignContractUseCase } from '../contracts/use-cases/sign-contract.use-case';
 import { AcceptBookingUseCase } from './use-cases/confirm/confirm-booking.use-case';
 import { CancellationsController } from './cancellations/controllers/cancellations.controller';
+import { CreateCancellationCaseUseCase } from './cancellations/use-cases/create-cancellation-case.usecase';
+import { DbCancellationCaseRepository } from '../../infrastructure/database/repositories/bookings/cancellation/db-cancellation-case.repository';
+import { CANCELLATION_CASE_REPOSITORY } from './cancellations/repositories/cancellation-case.repository.interface';
+import { RequestBookingCancellationUseCase } from './cancellations/use-cases/request-booking-cancellation.usecase';
+import { ResolveCancellationCaseUseCase } from './cancellations/resolutions/use-cases/resolve-cancellation-case.usecase';
+import { CancellationResolutionsController } from './cancellations/resolutions/controllers/cancellation-resolutions.controller';
+import { DbCancellationResolutionRepository } from '@/src/infrastructure/database/repositories/bookings/cancellation/db-cancellation-resolution.repository';
+const CANCELLATION_RESOLUTION_REPOSITORY = 'CANCELLATION_RESOLUTION_REPOSITORY';
+
+
 
 @Module({
   imports: [SupabaseModule, ManagersModule, ContractsModule],
-  controllers: [BookingsController, CancellationsController],
+  controllers: [BookingsController, CancellationsController,CancellationResolutionsController],
   providers: [
     BookingService,
     CancelBookingUseCase,
@@ -41,6 +51,17 @@ import { CancellationsController } from './cancellations/controllers/cancellatio
     ContractRepository,
     SignContractUseCase,
     AcceptBookingUseCase,
+    CreateCancellationCaseUseCase,
+    RequestBookingCancellationUseCase,
+    ResolveCancellationCaseUseCase,
+    {
+      provide: CANCELLATION_RESOLUTION_REPOSITORY,
+      useClass: DbCancellationResolutionRepository,
+    },
+    {
+      provide: CANCELLATION_CASE_REPOSITORY,
+      useClass: DbCancellationCaseRepository,
+    },
     {
       provide: BOOKING_REPOSITORY,
       useClass: SupabaseBookingRepository,

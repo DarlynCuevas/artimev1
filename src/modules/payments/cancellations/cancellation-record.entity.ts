@@ -1,4 +1,4 @@
-import { CancellationInitiator } from 'src/modules/bookings/cancellations/cancellation-initiator.enum';
+import { CancellationInitiator } from '@/src/modules/bookings/cancellations/enums/cancellation-initiator.enum';
 import { CancellationStatus } from './cancellation-status.enum';
 
 export class CancellationRecord {

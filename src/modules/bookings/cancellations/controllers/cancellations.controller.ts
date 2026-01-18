@@ -1,34 +1,42 @@
-import { Body, Controller, Param, Post } from "@nestjs/common";
-import { CancelBookingUseCase } from "../use-cases/cancel-booking.use-case";
-import { CancellationInitiator } from "../cancellation-initiator.enum";
-import { CancellationReason } from "../cancellation-reason.enum";
+import {
+  Body,
+  Controller,
+  Param,
+  Post,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
+
+import { RequestBookingCancellationUseCase } from '../use-cases/request-booking-cancellation.usecase';
+import { CancellationReason } from '../enums/cancellation-reason.enum';
+import type { AuthenticatedRequest } from '@/src/shared/authenticated-request';
+import { JwtAuthGuard } from '@/src/modules/auth/jwt-auth.guard';
 
 @Controller('internal/cancellations')
 export class CancellationsController {
   constructor(
-    private readonly cancelBookingUseCase: CancelBookingUseCase,
+    private readonly requestBookingCancellationUseCase: RequestBookingCancellationUseCase,
   ) {}
-
-  /**
-   * Endpoint (v1)
-   * Cancela un booking y crea un cancellation_record
-   */
+  @UseGuards(JwtAuthGuard)  
   @Post(':bookingId')
   async cancel(
     @Param('bookingId') bookingId: string,
+    @Req() req: AuthenticatedRequest,
     @Body()
     body: {
-      initiator: CancellationInitiator;
-      reason?: CancellationReason;
+      reason: CancellationReason;
       description?: string;
     },
   ) {
-    await this.cancelBookingUseCase.execute({
-      bookingId,
-      initiator: body.initiator,
-      reason: body.reason as CancellationReason,
-      description: body.description,
-    });
+    const user = req.user;
+
+   await this.requestBookingCancellationUseCase.execute({
+  bookingId,
+  userId: user.sub,
+  userRole: user.role as 'ARTIST' | 'MANAGER' | 'VENUE' | 'PROMOTER',
+  reason: body.reason,
+  description: body.description,
+});
 
     return { status: 'CANCELLED' };
   }

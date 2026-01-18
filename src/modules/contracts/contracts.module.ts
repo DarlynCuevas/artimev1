@@ -5,7 +5,7 @@ import { SignContractUseCase } from './use-cases/sign-contract.use-case';
 import { BookingsModule } from '../bookings/bookings.module';
 import { GenerateContractUseCase } from './use-cases/generate-contract.use-case';
 import { BOOKING_REPOSITORY } from '../bookings/repositories/booking-repository.token';
-import { SupabaseBookingRepository } from '../../infrastructure/database/repositories/boobking/SupabaseBookingRepository ';
+import { SupabaseBookingRepository } from '../../infrastructure/database/repositories/bookings/SupabaseBookingRepository ';
 import { GetContractByBookingUseCase } from './use-cases/get-contract-by-booking.use-case';
 
 import { ContractsController } from './controllers/contracts.controller';

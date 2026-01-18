@@ -1,4 +1,4 @@
-import { CancellationRecord } from "../cancellation-record.entity";
+import { CancellationRecord } from "../entities/cancellation-record.entity";
 
 
 export interface CancellationRepository {

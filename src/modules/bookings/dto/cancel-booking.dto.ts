@@ -1,5 +1,5 @@
 import { IsEnum, IsOptional, IsString } from 'class-validator';
-import { CancellationReason } from '../cancellations/cancellation-reason.enum';
+import { CancellationReason } from '../cancellations/enums/cancellation-reason.enum';
 
 
 export class CancelBookingDto {

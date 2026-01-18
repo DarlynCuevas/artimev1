@@ -3,7 +3,7 @@ import { BOOKING_REPOSITORY } from '../../repositories/booking-repository.token'
 import { Inject, Injectable } from '@nestjs/common';
 import type { CancellationRepository } from 'src/infrastructure/database/repositories/cancellation.repository';
 import { BookingStatus } from '../../booking-status.enum';
-import { CancellationReviewStatus } from '../../cancellations/cancellation-review-status.enum';
+import { CancellationReviewStatus } from '../../cancellations/enums/cancellation-review-status.enum';
 
 @Injectable()
 export class ApproveCancellationUseCase {
