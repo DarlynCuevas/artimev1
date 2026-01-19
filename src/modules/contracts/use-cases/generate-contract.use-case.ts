@@ -54,6 +54,8 @@ export class GenerateContractUseCase {
       signedByRole: undefined,
       snapshotData: {},
       createdAt: new Date(),
+      conditionsAccepted: false,
+      conditionsAcceptedAt: null,
     });
 
     await this.contractRepository.save(contract);

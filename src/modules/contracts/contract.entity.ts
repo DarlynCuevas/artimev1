@@ -13,6 +13,9 @@ export class Contract {
   signedByRole?: string;
   readonly snapshotData: any;
   readonly createdAt: Date;
+  conditionsAccepted: boolean;
+  conditionsAcceptedAt: Date | null;
+  conditionsVersion?: string;
 
   constructor(props: {
     id: string;
@@ -27,6 +30,9 @@ export class Contract {
     signedByRole?: string | null;
     snapshotData: any;
     createdAt: Date;
+    conditionsAccepted: boolean;
+    conditionsAcceptedAt: Date | null;
+    conditionsVersion?: string;
   }) {
     this.id = props.id;
     this.bookingId = props.bookingId;
@@ -41,6 +47,9 @@ export class Contract {
       props.signedByRole === null ? undefined : props.signedByRole;
     this.snapshotData = props.snapshotData;
     this.createdAt = props.createdAt;
+    this.conditionsAccepted = props.conditionsAccepted;
+    this.conditionsAcceptedAt = props.conditionsAcceptedAt;
+    this.conditionsVersion = props.conditionsVersion;
   }
 
   sign(input: {
@@ -68,6 +77,9 @@ export class Contract {
       signedByRole: row.signed_by_role ?? null,
       snapshotData: row.snapshot_data,
       createdAt: new Date(row.created_at),
+      conditionsAccepted: !!row.conditions_accepted,
+      conditionsAcceptedAt: row.conditions_accepted_at ? new Date(row.conditions_accepted_at) : null,
+      conditionsVersion: row.conditions_version ?? undefined,
     });
   }
 }

@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Req, UseGuards } from '@nestjs/common';
 import type { AuthenticatedRequest } from '@/src/shared/authenticated-request';
 import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 import { GetContractByBookingUseCase } from '../use-cases/get-contract-by-booking.use-case';
@@ -26,10 +26,13 @@ export class ContractsController {
     async signContract(
         @Param('contractId') contractId: string,
         @Req() req: AuthenticatedRequest,
+        @Body() body: { conditionsAccepted: boolean; conditionsVersion?: string },
     ): Promise<void> {
         await this.signContractUseCase.execute({
             contractId: contractId,
             userId: req.user.sub,
+            conditionsAccepted: body.conditionsAccepted,
+            conditionsVersion: body.conditionsVersion,
         });
     }
 

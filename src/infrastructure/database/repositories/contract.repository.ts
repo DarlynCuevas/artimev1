@@ -19,6 +19,9 @@ export class ContractRepository {
       signed_by_role: contract.signedByRole ?? null,
       snapshot_data: contract.snapshotData,
       created_at: contract.createdAt,
+      conditions_accepted: contract.conditionsAccepted,
+      conditions_accepted_at: contract.conditionsAcceptedAt ?? null,
+      conditions_version: contract.conditionsVersion ?? null,
     };
 
 
@@ -29,15 +32,18 @@ export class ContractRepository {
     }
   }
   async update(contract: Contract): Promise<void> {
-  await supabase
-    .from('contracts')
-    .update({
-      status: contract.status,
-      signed_at: contract.signedAt,
-      signed_by_role: contract.signedByRole,
-    })
-    .eq('id', contract.id);
-}
+    await supabase
+      .from('contracts')
+      .update({
+        status: contract.status,
+        signed_at: contract.signedAt,
+        signed_by_role: contract.signedByRole,
+        conditions_accepted: contract.conditionsAccepted,
+        conditions_accepted_at: contract.conditionsAcceptedAt ?? null,
+        conditions_version: contract.conditionsVersion ?? null,
+      })
+      .eq('id', contract.id);
+  }
 
 
   async findByBookingId(
@@ -66,6 +72,9 @@ export class ContractRepository {
       signedByRole: data.signed_by_role,
       snapshotData: data.snapshot_data,
       createdAt: new Date(data.created_at),
+      conditionsAccepted: data.conditions_accepted,
+      conditionsAcceptedAt: data.conditions_accepted_at ? new Date(data.conditions_accepted_at) : null,
+      conditionsVersion: data.conditions_version ?? undefined,
     });
   }
 

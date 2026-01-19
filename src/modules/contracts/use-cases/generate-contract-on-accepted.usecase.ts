@@ -49,6 +49,8 @@ export class GenerateContractOnAcceptedUseCase {
       signedByRole: undefined,
       snapshotData: {},
       createdAt: new Date(),
+      conditionsAccepted: false,
+      conditionsAcceptedAt: null,
     });
 
     // 5. Guardar contrato

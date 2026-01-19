@@ -24,6 +24,8 @@ export class SignContractUseCase {
   async execute(input: {
     contractId: string;
     userId: string;
+    conditionsAccepted: boolean;
+    conditionsVersion?: string;
   }): Promise<void> {
 
     // 1. Cargar contrato por ID
@@ -72,6 +74,11 @@ export class SignContractUseCase {
       signedByUserId: input.userId,
       signedAt: new Date(),
     });
+    contract.conditionsAccepted = true;
+    contract.conditionsAcceptedAt = new Date();
+    if (input.conditionsVersion) {
+      (contract as any).conditionsVersion = input.conditionsVersion;
+    }
 
     await this.contractRepository.update(contract);
     await this.createPaymentScheduleForBookingUseCase.execute({
