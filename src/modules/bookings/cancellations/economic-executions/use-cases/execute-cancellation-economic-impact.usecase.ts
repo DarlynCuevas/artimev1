@@ -22,6 +22,7 @@ import type { PaymentProvider } from '@/src/modules/payments/providers/payment-p
 import { DbPaymentRepository } from '@/src/infrastructure/database/repositories/payment.repository';
 import { PAYMENT_REPOSITORY } from '@/src/modules/payments/repositories/payment.repository.token';
 import { PAYMENT_PROVIDER } from '@/src/modules/payments/providers/payment-provider.token';
+import { SystemRole } from '@/src/shared/system-role.enum';
 
 @Injectable()
 export class ExecuteCancellationEconomicImpactUseCase {
@@ -108,17 +109,20 @@ export class ExecuteCancellationEconomicImpactUseCase {
         }
 
         // NO_REFUND → no se hace nada económico
-
+        if (!stripeRefundId) {
+            throw new Error('stripeRefundId is required to execute economic impact');
+        }
         // 3️ Registrar ejecución económica
         const execution: CancellationEconomicExecution = {
             id: uuid(),
             cancellationCaseId,
-            resolutionType: resolution.resolutionType,
+            resolutionType: 'REFUND',
             executedByUserId,
-            executedByRole,
+            executedByRole: SystemRole.ARTIME,
             stripeRefundId,
             executedAt: new Date(),
         };
+
 
         await this.cancellationEconomicExecutionRepository.save(execution);
     }

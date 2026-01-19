@@ -13,13 +13,13 @@ import { CancellationResolutionType } from '../cancellation-resolution.entity';
 import type { AuthenticatedRequest } from '@/src/shared/authenticated-request';
 import { JwtAuthGuard } from '@/src/modules/auth/jwt-auth.guard';
 
-@Controller('internal/cancellations')
+@Controller('internal/cancellations-resolve')
 export class CancellationResolutionsController {
   constructor(
     private readonly resolveCancellationCaseUseCase: ResolveCancellationCaseUseCase,
   ) {}
 @UseGuards(JwtAuthGuard)  
-  @Post(':cancellationCaseId/resolve')
+  @Post(':cancellationCaseId')
   async resolve(
     @Param('cancellationCaseId') cancellationCaseId: string,
     @Req() req: AuthenticatedRequest,

@@ -16,6 +16,7 @@ import {
 } from '../cancellation-resolution.entity';
 import { CancellationStatus } from '../../enums/cancellation-status.enum';
 import type { CancellationResolutionRepository } from '../repositories/cancellation-resolution.repository.interface';
+import { SystemRole } from '@/src/shared/system-role.enum';
 // El token se define en el módulo como string
 const CANCELLATION_RESOLUTION_REPOSITORY = 'CANCELLATION_RESOLUTION_REPOSITORY';
 
@@ -26,7 +27,7 @@ export class ResolveCancellationCaseUseCase {
     private readonly cancellationCaseRepository: CancellationCaseRepository,
     @Inject(CANCELLATION_RESOLUTION_REPOSITORY)
     private readonly cancellationResolutionRepository: CancellationResolutionRepository,
-  ) {}
+  ) { }
 
   async execute(params: {
     cancellationCaseId: string;
@@ -74,18 +75,27 @@ export class ResolveCancellationCaseUseCase {
         throw new BadRequestException('INVALID_REFUND_AMOUNT');
       }
     }
+    let finalRefundAmount: number;
 
+    if (resolutionType === 'NO_REFUND') {
+      finalRefundAmount = 0;
+    } else {
+      if (refundAmount === undefined) {
+        throw new Error('refundAmount is required');
+      }
+      finalRefundAmount = refundAmount;
+    }
     const resolution: CancellationResolution = {
       id: uuid(),
       cancellationCaseId,
       resolutionType,
-      refundAmount:
-        resolutionType === 'PARTIAL_REFUND' ? refundAmount : undefined,
+      refundAmount: finalRefundAmount,
       resolvedByUserId,
-      resolvedByRole,
+      resolvedByRole: SystemRole.ARTIME,
       notes,
       resolvedAt: new Date(),
     };
+
 
     await this.cancellationResolutionRepository.save(resolution);
 

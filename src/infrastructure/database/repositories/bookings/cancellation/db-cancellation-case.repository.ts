@@ -75,4 +75,19 @@ export class DbCancellationCaseRepository implements CancellationCaseRepository 
     return data ? (data as CancellationCase) : null;
   }
 
+  async markResolved(id: string): Promise<void> {
+  const { error } = await this.supabase
+    .from('cancellation_cases')
+    .update({
+      status: 'RESOLVED',
+      resolved_at: new Date().toISOString(),
+    })
+    .eq('id', id);
+
+  if (error) {
+    throw error;
+  }
+}
+
+
 }

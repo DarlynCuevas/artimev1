@@ -12,7 +12,7 @@ import { CancellationReason } from '../enums/cancellation-reason.enum';
 import type { AuthenticatedRequest } from '@/src/shared/authenticated-request';
 import { JwtAuthGuard } from '@/src/modules/auth/jwt-auth.guard';
 
-@Controller('internal/cancellations')
+@Controller('internal/bookings-cancellations')
 export class CancellationsController {
   constructor(
     private readonly requestBookingCancellationUseCase: RequestBookingCancellationUseCase,

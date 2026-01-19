@@ -97,7 +97,7 @@ import { DbPaymentMilestoneRepository } from '@/src/infrastructure/database/repo
       useClass: DbPaymentMilestoneRepository,
     },
   ],
-  exports: [BookingService, BOOKING_REPOSITORY, NegotiationMessageRepository],
+  exports: [BookingService, BOOKING_REPOSITORY, NegotiationMessageRepository, CANCELLATION_ECONOMIC_EXECUTION_REPOSITORY],
 })
 export class BookingsModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {

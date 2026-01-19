@@ -40,10 +40,12 @@ import { PayoutsQueryService } from './payouts/queries/payouts-query.service';
 
 import { forwardRef } from '@nestjs/common';
 import { BookingsModule } from '../bookings/bookings.module';
+import { CancellationRefundsController } from './controllers/cancellation-refunds.controller';
+import { ExecuteCancellationRefundUseCase } from './use-cases/cancellation-refund/execute-cancellation-refund.usecase';
 
 @Module({
   imports: [forwardRef(() => BookingsModule), SupabaseModule],
-  controllers: [StripeOnboardingController, StripeWebhookController, PaymentsController, PayoutsController],
+  controllers: [CancellationRefundsController,StripeOnboardingController, StripeWebhookController, PaymentsController, PayoutsController],
   providers: [
     CreateStripeAccountUseCase,
     StripeConnectService,
@@ -91,7 +93,8 @@ import { BookingsModule } from '../bookings/bookings.module';
     GetPaymentMilestonesForBookingQuery,
     DbPayoutRepository,
     SupabaseBookingRepository,
-    CancelBookingUseCase
+    CancelBookingUseCase,
+    ExecuteCancellationRefundUseCase
   ],
   exports: [
     PAYOUT_REPOSITORY,

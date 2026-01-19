@@ -86,4 +86,15 @@ export class StripePaymentProvider implements PaymentProvider {
     });
   }
 
+  async refundPaymentIntent(params: {
+  paymentIntentId: string
+  amount: number
+}) {
+   const stripe = this.getStripe();
+  return stripe.refunds.create({
+    payment_intent: params.paymentIntentId,
+    amount: params.amount,
+  })
+}
+
 }

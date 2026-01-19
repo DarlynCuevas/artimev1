@@ -1,3 +1,5 @@
+import { SystemRole } from "@/src/shared/system-role.enum";
+
 export type CancellationResolutionType =
   | 'NO_REFUND'
   | 'FULL_REFUND'
@@ -5,17 +7,24 @@ export type CancellationResolutionType =
 
 export class CancellationResolution {
   id: string;
-
   cancellationCaseId: string;
-
   resolutionType: CancellationResolutionType;
-
-  refundAmount?: number;
-
+  refundAmount: number;
   resolvedByUserId: string;
-  resolvedByRole: 'ARTIME';
-
+  resolvedByRole: SystemRole;
   notes?: string;
-
   resolvedAt: Date;
+
+  constructor(params: {
+    id: string;
+    cancellationCaseId: string;
+    resolutionType: CancellationResolutionType;
+    refundAmount: number;
+    resolvedByUserId: string;
+    resolvedByRole: SystemRole;
+    notes?: string;
+    resolvedAt: Date;
+  }) {
+    Object.assign(this, params);
+  }
 }

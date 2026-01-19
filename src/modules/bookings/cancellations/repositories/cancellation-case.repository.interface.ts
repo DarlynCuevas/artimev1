@@ -6,4 +6,5 @@ export interface CancellationCaseRepository {
     findByBookingId(bookingId: string): Promise<CancellationCase | null>;
     save(cancellationCase: CancellationCase): Promise<void>; 
     update(cancellationCase: CancellationCase): Promise<void>;
+    markResolved(id: string): Promise<void>;
 }
