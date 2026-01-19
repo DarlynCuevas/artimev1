@@ -1,3 +1,6 @@
+import { GetPaymentMilestonesForBookingQuery } from './queries/get-payment-milestones-for-booking.query';
+import { PAYMENT_REPOSITORY } from './repositories/payment.repository.token';
+import { DbPaymentRepository } from '../../infrastructure/database/repositories/payment.repository';
 import { PAYMENT_MILESTONE_REPOSITORY } from './payment-milestone-repository.token';
 import { DbPaymentMilestoneRepository } from '../../infrastructure/database/repositories/db-payment-milestone.repository';
 import { StripeOnboardingController } from './controllers/stripe-onboarding.controller';
@@ -8,9 +11,10 @@ import { StripeWebhookService } from '../../infrastructure/payments/stripe-webho
 import { ARTIST_REPOSITORY } from '../artists/repositories/artist-repository.token';
 import { DbArtistRepository } from '../../infrastructure/database/repositories/artist.repository';
 import { Module } from '@nestjs/common';
-import { PaymentsController } from './payments.controller';
+import { PaymentsController } from './controllers/payments.controller';
 import { PayoutsController } from './payouts/controllers/payouts.controller';
 import { CreatePayoutForBookingUseCase } from './use-cases/payouts/create-payout-for-booking.use-case';
+import { CreatePaymentScheduleForBookingUseCase } from './use-cases/create-payment-schedule-for-booking.usecase';
 import { SplitCalculator } from './split/split-calculator.service';
 
 
@@ -34,10 +38,11 @@ import { CancelBookingUseCase } from './cancellations/use-cases/cancel-booking.u
 import { PayoutResponseMapper } from './payouts/mappers/payout-response.mapper';
 import { PayoutsQueryService } from './payouts/queries/payouts-query.service';
 
+import { forwardRef } from '@nestjs/common';
 import { BookingsModule } from '../bookings/bookings.module';
 
 @Module({
-  imports: [BookingsModule, SupabaseModule],
+  imports: [forwardRef(() => BookingsModule), SupabaseModule],
   controllers: [StripeOnboardingController, StripeWebhookController, PaymentsController, PayoutsController],
   providers: [
     CreateStripeAccountUseCase,
@@ -70,6 +75,11 @@ import { BookingsModule } from '../bookings/bookings.module';
       provide: PAYMENT_PROVIDER,
       useClass: StripePaymentProvider,
     },
+    StripePaymentProvider,
+    {
+      provide: PAYMENT_REPOSITORY,
+      useClass: DbPaymentRepository,
+    },
     {
       provide: CANCELLATION_REPOSITORY,
       useClass: DbCancellationRepository,
@@ -77,10 +87,18 @@ import { BookingsModule } from '../bookings/bookings.module';
     // --- TEMPORAL para pruebas internas ---
     CreatePayoutForBookingUseCase,
     SplitCalculator,
+    CreatePaymentScheduleForBookingUseCase,
+    GetPaymentMilestonesForBookingQuery,
     DbPayoutRepository,
     SupabaseBookingRepository,
     CancelBookingUseCase
   ],
-  exports: [PAYOUT_REPOSITORY, BOOKING_REPOSITORY],
+  exports: [
+    PAYOUT_REPOSITORY,
+    BOOKING_REPOSITORY,
+    PAYMENT_PROVIDER,
+    StripePaymentProvider,
+    PAYMENT_REPOSITORY
+  ],
 })
 export class PaymentsModule {}

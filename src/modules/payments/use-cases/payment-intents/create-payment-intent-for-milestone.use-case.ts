@@ -24,10 +24,13 @@ export class CreatePaymentIntentForMilestoneUseCase {
   constructor(
     @Inject(PAYMENT_MILESTONE_REPOSITORY)
     private readonly milestoneRepository: PaymentMilestoneRepository,
+
     @Inject(BOOKING_REPOSITORY)
     private readonly bookingRepository: BookingRepository,
+
     @Inject(ARTIST_REPOSITORY)
     private readonly artistRepository: ArtistRepository,
+
     @Inject(PAYMENT_PROVIDER)
     private readonly paymentProvider: PaymentProvider,
   ) {}
@@ -36,10 +39,7 @@ export class CreatePaymentIntentForMilestoneUseCase {
     input: CreatePaymentIntentForMilestoneInput,
   ): Promise<CreatePaymentIntentForMilestoneOutput> {
     // 1️ Load milestone
-    const milestone =
-      await this.milestoneRepository.findById(
-        input.paymentMilestoneId,
-      );
+    const milestone = await this.milestoneRepository.findById(input.paymentMilestoneId);
 
     if (!milestone) {
       throw new Error('Payment milestone not found');
@@ -49,11 +49,18 @@ export class CreatePaymentIntentForMilestoneUseCase {
       throw new Error('Payment milestone cannot be paid');
     }
 
+    // 2️ Idempotency: reuse PaymentIntent if exists
     if (milestone.providerPaymentId) {
-      throw new Error('Payment intent already exists for milestone');
+      const intent =
+        await this.paymentProvider.retrievePaymentIntent(
+          milestone.providerPaymentId,
+        );
+      return {
+        clientSecret: intent.client_secret,
+      };
     }
 
-    // 2️⃣ Load booking
+    // 3️ Load booking
     const booking = await this.bookingRepository.findById(
       milestone.bookingId,
     );
@@ -66,7 +73,7 @@ export class CreatePaymentIntentForMilestoneUseCase {
       throw new Error('Contract is not signed');
     }
 
-    // 3️⃣ Load artist
+    // 4️ Load artist
     const artist = await this.artistRepository.findById(
       booking.artistId,
     );
@@ -82,7 +89,7 @@ export class CreatePaymentIntentForMilestoneUseCase {
       throw new Error('Artist cannot receive payments');
     }
 
-    // 4️⃣ Determine payer (venue or promoter)
+    // 5️ Determine payer (venue or promoter)
     const payerId =
       booking.promoterId ?? booking.venueId;
 
@@ -90,8 +97,8 @@ export class CreatePaymentIntentForMilestoneUseCase {
       throw new Error('No payer defined for booking');
     }
 
-    // 5️⃣ Create PaymentIntent via provider
-    const paymentIntent =
+      
+    const intent =
       await this.paymentProvider.createPaymentIntent({
         amount: milestone.amount,
         currency: booking.currency,
@@ -102,16 +109,17 @@ export class CreatePaymentIntentForMilestoneUseCase {
         },
       });
 
-    // 6️⃣ Persist reference in milestone
+    // 7️ Persist providerPaymentId in milestone
     milestone.markProviderPaymentIdCreated(
-      paymentIntent.providerPaymentId,
+      intent.providerPaymentId,
     );
 
     await this.milestoneRepository.update(milestone);
 
-    // 7️⃣ Return client secret to frontend
+    // 8️ Return client secret to frontend
     return {
-      clientSecret: paymentIntent.clientSecret,
+      clientSecret: intent.clientSecret,
     };
   }
 }
+

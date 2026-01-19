@@ -16,12 +16,17 @@ export class StripePaymentProvider implements PaymentProvider {
     return this.stripe;
   }
 
+  /* =======================
+     PAYOUTS
+     ======================= */
+
   async createPayout(input: {
     amount: number;
     currency: string;
     destinationAccountId: string;
   }): Promise<void> {
     const stripe = this.getStripe();
+
     await stripe.transfers.create({
       amount: input.amount,
       currency: input.currency,
@@ -29,12 +34,21 @@ export class StripePaymentProvider implements PaymentProvider {
     });
   }
 
+  /* =======================
+     PAYMENT INTENTS
+     ======================= */
+
   async createPaymentIntent(input: {
     amount: number;
     currency: string;
     metadata: Record<string, string>;
-  }) {
+  }): Promise<{
+    providerPaymentId: string;
+    clientSecret: string;
+    status: string;
+  }> {
     const stripe = this.getStripe();
+
     const intent = await stripe.paymentIntents.create({
       amount: input.amount,
       currency: input.currency,
@@ -45,17 +59,31 @@ export class StripePaymentProvider implements PaymentProvider {
     return {
       providerPaymentId: intent.id,
       clientSecret: intent.client_secret!,
+      status: intent.status,
     };
   }
+
+  async retrievePaymentIntent(
+    paymentIntentId: string
+  ): Promise<Stripe.PaymentIntent> {
+    const stripe = this.getStripe();
+    return stripe.paymentIntents.retrieve(paymentIntentId);
+  }
+
+  /* =======================
+     REFUNDS
+     ======================= */
 
   async refundPayment(input: {
     providerPaymentId: string;
     amount?: number;
   }): Promise<void> {
     const stripe = this.getStripe();
+
     await stripe.refunds.create({
       payment_intent: input.providerPaymentId,
       amount: input.amount,
     });
   }
+
 }

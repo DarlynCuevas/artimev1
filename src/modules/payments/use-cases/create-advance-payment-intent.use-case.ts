@@ -1,5 +1,5 @@
 import { SupabaseBookingRepository } from '../../../infrastructure/database/repositories/bookings/SupabaseBookingRepository ';
-import { PaymentRepository } from '../../../infrastructure/database/repositories/payment.repository';
+import { DbPaymentRepository } from '../../../infrastructure/database/repositories/payment.repository';
 import { PaymentProvider } from '../providers/payment-provider.interface';
 import { BookingStatus } from '../../bookings/booking-status.enum';
 import { PaymentMilestoneType } from '../payment-milestone.entity';
@@ -7,7 +7,7 @@ import { PaymentMilestoneType } from '../payment-milestone.entity';
 export class CreateAdvancePaymentIntentUseCase {
   constructor(
     private readonly supabaseBookingRepository: SupabaseBookingRepository,
-    private readonly paymentRepository: PaymentRepository,
+    private readonly paymentRepository: DbPaymentRepository,
     private readonly paymentProvider: PaymentProvider,
   ) {}
 

@@ -18,13 +18,10 @@ export class NegotiationMessageRepository {
       is_final_offer: message.isFinalOffer,
       created_at: message.createdAt,
     };
-    console.log('[NEGOTIATION SAVE] Insertando mensaje:', persistence);
     const { error } = await supabase.from('negotiation_messages').insert(persistence);
     if (error) {
-      console.error('[NEGOTIATION SAVE] Error al insertar mensaje:', error);
       throw new Error(error.message);
     } else {
-      console.log('[NEGOTIATION SAVE] Mensaje insertado correctamente');
     }
   }
 

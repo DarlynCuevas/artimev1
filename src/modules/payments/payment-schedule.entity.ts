@@ -26,6 +26,9 @@ export class PaymentSchedule {
   constructor(props: PaymentScheduleProps) {
     this.props = props;
   }
+    get createdAt(): Date | undefined {
+    return this.props.createdAt;
+  }
 
   get id(): string {
     return this.props.id;

@@ -4,12 +4,12 @@
 import { BookingStatus } from '../../bookings/booking-status.enum';
 import { PaymentMilestoneType } from '../payment-milestone.entity';
 import { SupabaseBookingRepository } from '../../../infrastructure/database/repositories/bookings/SupabaseBookingRepository ';
-import { PaymentRepository } from '../../../infrastructure/database/repositories/payment.repository';
+import { DbPaymentRepository } from '../../../infrastructure/database/repositories/payment.repository';
 
 export class PayAdvanceUseCase {
   constructor(
     private readonly supabaseBookingRepository: SupabaseBookingRepository,
-    private readonly paymentRepository: PaymentRepository,
+    private readonly paymentRepository: DbPaymentRepository,
   ) {}
 
   async execute(bookingId: string): Promise<void> {

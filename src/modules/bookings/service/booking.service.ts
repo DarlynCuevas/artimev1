@@ -83,7 +83,6 @@ export class BookingService {
     
     await this.bookingRepository.save(booking);
     // 3. Crear mensaje inicial de negociación (CLAVE)
-    console.log('[NEGOTIATION DEBUG] params.message antes de crear NegotiationMessage:', params.message);
     const initialMessage = new NegotiationMessage({
       id: crypto.randomUUID(),
       bookingId: booking.id,

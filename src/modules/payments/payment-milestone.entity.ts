@@ -1,4 +1,5 @@
 
+
 // payment-milestone.entity.ts
 
 import { PaymentMilestoneStatus } from './payment-milestone-status.enum';
@@ -41,7 +42,9 @@ export class PaymentMilestone {
     }
   private props: PaymentMilestoneProps;
 
- 
+   get resolvedAt(): Date | undefined {
+    return this.props.resolvedAt;
+  }
 
   constructor(props: PaymentMilestoneProps) {
     this.props = props;

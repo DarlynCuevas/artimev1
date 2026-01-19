@@ -9,10 +9,12 @@ import { SupabaseBookingRepository } from '../../infrastructure/database/reposit
 import { GetContractByBookingUseCase } from './use-cases/get-contract-by-booking.use-case';
 
 import { ContractsController } from './controllers/contracts.controller';
+import { CreatePaymentScheduleForBookingUseCase } from '../payments/use-cases/create-payment-schedule-for-booking.usecase';
 
 @Module({
   imports: [
-    forwardRef(() => BookingsModule), 
+    forwardRef(() => BookingsModule),
+    forwardRef(() => require('../payments/payments.module').PaymentsModule),
   ],
   controllers: [ContractsController],
   providers: [
@@ -21,6 +23,7 @@ import { ContractsController } from './controllers/contracts.controller';
     SignContractUseCase,
     GenerateContractUseCase,
     GetContractByBookingUseCase,
+    CreatePaymentScheduleForBookingUseCase,
     {
       provide: BOOKING_REPOSITORY,
       useClass: SupabaseBookingRepository,
@@ -31,7 +34,7 @@ import { ContractsController } from './controllers/contracts.controller';
     SignContractUseCase,
     GenerateContractUseCase,
     BOOKING_REPOSITORY,
-    
+    CreatePaymentScheduleForBookingUseCase,
   ],
 })
 export class ContractsModule {}

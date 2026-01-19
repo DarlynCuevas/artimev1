@@ -20,6 +20,7 @@ import { BOOKING_REPOSITORY } from '../repositories/booking-repository.token';
 import type { BookingRepository } from '../repositories/booking.repository.interface';
 import { SignContractUseCase } from '../../contracts/use-cases/sign-contract.use-case';
 import { AcceptBookingUseCase } from '../use-cases/confirm/confirm-booking.use-case';
+import { ConfirmPaymentMilestoneUseCase } from '../use-cases/confirm/confirm-payment-milestone.usecase';
 
 
 
@@ -35,6 +36,7 @@ export class BookingsController {
     private readonly rejectFinalOfferUseCase: RejectFinalOfferUseCase,
     private readonly rejectBookingUseCase: RejectBookingUseCase,
     private readonly acceptBookingUseCase: AcceptBookingUseCase,
+    private readonly confirmPaymentMilestoneUseCase: ConfirmPaymentMilestoneUseCase,
     @Inject(BOOKING_REPOSITORY) private readonly bookingRepository: BookingRepository,
     private readonly contractRepository: ContractRepository,
     @Inject(SignContractUseCase) private readonly signContractUseCase: SignContractUseCase,
@@ -110,7 +112,6 @@ export class BookingsController {
         'Only venues or promoters can create bookings',
       );
     }
-    console.log('[CREATE BOOKING] DTO:', dto);
     const booking = await this.bookingService.createBooking({
       artistId: dto.artistId,
       venueId: req.user.sub,
@@ -274,7 +275,7 @@ export class BookingsController {
 
     return { success: true };
   }
-
+//Rechazar offer
   @UseGuards(JwtAuthGuard)
   @Post(':id/final-offer/reject')
   async finalOfferReject(
@@ -358,6 +359,20 @@ async acceptBooking(
     bookingId,
     senderUserId: req.user.sub,
     senderRole: req.user.role as NegotiationSenderRole,
+  });
+}
+
+@UseGuards(JwtAuthGuard)
+@Post(':id/payments/confirm')
+async confirmPayment(
+  @Param('id') bookingId: string,
+  @Body('milestoneId') milestoneId: string,
+  @Req() req: AuthenticatedRequest,
+) {
+  await this.confirmPaymentMilestoneUseCase.execute({
+    bookingId,
+    milestoneId,
+    executedByUserId: req.user.sub,
   });
 }
 

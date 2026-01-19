@@ -21,13 +21,11 @@ export class ContractRepository {
       created_at: contract.createdAt,
     };
 
-    console.log('Intentando insertar contrato:', persistence);
 
     const { error, data } = await supabase.from('contracts').insert(persistence);
     if (error) {
       console.error('Error al insertar contrato:', error);
     } else {
-      console.log('Contrato insertado correctamente:', data);
     }
   }
   async update(contract: Contract): Promise<void> {

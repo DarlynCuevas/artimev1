@@ -7,6 +7,5 @@ export interface PayoutRepository {
   findByArtistId(artistId: string): Promise<Payout[]>;
   findByManagerId(managerId: string): Promise<Payout[]>;
   findById(payoutId: string): Promise<Payout | null>;
-
   save(payout: Payout): Promise<void>;
 }

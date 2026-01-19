@@ -6,4 +6,6 @@ export interface PaymentMilestoneRepository {
   save(milestone: PaymentMilestone): Promise<void>;
   update(milestone: PaymentMilestone): Promise<void>;
   delete(id: string): Promise<void>;
+  markAsPaid(id: string, paidAt: Date): Promise<void>;
+  countUnpaidForBooking(bookingId: string): Promise<number>;
 }

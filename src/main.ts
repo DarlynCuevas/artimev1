@@ -8,9 +8,13 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
   // Configuración CRÍTICA para Stripe Webhook: raw body
-  app.enableCors({
+ /*  app.enableCors({
   origin: 'http://localhost:8080',
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  credentials: true,
+}); */
+app.enableCors({
+  origin: true,
   credentials: true,
 });
   app.use(

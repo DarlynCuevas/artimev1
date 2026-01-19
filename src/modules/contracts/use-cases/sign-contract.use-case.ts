@@ -10,6 +10,7 @@ import { BOOKING_REPOSITORY } from '../../bookings/repositories/booking-reposito
 import type { BookingRepository } from '../../bookings/repositories/booking.repository.interface';
 import { ContractStatus } from '../enum/contractStatus.enum';
 import { BookingStatus } from '../../bookings/booking-status.enum';
+import { CreatePaymentScheduleForBookingUseCase } from '../../payments/use-cases/create-payment-schedule-for-booking.usecase';
 
 @Injectable()
 export class SignContractUseCase {
@@ -17,7 +18,8 @@ export class SignContractUseCase {
     private readonly contractRepository: ContractRepository,
     @Inject(BOOKING_REPOSITORY)
     private readonly bookingRepository: BookingRepository,
-  ) {}
+    private readonly createPaymentScheduleForBookingUseCase: CreatePaymentScheduleForBookingUseCase,
+  ) { }
 
   async execute(input: {
     contractId: string;
@@ -72,6 +74,9 @@ export class SignContractUseCase {
     });
 
     await this.contractRepository.update(contract);
+    await this.createPaymentScheduleForBookingUseCase.execute({
+      bookingId: booking.id,
+    })
 
     // 7. Actualizar booking
     booking.status = BookingStatus.CONTRACT_SIGNED;

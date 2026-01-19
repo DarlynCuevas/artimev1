@@ -1,3 +1,7 @@
+import { PAYMENT_REPOSITORY } from '../payments/repositories/payment.repository.token';
+import { forwardRef } from '@nestjs/common';
+import { PaymentsModule } from '../payments/payments.module';
+import { DbPaymentRepository } from '../../infrastructure/database/repositories/payment.repository';
 // src/modules/bookings/bookings.module.ts
 
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
@@ -26,18 +30,25 @@ import { AcceptBookingUseCase } from './use-cases/confirm/confirm-booking.use-ca
 import { CancellationsController } from './cancellations/controllers/cancellations.controller';
 import { CreateCancellationCaseUseCase } from './cancellations/use-cases/create-cancellation-case.usecase';
 import { DbCancellationCaseRepository } from '../../infrastructure/database/repositories/bookings/cancellation/db-cancellation-case.repository';
-import { CANCELLATION_CASE_REPOSITORY } from './cancellations/repositories/cancellation-case.repository.interface';
 import { RequestBookingCancellationUseCase } from './cancellations/use-cases/request-booking-cancellation.usecase';
 import { ResolveCancellationCaseUseCase } from './cancellations/resolutions/use-cases/resolve-cancellation-case.usecase';
 import { CancellationResolutionsController } from './cancellations/resolutions/controllers/cancellation-resolutions.controller';
 import { DbCancellationResolutionRepository } from '@/src/infrastructure/database/repositories/bookings/cancellation/db-cancellation-resolution.repository';
-const CANCELLATION_RESOLUTION_REPOSITORY = 'CANCELLATION_RESOLUTION_REPOSITORY';
+import { DbCancellationEconomicExecutionRepository } from '@/src/infrastructure/database/repositories/bookings/cancellation/db-cancellation-economic-execution.repository';
+import { CANCELLATION_CASE_REPOSITORY } from './cancellations/repositories/cancellation-case.repository.token';
+import { CANCELLATION_RESOLUTION_REPOSITORY } from './cancellations/resolutions/repositories/cancellation-resolution.repository.token';
+import { CANCELLATION_ECONOMIC_EXECUTION_REPOSITORY } from './cancellations/economic-executions/repositories/cancellation-economic-execution.repository.token';
+import { ExecuteCancellationEconomicImpactUseCase } from './cancellations/economic-executions/use-cases/execute-cancellation-economic-impact.usecase';
+import { ConfirmPaymentMilestoneUseCase } from './use-cases/confirm/confirm-payment-milestone.usecase';
+import { PAYMENT_MILESTONE_REPOSITORY } from '../payments/payment-milestone-repository.token';
+import { DbPaymentMilestoneRepository } from '@/src/infrastructure/database/repositories/db-payment-milestone.repository';
+
 
 
 
 @Module({
-  imports: [SupabaseModule, ManagersModule, ContractsModule],
-  controllers: [BookingsController, CancellationsController,CancellationResolutionsController],
+  imports: [SupabaseModule, ManagersModule, ContractsModule, forwardRef(() => PaymentsModule)],
+  controllers: [BookingsController, CancellationsController, CancellationResolutionsController],
   providers: [
     BookingService,
     CancelBookingUseCase,
@@ -54,6 +65,12 @@ const CANCELLATION_RESOLUTION_REPOSITORY = 'CANCELLATION_RESOLUTION_REPOSITORY';
     CreateCancellationCaseUseCase,
     RequestBookingCancellationUseCase,
     ResolveCancellationCaseUseCase,
+    ExecuteCancellationEconomicImpactUseCase,
+    ConfirmPaymentMilestoneUseCase,
+    {
+      provide: CANCELLATION_ECONOMIC_EXECUTION_REPOSITORY,
+      useClass: DbCancellationEconomicExecutionRepository,
+    },
     {
       provide: CANCELLATION_RESOLUTION_REPOSITORY,
       useClass: DbCancellationResolutionRepository,
@@ -70,6 +87,15 @@ const CANCELLATION_RESOLUTION_REPOSITORY = 'CANCELLATION_RESOLUTION_REPOSITORY';
       provide: CANCELLATION_REPOSITORY,
       useClass: DbCancellationRepository,
     }
+    ,
+    {
+      provide: PAYMENT_REPOSITORY,
+      useClass: DbPaymentRepository,
+    },
+    {
+      provide: PAYMENT_MILESTONE_REPOSITORY,
+      useClass: DbPaymentMilestoneRepository,
+    },
   ],
   exports: [BookingService, BOOKING_REPOSITORY, NegotiationMessageRepository],
 })

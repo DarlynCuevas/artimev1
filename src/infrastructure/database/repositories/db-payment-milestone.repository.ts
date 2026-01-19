@@ -75,4 +75,34 @@ export class DbPaymentMilestoneRepository implements PaymentMilestoneRepository 
   async delete(id: string): Promise<void> {
     await supabase.from('payment_milestones').delete().eq('id', id);
   }
+
+  async markAsPaid(id: string, paidAt: Date): Promise<void> {
+  const { error } = await supabase
+    .from('payment_milestones')
+    .update({
+      status: 'PAID',
+      paid_at: paidAt.toISOString(),
+    })
+    .eq('id', id);
+
+  if (error) {
+    throw new Error(`Failed to mark milestone as paid: ${error.message}`);
+  }
+}
+
+async countUnpaidForBooking(bookingId: string): Promise<number> {
+  const { count, error } = await supabase
+    .from('payment_milestones')
+    .select('id', { count: 'exact', head: true })
+    .eq('booking_id', bookingId)
+    .neq('status', 'PAID');
+
+  if (error) {
+    throw new Error(`Failed to count unpaid milestones: ${error.message}`);
+  }
+
+  return count ?? 0;
+}
+
+
 }

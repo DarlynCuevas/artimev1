@@ -3,7 +3,7 @@
 
 import { BookingStatus } from '../../bookings/booking-status.enum';
 import { SupabaseBookingRepository } from '../../../infrastructure/database/repositories/bookings/SupabaseBookingRepository ';
-import { PaymentRepository } from '../../../infrastructure/database/repositories/payment.repository';
+import { DbPaymentRepository } from '../../../infrastructure/database/repositories/payment.repository';
 import { PaymentSchedule } from '../payment-schedule.entity';
 import {
   PaymentMilestone,
@@ -15,7 +15,7 @@ import { PaymentMilestoneStatus } from '../payment-milestone-status.enum';
 export class CreatePaymentScheduleUseCase {
   constructor(
     private readonly supabaseBookingRepository: SupabaseBookingRepository,
-    private readonly paymentRepository: PaymentRepository,
+    private readonly paymentRepository: DbPaymentRepository,
   ) {}
 
   async execute(input: {

@@ -1,8 +1,8 @@
 const jwt = require('jsonwebtoken');
 
 const payload = {
-  sub: '11111111-1111-1111-1111-111111111115',
-  role: 'ARTIME',
+  sub: '11111111-1111-1111-1111-111111111122',
+  role: 'ARTIST',
 };
 
 const secret = process.env.JWT_SECRET || 'dev_secret';
