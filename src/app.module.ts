@@ -9,9 +9,10 @@ import { SPLIT_SUMMARY_REPOSITORY } from './modules/payments/split/split-summary
 import { BookingsModule } from './modules/bookings/bookings.module';
 import { EventsModule } from './modules/events/events.module';
 import { ArtistsModule } from './modules/artists/artists.module';
+import { VenuesModule } from './modules/venues/venues.module';
 
 @Module({
-  imports: [AuthModule, PaymentsModule, BookingsModule, EventsModule, ArtistsModule],
+  imports: [AuthModule, PaymentsModule, BookingsModule, EventsModule, ArtistsModule,VenuesModule],
   controllers: [AppController],
   providers: [
     AppService,

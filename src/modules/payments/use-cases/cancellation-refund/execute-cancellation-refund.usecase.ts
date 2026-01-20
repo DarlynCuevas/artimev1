@@ -1,9 +1,9 @@
-import { StripePaymentProvider } from "@/src/infrastructure/payments/stripe-payment.provider"
-import { CancellationEconomicExecution } from "@/src/modules/bookings/cancellations/economic-executions/cancellation-economic-execution.entity"
-import { Inject, Injectable } from "@nestjs/common";
-import { CANCELLATION_ECONOMIC_EXECUTION_REPOSITORY } from "@/src/modules/bookings/cancellations/economic-executions/repositories/cancellation-economic-execution.repository.token";
+import { ConflictException, Inject, Injectable } from "@nestjs/common";
 import type { CancellationEconomicExecutionRepository } from "@/src/modules/bookings/cancellations/economic-executions/repositories/cancellation-economic-execution.repository.interface";
 import { SystemRole } from "@/src/shared/system-role.enum"
+import { StripePaymentProvider } from '../../../../infrastructure/payments/stripe-payment.provider'
+import { CancellationEconomicExecution } from '../../../bookings/cancellations/economic-executions/cancellation-economic-execution.entity'
+import { CANCELLATION_ECONOMIC_EXECUTION_REPOSITORY } from '../../../bookings/cancellations/economic-executions/repositories/cancellation-economic-execution.repository.token'
 
 @Injectable()
 export class ExecuteCancellationRefundUseCase {
@@ -11,7 +11,7 @@ export class ExecuteCancellationRefundUseCase {
     private readonly stripeProvider: StripePaymentProvider,
     @Inject(CANCELLATION_ECONOMIC_EXECUTION_REPOSITORY)
     private readonly executionRepo: CancellationEconomicExecutionRepository,
-  ) {}
+  ) { }
 
   async execute(params: {
     cancellationCaseId: string
@@ -20,6 +20,13 @@ export class ExecuteCancellationRefundUseCase {
     executedByUserId: string
     executedByRole: SystemRole
   }) {
+    const existingExecution =
+      await this.executionRepo.findByCancellationCaseId(params.cancellationCaseId);
+
+    if (existingExecution) {
+      throw new ConflictException('REFUND_ALREADY_EXECUTED');
+    }
+
     // 1. Ejecutar refund en Stripe
     const refund = await this.stripeProvider.refundPaymentIntent({
       paymentIntentId: params.paymentIntentId,
@@ -27,16 +34,16 @@ export class ExecuteCancellationRefundUseCase {
     })
 
     // 2. Construir la entidad
-const execution = new CancellationEconomicExecution({
-  id: crypto.randomUUID(),
-  cancellationCaseId: params.cancellationCaseId,
-  resolutionType: 'REFUND',
-  stripeRefundId: refund.id,
-  executedByUserId: params.executedByUserId,
-  executedByRole: params.executedByRole as SystemRole,
-  executedAt: new Date(),
-})
+    const execution = new CancellationEconomicExecution({
+      id: crypto.randomUUID(),
+      cancellationCaseId: params.cancellationCaseId,
+      resolutionType: 'REFUND',
+      stripeRefundId: refund.id,
+      executedByUserId: params.executedByUserId,
+      executedByRole: params.executedByRole as SystemRole,
+      executedAt: new Date(),
+    })
 
-await this.executionRepo.save(execution)
+    await this.executionRepo.save(execution)
   }
 }

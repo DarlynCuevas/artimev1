@@ -1,0 +1,26 @@
+import { Inject, Injectable } from '@nestjs/common'
+import { BOOKING_REPOSITORY } from '../../bookings/repositories/booking-repository.token'
+import { ARTIST_REPOSITORY } from '../../artists/repositories/artist-repository.token'
+import type { BookingRepository } from '../../bookings/repositories/booking.repository.interface'
+import type { ArtistRepository } from '../../artists/repositories/artist.repository.interface'
+
+@Injectable()
+export class VenueDiscoverService {
+  constructor(
+    @Inject(ARTIST_REPOSITORY)
+    private readonly artistRepo: ArtistRepository,
+    @Inject(BOOKING_REPOSITORY)
+    private readonly bookingRepo: BookingRepository,
+  ) {}
+
+  async findAvailableArtists(filters: {
+    date: string
+    city?: string
+    genre?: string
+    minPrice?: number
+    maxPrice?: number
+    search?: string
+  }) {
+    return this.artistRepo.findAvailableForDate(filters)
+  }
+}

@@ -5,4 +5,36 @@ export interface ArtistRepository {
   findById(id: string): Promise<Artist | null>;
   update(artist: Artist): Promise<void>;
   findByStripeAccountId(stripeAccountId: string): Promise<Artist | null>;
+  findAvailableForDate(filters: {
+    date: string
+    city?: string
+    genre?: string
+    minPrice?: number
+    maxPrice?: number
+    search?: string
+  }): Promise<Array<{
+    artistId: string
+    name: string
+    city: string
+    genres: string[]
+    basePrice: number
+    currency: string
+    isNegotiable: boolean
+    rating?: number
+  }>>;
+
+  findPublicProfileById(id: string): Promise<{
+    id: string;
+    name: string;
+    city: string;
+    genres: string[];
+    bio?: string;
+    basePrice: number;
+    currency: string;
+    isNegotiable: boolean;
+    rating?: number;
+  } | null>;
+
+  findForDiscover(): Promise<any[]>;
+
 }

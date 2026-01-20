@@ -35,7 +35,7 @@ describe('StripeTransferProvider', () => {
       destination: 'acct_artist_123',
       metadata: {
         bookingId: 'booking-1',
-        role: 'artist',
+        role: 'ARTIST',
       },
     });
   });
@@ -71,7 +71,7 @@ describe('StripeTransferProvider', () => {
       destination: 'acct_manager_456',
       metadata: {
         bookingId: 'booking-1',
-        role: 'manager',
+        role: 'MANAGER',
       },
     });
   });

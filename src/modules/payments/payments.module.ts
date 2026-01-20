@@ -9,7 +9,7 @@ import { CreateStripeAccountUseCase } from './use-cases/stripe/create-stripe-acc
 import { StripeConnectService } from '../../infrastructure/payments/stripe-connect.service';
 import { StripeWebhookService } from '../../infrastructure/payments/stripe-webhook.service';
 import { ARTIST_REPOSITORY } from '../artists/repositories/artist-repository.token';
-import { DbArtistRepository } from '../../infrastructure/database/repositories/artist.repository';
+import { DbArtistRepository } from '../../infrastructure/database/repositories/artist/artist.repository';
 import { Module } from '@nestjs/common';
 import { PaymentsController } from './controllers/payments.controller';
 import { PayoutsController } from './payouts/controllers/payouts.controller';
