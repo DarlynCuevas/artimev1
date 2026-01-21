@@ -7,12 +7,19 @@ import { BOOKING_REPOSITORY } from '../bookings/repositories/booking-repository.
 import { SupabaseBookingRepository } from '../../infrastructure/database/repositories/bookings/SupabaseBookingRepository '; 
 import { ArtistsModule } from '../artists/artists.module';
 import { BookingsModule } from '../bookings/bookings.module';
+import { VENUE_REPOSITORY } from './repositories/venue-repository.token';
+import { DbVenueRepository } from '../../infrastructure/database/repositories/venues/db-venue.repository';
+import { VenueController } from './controllers/venue.controller';
+import { DiscoverVenuesUseCase } from './use-cases/discover-venues.usecase';
+import { VenuesService } from './services/venues.service';
 
 @Module({
   imports: [forwardRef(() => ArtistsModule), forwardRef(() => BookingsModule)],
-  controllers: [VenueDiscoverController],
+  controllers: [VenueDiscoverController,VenueController],
   providers: [
     VenueDiscoverService,
+    DiscoverVenuesUseCase,
+    VenuesService,
     {
       provide: ARTIST_REPOSITORY,
       useClass: DbArtistRepository,
@@ -20,6 +27,10 @@ import { BookingsModule } from '../bookings/bookings.module';
     {
       provide: BOOKING_REPOSITORY,
       useClass: SupabaseBookingRepository,
+    },
+    {
+      provide: VENUE_REPOSITORY,
+      useClass: DbVenueRepository,
     },
   ],
 })

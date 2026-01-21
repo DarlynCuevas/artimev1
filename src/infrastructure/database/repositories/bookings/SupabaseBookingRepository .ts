@@ -45,6 +45,8 @@ export class SupabaseBookingRepository {
   }
 
   async save(booking: Booking): Promise<void> {
+    console.log('booking save ', booking);
+    
     const persistence = {
       id: booking.id,
       artist_id: booking.artistId,

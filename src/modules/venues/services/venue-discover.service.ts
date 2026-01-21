@@ -1,8 +1,11 @@
-import { Inject, Injectable } from '@nestjs/common'
+import { Inject, Injectable, NotFoundException } from '@nestjs/common'
 import { BOOKING_REPOSITORY } from '../../bookings/repositories/booking-repository.token'
 import { ARTIST_REPOSITORY } from '../../artists/repositories/artist-repository.token'
 import type { BookingRepository } from '../../bookings/repositories/booking.repository.interface'
 import type { ArtistRepository } from '../../artists/repositories/artist.repository.interface'
+import { mapVenueToPublicDto } from '../mappers/venue-public.mapper'
+import type { VenueRepository } from '../repositories/venue.repository.interface'
+import { VENUE_REPOSITORY } from '../repositories/venue-repository.token'
 
 @Injectable()
 export class VenueDiscoverService {
@@ -11,6 +14,8 @@ export class VenueDiscoverService {
     private readonly artistRepo: ArtistRepository,
     @Inject(BOOKING_REPOSITORY)
     private readonly bookingRepo: BookingRepository,
+    @Inject(VENUE_REPOSITORY)
+    private readonly venueRepository: VenueRepository,
   ) {}
 
   async findAvailableArtists(filters: {
@@ -23,4 +28,7 @@ export class VenueDiscoverService {
   }) {
     return this.artistRepo.findAvailableForDate(filters)
   }
+
+  
 }
+

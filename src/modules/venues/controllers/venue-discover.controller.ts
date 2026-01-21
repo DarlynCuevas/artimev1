@@ -1,15 +1,19 @@
-import { Controller, Get, Query, UseGuards, BadRequestException, Req } from '@nestjs/common'
+import { Controller, Get, Query, UseGuards, BadRequestException, Req, Param } from '@nestjs/common'
 import { JwtAuthGuard } from '@/src/modules/auth/jwt-auth.guard'
 import { VenueDiscoverService } from '../services/venue-discover.service'
 import type { AuthenticatedRequest } from '@/src/shared/authenticated-request'
+import { Public } from '@/src/shared/public.decorator';
 
 @UseGuards(JwtAuthGuard)
-@Controller('venues/discover')
+@Controller('venues-discover')
 export class VenueDiscoverController {
   constructor(
     private readonly discoverService: VenueDiscoverService,
+    private readonly venuesService: VenueDiscoverService,
   ) {}
 
+
+@Public()
   @Get('artists')
   async discoverArtists(
     @Query('date') date: string,

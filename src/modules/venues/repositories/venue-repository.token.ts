@@ -1,0 +1,1 @@
+export const VENUE_REPOSITORY = Symbol('VENUE_REPOSITORY');
