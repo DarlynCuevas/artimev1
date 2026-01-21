@@ -4,6 +4,7 @@ import type { ArtistRepository } from '../../../../modules/artists/repositories/
 import { Artist } from '../../../../modules/artists/entities/artist.entity';
 import { StripeOnboardingStatus } from '../../../../modules/payments/stripe/stripe-onboarding-status.enum';
 import { supabase } from '../../supabase.client';
+import { format } from 'path';
 
 @Injectable()
 export class DbArtistRepository implements ArtistRepository {
@@ -21,8 +22,20 @@ export class DbArtistRepository implements ArtistRepository {
     return new Artist({
       id: data.id,
       email: data.email,
-      stripeAccountId: data.stripe_account_id,
       stripeOnboardingStatus: data.stripe_onboarding_status,
+      name: data.name,
+      city: data.city,
+      genres: data.genres,
+      basePrice: data.base_price,
+      currency: data.currency,
+      isNegotiable: data.is_negotiable,
+      bio: data.bio,
+      format: data.format,
+      stripeAccountId: data.stripe_account_id,
+      createdAt: data.created_at ? new Date(data.created_at) : new Date(),
+      updatedAt: data.updated_at ? new Date(data.updated_at) : new Date(),
+      rating: data.rating,
+      managerId: data.manager_id,
     });
   }
 
@@ -50,8 +63,20 @@ export class DbArtistRepository implements ArtistRepository {
     return new Artist({
       id: data.id,
       email: data.email,
-      stripeAccountId: data.stripe_account_id,
       stripeOnboardingStatus: data.stripe_onboarding_status,
+      name: data.name,
+      city: data.city,
+      genres: data.genres,
+      basePrice: data.base_price,
+      currency: data.currency,
+      isNegotiable: data.is_negotiable,
+      bio: data.bio,
+      format: data.format,
+      stripeAccountId: data.stripe_account_id,
+      createdAt: data.created_at ? new Date(data.created_at) : new Date(),
+      updatedAt: data.updated_at ? new Date(data.updated_at) : new Date(),
+      rating: data.rating,
+      managerId: data.manager_id,
     });
   }
 
@@ -75,7 +100,9 @@ export class DbArtistRepository implements ArtistRepository {
       base_price,
       currency,
       is_negotiable,
-      rating
+      rating,
+      bio,
+      format
     `)
 
     // Filtros reales
@@ -122,35 +149,41 @@ export class DbArtistRepository implements ArtistRepository {
 
 
   async findPublicProfileById(id: string) {
-    const { data, error } = await supabase
-      .from('artists')
-      .select(`
-      id,
-      name,
-      city,
-      genres,
-      base_price,
-      currency,
-      is_negotiable,
-      rating
-    `)
-      .eq('id', id)
-      .single()
-
-    if (error || !data) {
-      return null
-    }
-
+        const { data, error } = await supabase
+          .from('artists')
+          .select(`
+            id,
+            name,
+            city,
+            genres,
+            base_price,
+            currency,
+            is_negotiable,
+            rating,
+            bio,
+            format,
+            manager_id
+          `)
+          .eq('id', id)
+          .maybeSingle();
+        // Si data es array, tomar el primer elemento
+    const artist = Array.isArray(data) ? data[0] : data;
+        if (error || !artist) {
+          return null;
+        }
     return {
-      id: data.id,
-      name: data.name,
-      city: data.city,
-      genres: data.genres ?? [],
-      basePrice: data.base_price,
-      currency: data.currency,
-      isNegotiable: data.is_negotiable,
-      rating: data.rating ?? undefined,
-    }
+      id: artist.id,
+      name: artist.name,
+      city: artist.city,
+      genres: artist.genres ?? [],
+      basePrice: artist.base_price,
+      currency: artist.currency,
+      isNegotiable: artist.is_negotiable,
+      rating: artist.rating ?? undefined,
+      bio: artist.bio ?? '',
+      format: artist.format ?? '',
+          managerId: artist.manager_id ?? undefined,
+    };
   }
 
 async findForDiscover() {
@@ -177,6 +210,35 @@ async findForDiscover() {
   return data;
 }
 
+async findBookedDates(
+  artistId: string,
+  from: string,
+  to: string,
+): Promise<string[]> {
+
+  if (!from || !to) {
+    throw new Error('Parámetros de fecha inválidos: from y to son requeridos');
+  }
+
+  const { data, error } = await supabase
+    .from('bookings')
+    .select('start_date')
+    .eq('artist_id', artistId)
+    .in('status', ['PAID_PARTIAL', 'PAID_FULL', 'COMPLETED'])
+    .gte('start_date', from)
+    .lte('start_date', to);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  if (!data || data.length === 0) {
+    return [];
+  }
+
+  // Normalizamos a YYYY-MM-DD
+  return data.map(b => b.start_date.slice(0, 10));
+}
 
 
 }

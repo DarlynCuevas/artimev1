@@ -29,12 +29,17 @@ export interface ArtistRepository {
     city: string;
     genres: string[];
     bio?: string;
+    format?: string;
     basePrice: number;
     currency: string;
     isNegotiable: boolean;
     rating?: number;
+    managerId?: string;
+    managerName?: string;
   } | null>;
 
   findForDiscover(): Promise<any[]>;
+
+  findBookedDates(artistId, from, to): Promise<string[]>
 
 }
