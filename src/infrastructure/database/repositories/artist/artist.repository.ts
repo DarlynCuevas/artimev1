@@ -39,6 +39,17 @@ export class DbArtistRepository implements ArtistRepository {
     });
   }
 
+  async findByUserId(userId: string) {
+  const { data } = await supabase
+    .from('artists')
+    .select('*')
+    .eq('user_id', userId)
+    .single();
+
+  return data ?? null;
+}
+
+
   async update(artist: Artist): Promise<void> {
     await supabase
       .from('artists')

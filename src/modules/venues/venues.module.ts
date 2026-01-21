@@ -33,5 +33,6 @@ import { VenuesService } from './services/venues.service';
       useClass: DbVenueRepository,
     },
   ],
+  exports: [VenuesService],
 })
 export class VenuesModule {}

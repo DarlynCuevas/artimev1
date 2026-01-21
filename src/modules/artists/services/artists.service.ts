@@ -28,6 +28,11 @@ export class ArtistsService {
     return data;
   }
 
+  async findByUserId(userId: string) {
+  return this.artistRepository.findByUserId(userId);
+}
+
+
   async getPublicArtistProfile(artistId: string): Promise<CreateArtistDto> {
     const artist = await this.artistRepository.findPublicProfileById(artistId);
 

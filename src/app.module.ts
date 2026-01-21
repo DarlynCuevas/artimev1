@@ -10,9 +10,12 @@ import { BookingsModule } from './modules/bookings/bookings.module';
 import { EventsModule } from './modules/events/events.module';
 import { ArtistsModule } from './modules/artists/artists.module';
 import { VenuesModule } from './modules/venues/venues.module';
+import { UsersModule } from './modules/users/users.module';
+import { JwtAuthGuard } from './modules/auth/jwt-auth.guard';
+import { APP_GUARD } from '@nestjs/core';
 
 @Module({
-  imports: [AuthModule, PaymentsModule, BookingsModule, EventsModule, ArtistsModule,VenuesModule],
+  imports: [AuthModule, PaymentsModule, BookingsModule, EventsModule, ArtistsModule,VenuesModule,UsersModule],
   controllers: [AppController],
   providers: [
     AppService,
@@ -20,6 +23,10 @@ import { VenuesModule } from './modules/venues/venues.module';
       provide: SPLIT_SUMMARY_REPOSITORY,
       useClass: DbSplitSummaryRepository,
     },
+    {
+    provide: APP_GUARD,
+    useClass: JwtAuthGuard,
+  },
   ],
 })
 export class AppModule {}

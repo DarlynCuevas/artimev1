@@ -17,5 +17,6 @@ import { DiscoverArtistsUseCase } from './use-cases/discover-artists.usecase';
       useClass: DbArtistRepository,
     },
   ],
+  exports: [ArtistsService],
 })
 export class ArtistsModule {}

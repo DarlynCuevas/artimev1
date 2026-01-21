@@ -8,15 +8,20 @@ export class VenuesService {
   constructor(
     @Inject(VENUE_REPOSITORY)
     private readonly venueRepository: VenueRepository,
-  ) {}
+  ) { }
 
-async discover(filters?: {
-  city?: string;
-  genres?: string[];
-}) {
-  const venues = await this.venueRepository.findForDiscover(filters);
-  return venues.map(mapVenueToPublicDto);
-}
+  async discover(filters?: {
+    city?: string;
+    genres?: string[];
+  }) {
+    const venues = await this.venueRepository.findForDiscover(filters);
+    return venues.map(mapVenueToPublicDto);
+  }
+
+  async findByUserId(userId: string) {
+    return this.venueRepository.findByUserId(userId);
+  }
+
 
   async getPublicVenueProfile(venueId: string) {
     const venue = await this.venueRepository.findById(venueId);

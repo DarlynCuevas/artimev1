@@ -6,6 +6,21 @@ import { supabase } from "../../supabase.client";
 
 @Injectable()
 export class DbVenueRepository implements VenueRepository {
+
+  async findByUserId(userId: string) {
+  const { data, error } = await supabase
+    .from('venues')
+    .select('*')
+    .eq('user_id', userId)
+    .single();
+
+  if (error) {
+    return null;
+  }
+
+  return data;
+}
+
   async findById(id: string): Promise<VenueEntity | null> {
     
     const { data, error } = await supabase
@@ -28,6 +43,8 @@ export class DbVenueRepository implements VenueRepository {
       createdAt: data.created_at,
       updatedAt: data.updated_at,
     };
+
+    
   }
 
   async findForDiscover(filters?: {
