@@ -9,7 +9,11 @@ import { BookingHandlerRole } from './domain/booking-handler.mapper';
 interface BookingProps {
   id: string;
   artistId: string;
+  artistName?: string | null;
+  artistCity?: string | null;
   venueId?: string | null;
+  venueName?: string | null;
+  venueCity?: string | null;
   promoterId: string | null;
   status: BookingStatus;
   createdAt: Date;
@@ -60,8 +64,24 @@ export class Booking {
   get artistId(): string {
     return this.props.artistId;
   }
+
+  get artistName(): string | null | undefined {
+    return this.props.artistName;
+  }
+
+  get artistCity(): string | null | undefined {
+    return this.props.artistCity;
+  }
   get venueId(): string | null | undefined {
     return this.props.venueId;
+  }
+
+  get venueName(): string | null | undefined {
+    return this.props.venueName;
+  }
+
+  get venueCity(): string | null | undefined {
+    return this.props.venueCity;
   }
   get promoterId(): string | null | undefined {
     return this.props.promoterId;
@@ -147,7 +167,11 @@ export class Booking {
     return {
       id: this.id,
       artistId: this.artistId,
+      artistName: this.artistName ?? null,
+      artistCity: this.artistCity ?? null,
       venueId: this.venueId,
+      venueName: this.venueName ?? null,
+      venueCity: this.venueCity ?? null,
       promoterId: this.promoterId ?? null,
       eventId: this.eventId ?? null,
       status: this.status,

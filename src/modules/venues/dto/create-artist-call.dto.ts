@@ -4,8 +4,9 @@ export class CreateArtistCallDto {
   @IsDateString()
   date: string;
 
+  @IsOptional()
   @IsString()
-  city: string;
+  city?: string;
 
   @IsOptional()
   @IsObject()

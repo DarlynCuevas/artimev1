@@ -21,9 +21,37 @@ export class SupabaseBookingRepository {
       return null;
     }
 
+    let venueName: string | null = null;
+    let venueCity: string | null = null;
+    let artistName: string | null = null;
+    let artistCity: string | null = null;
+
+    if (data.artist_id) {
+      const { data: artist } = await supabase
+        .from('artists')
+        .select('id, name, city')
+        .eq('id', data.artist_id)
+        .maybeSingle();
+
+      artistName = artist?.name ?? null;
+      artistCity = artist?.city ?? null;
+    }
+
+    if (data.venue_id) {
+      const { data: venue } = await supabase
+        .from('venues')
+        .select('id, name, city')
+        .eq('id', data.venue_id)
+        .maybeSingle();
+      venueName = venue?.name ?? null;
+      venueCity = venue?.city ?? null;
+    }
+
     return new Booking({
       id: data.id,
       artistId: data.artist_id,
+      artistName,
+      artistCity,
       venueId: data.venue_id,
       promoterId: data.promoter_id,
       status: data.status as BookingStatus,
@@ -43,6 +71,8 @@ export class SupabaseBookingRepository {
       handledByRole: data.handled_by_role ?? null,
       handledByUserId: data.handled_by_user_id ?? null,
       handledAt: data.handled_at ? new Date(data.handled_at) : null,
+      venueName,
+      venueCity,
     });
 
   }
@@ -100,7 +130,6 @@ export class SupabaseBookingRepository {
   }
 
   async findByArtistId(artistId: string): Promise<Booking[]> {
-
     const { data, error } = await supabase
       .from('bookings')
       .select('*')
@@ -110,26 +139,45 @@ export class SupabaseBookingRepository {
       return [];
     }
 
-    return data.map((row: any) => new Booking({
-      id: row.id,
-      artistId: row.artist_id,
-      venueId: row.venue_id,
-      promoterId: row.promoter_id,
-      status: row.status as BookingStatus,
-      createdAt: new Date(row.created_at),
-      artistStripeAccountId: row.artist_stripe_account_id,
-      managerStripeAccountId: row.manager_stripe_account_id,
-      currency: row.currency,
-      start_date: row.start_date,
-      artimeCommissionPercentage: row.artime_commission_percentage,
-      managerId: row.manager_id,
-      managerCommissionPercentage: row.manager_commission_percentage,
-      totalAmount: row.total_amount,
-      handledByRole: row.handled_by_role ?? null,
-      handledByUserId: row.handled_by_user_id ?? null,
-      handledAt: row.handled_at ? new Date(row.handled_at) : null, // <-- agrega esto
-      // ...otros campos necesarios
-    }));
+    const venueIds = Array.from(new Set((data ?? []).map((row: any) => row.venue_id).filter(Boolean)));
+
+    const venueMap = new Map<string, { name: string | null; city: string | null }>();
+    if (venueIds.length) {
+      const { data: venuesData } = await supabase
+        .from('venues')
+        .select('id, name, city')
+        .in('id', venueIds);
+
+      venuesData?.forEach((v: any) => {
+        venueMap.set(v.id, { name: v.name ?? null, city: v.city ?? null });
+      });
+    }
+
+    return data.map((row: any) => {
+      const venueInfo = row.venue_id ? venueMap.get(row.venue_id) : undefined;
+
+      return new Booking({
+        id: row.id,
+        artistId: row.artist_id,
+        venueId: row.venue_id,
+        promoterId: row.promoter_id,
+        status: row.status as BookingStatus,
+        createdAt: new Date(row.created_at),
+        artistStripeAccountId: row.artist_stripe_account_id,
+        managerStripeAccountId: row.manager_stripe_account_id,
+        currency: row.currency,
+        start_date: row.start_date,
+        artimeCommissionPercentage: row.artime_commission_percentage,
+        managerId: row.manager_id,
+        managerCommissionPercentage: row.manager_commission_percentage,
+        totalAmount: row.total_amount,
+        handledByRole: row.handled_by_role ?? null,
+        handledByUserId: row.handled_by_user_id ?? null,
+        handledAt: row.handled_at ? new Date(row.handled_at) : null,
+        venueName: venueInfo?.name ?? null,
+        venueCity: venueInfo?.city ?? null,
+      });
+    });
   }
 
   async findByVenueId(venueId: string): Promise<Booking[]> {
@@ -144,31 +192,48 @@ export class SupabaseBookingRepository {
       return [];
     }
 
-    return data.map(
-      (row) =>
-        new Booking({
-          id: row.id,
-          artistId: row.artist_id,
-          venueId: row.venue_id,
-          promoterId: row.promoter_id,
-          eventId: row.event_id,
-          status: row.status,
-          createdAt: new Date(row.created_at),
-          currency: row.currency,
-          totalAmount: row.total_amount,
-          start_date: row.start_date,
+    const artistIds = Array.from(new Set((data ?? []).map((row: any) => row.artist_id).filter(Boolean)));
+    const artistMap = new Map<string, { name: string | null; city: string | null }>();
 
-          artistStripeAccountId: row.artist_stripe_account_id,
-          managerStripeAccountId: row.manager_stripe_account_id,
-          artimeCommissionPercentage: row.artime_commission_percentage,
-          managerCommissionPercentage: row.manager_commission_percentage,
-          managerId: row.manager_id,
+    if (artistIds.length) {
+      const { data: artistsData } = await supabase
+        .from('artists')
+        .select('id, name, city')
+        .in('id', artistIds);
 
-          handledByRole: row.handled_by_role ?? null,
-          handledByUserId: row.handled_by_user_id ?? null,
-          handledAt: row.handled_at ? new Date(row.handled_at) : null,
-        }),
-    );
+      artistsData?.forEach((artist: any) => {
+        artistMap.set(artist.id, { name: artist.name ?? null, city: artist.city ?? null });
+      });
+    }
+
+    return data.map((row) => {
+      const artistInfo = row.artist_id ? artistMap.get(row.artist_id) : undefined;
+
+      return new Booking({
+        id: row.id,
+        artistId: row.artist_id,
+        artistName: artistInfo?.name ?? null,
+        artistCity: artistInfo?.city ?? null,
+        venueId: row.venue_id,
+        promoterId: row.promoter_id,
+        eventId: row.event_id,
+        status: row.status,
+        createdAt: new Date(row.created_at),
+        currency: row.currency,
+        totalAmount: row.total_amount,
+        start_date: row.start_date,
+
+        artistStripeAccountId: row.artist_stripe_account_id,
+        managerStripeAccountId: row.manager_stripe_account_id,
+        artimeCommissionPercentage: row.artime_commission_percentage,
+        managerCommissionPercentage: row.manager_commission_percentage,
+        managerId: row.manager_id,
+
+        handledByRole: row.handled_by_role ?? null,
+        handledByUserId: row.handled_by_user_id ?? null,
+        handledAt: row.handled_at ? new Date(row.handled_at) : null,
+      });
+    });
   }
 
   async findActiveByVenueId(

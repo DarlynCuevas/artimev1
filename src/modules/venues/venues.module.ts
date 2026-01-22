@@ -17,6 +17,7 @@ import { VenueArtistCallRepository } from '@/src/infrastructure/database/reposit
 import { CreateArtistCallUseCase } from './use-cases/create-artist-call.usecase';
 import { SupabaseModule } from '@/src/infrastructure/database/supabase.module';
 import { OutboxModule } from '../outbox/outbox.module';
+import { GetInterestedArtistCallsUseCase } from './use-cases/get-interested-artist-calls.usecase';
 
 @Module({
   imports: [SupabaseModule, OutboxModule, forwardRef(() => ArtistsModule), forwardRef(() => BookingsModule)],
@@ -27,6 +28,7 @@ import { OutboxModule } from '../outbox/outbox.module';
     VenuesService,
     GetVenueDashboardUseCase,
     CreateArtistCallUseCase,
+    GetInterestedArtistCallsUseCase,
     VenueArtistCallRepository,
     {
       provide: ARTIST_REPOSITORY,

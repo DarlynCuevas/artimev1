@@ -7,6 +7,7 @@ import { VenuesService } from '../services/venues.service';
 import { UserContextGuard } from '../../auth/user-context.guard';
 import { CreateArtistCallUseCase } from '../use-cases/create-artist-call.usecase';
 import { CreateArtistCallDto } from '../dto/create-artist-call.dto';
+import { GetInterestedArtistCallsUseCase } from '../use-cases/get-interested-artist-calls.usecase';
 
 
 @Controller('venues')
@@ -14,6 +15,7 @@ export class VenueController {
     constructor(
         private readonly venuesService: VenuesService,
         private readonly createArtistCallUseCase: CreateArtistCallUseCase,
+        private readonly getInterestedArtistCallsUseCase: GetInterestedArtistCallsUseCase,
     ) { }
     
     @Public()
@@ -54,5 +56,13 @@ async getVenueDashboard(
             @Body() dto: CreateArtistCallDto,
         ) {
             return this.createArtistCallUseCase.execute(req.userContext, dto);
+        }
+
+        @UseGuards(JwtAuthGuard, UserContextGuard)
+        @Get('artist-calls/interested')
+        async getInterestedCalls(
+            @Req() req: AuthenticatedRequest,
+        ) {
+            return this.getInterestedArtistCallsUseCase.execute(req.userContext);
         }
 }

@@ -37,7 +37,7 @@ export class CreateArtistCallUseCase {
     const call = await this.callRepo.createCall({
       venueId,
       date: dto.date,
-      city: dto.city,
+      city: dto.city ?? null,
       filters: dto.filters ?? undefined,
     });
 

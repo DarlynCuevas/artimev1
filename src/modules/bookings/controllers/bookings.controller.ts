@@ -74,7 +74,11 @@ export class BookingsController {
     return {
       id: booking.id,
       artistId: booking.artistId,
+      artistName: (booking as any).artistName ?? null,
+      artistCity: (booking as any).artistCity ?? null,
       venueId: booking.venueId ?? '',
+      venueName: (booking as any).venueName ?? null,
+      venueCity: (booking as any).venueCity ?? null,
       promoterId: booking.promoterId ?? null,
       status: booking.status,
       currency: booking.currency,
@@ -102,7 +106,11 @@ export class BookingsController {
     return bookings.map((booking) => ({
       id: booking.id,
       artistId: booking.artistId,
+      artistName: (booking as any).artistName ?? null,
+      artistCity: (booking as any).artistCity ?? null,
       venueId: booking.venueId ?? '',
+      venueName: (booking as any).venueName ?? null,
+      venueCity: (booking as any).venueCity ?? null,
       managerId: booking.managerId ?? null,
       promoterId: booking.promoterId ?? null,
       status: booking.status,
