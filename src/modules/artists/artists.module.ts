@@ -16,11 +16,15 @@ import { GetArtistCalendarBlocksUseCase } from './use-cases/calendar/get-artist-
 import { DeleteArtistCalendarBlockUseCase } from './use-cases/calendar/delete-artist-calendar-block.usecase';
 import { GetArtistBookingByDateUseCase } from './use-cases/calendar/get-artist-booking-by-date.usecase';
 import { GetArtistBlocksByArtistIdUseCase } from './use-cases/calendar/get-artist-blocks-by-artist-id.usecase';
+import { ArtistCallController } from './controllers/artist-call.controller';
+import { RespondArtistCallUseCase } from './use-cases/respond-artist-call.usecase';
+import { ArtistNotificationsController } from './controllers/artist-notifications.controller';
+import { ArtistNotificationRepository } from '@/src/infrastructure/database/repositories/notifications/artist-notification.repository';
 
 
 @Module({
   imports: [SupabaseModule, forwardRef(() => VenuesModule), forwardRef(() => BookingsModule)],
-  controllers: [ArtistsController, ArtistCalendarController],
+  controllers: [ArtistsController, ArtistCalendarController, ArtistCallController, ArtistNotificationsController],
   providers: [
     ArtistsService,
     DiscoverArtistsUseCase,
@@ -30,7 +34,9 @@ import { GetArtistBlocksByArtistIdUseCase } from './use-cases/calendar/get-artis
     DeleteArtistCalendarBlockUseCase,
     GetArtistBookingByDateUseCase,
     GetArtistBlocksByArtistIdUseCase,
+    RespondArtistCallUseCase,
     ArtistCalendarBlockRepository,
+    ArtistNotificationRepository,
     {
       provide: ARTIST_REPOSITORY,
       useClass: DbArtistRepository,

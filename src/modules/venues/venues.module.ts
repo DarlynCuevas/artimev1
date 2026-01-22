@@ -13,15 +13,21 @@ import { VenueController } from './controllers/venue.controller';
 import { DiscoverVenuesUseCase } from './use-cases/discover-venues.usecase';
 import { VenuesService } from './services/venues.service';
 import { GetVenueDashboardUseCase } from './use-cases/dashboard-venue.usecase';
+import { VenueArtistCallRepository } from '@/src/infrastructure/database/repositories/venues/venue-artist-call.repository';
+import { CreateArtistCallUseCase } from './use-cases/create-artist-call.usecase';
+import { SupabaseModule } from '@/src/infrastructure/database/supabase.module';
+import { OutboxModule } from '../outbox/outbox.module';
 
 @Module({
-  imports: [forwardRef(() => ArtistsModule), forwardRef(() => BookingsModule)],
+  imports: [SupabaseModule, OutboxModule, forwardRef(() => ArtistsModule), forwardRef(() => BookingsModule)],
   controllers: [VenueDiscoverController,VenueController],
   providers: [
     VenueDiscoverService,
     DiscoverVenuesUseCase,
     VenuesService,
     GetVenueDashboardUseCase,
+    CreateArtistCallUseCase,
+    VenueArtistCallRepository,
     {
       provide: ARTIST_REPOSITORY,
       useClass: DbArtistRepository,

@@ -13,9 +13,10 @@ import { VenuesModule } from './modules/venues/venues.module';
 import { UsersModule } from './modules/users/users.module';
 import { JwtAuthGuard } from './modules/auth/jwt-auth.guard';
 import { APP_GUARD } from '@nestjs/core';
+import { OutboxModule } from './modules/outbox/outbox.module';
 
 @Module({
-  imports: [AuthModule, PaymentsModule, BookingsModule, EventsModule, ArtistsModule,VenuesModule,UsersModule],
+  imports: [AuthModule, PaymentsModule, BookingsModule, EventsModule, ArtistsModule, VenuesModule, UsersModule, OutboxModule],
   controllers: [AppController],
   providers: [
     AppService,

@@ -134,13 +134,27 @@ export class DbArtistRepository implements ArtistRepository {
         'CONTRACT_SIGNED',
         'PAID_PARTIAL',
         'PAID_FULL',
+        'COMPLETED',
       ])
+
+    const { data: manualBlocks } = await supabase
+      .from('artist_calendar_blocks')
+      .select('artist_id')
+      .eq('date', date)
 
     if (blocked && blocked.length > 0) {
       query = query.not(
         'id',
         'in',
         `(${blocked.map((b) => b.artist_id).join(',')})`,
+      )
+    }
+
+    if (manualBlocks && manualBlocks.length > 0) {
+      query = query.not(
+        'id',
+        'in',
+        `(${manualBlocks.map((b) => b.artist_id).join(',')})`,
       )
     }
 
