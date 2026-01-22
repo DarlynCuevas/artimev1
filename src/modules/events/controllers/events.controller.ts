@@ -83,15 +83,14 @@ export class EventsController {
     return this.getEventsQuery.execute(userId);
   }
 
-  @Get(':id')
-  async detail(
-    @Req() req: AuthenticatedRequest,
-  ) {
-    if (!req.event) {
-      throw new Error('Event not loaded by middleware');
-    }
-    return this.getEventDetailQuery.execute(req.event);
-  }
+@UseGuards(JwtAuthGuard)
+@Get(':id')
+async detail(
+  @Param('id') eventId: string,
+) {
+  return this.getEventDetailQuery.execute(eventId);
+}
+
 
 
   @Patch(':id')
@@ -157,12 +156,13 @@ export class EventsController {
   }
 
   //Obtener Bookings de un Evento
-  @Get(':id/bookings')
-  async getEventBookings(
-    @Req() req: AuthenticatedRequest,
-  ) {
-    return this.getEventBookingsQuery.execute(req.event!);
-  }
+@Get(':id/bookings')
+async getEventBookings(
+  @Param('id') eventId: string,
+) {
+  return this.getEventBookingsQuery.execute(eventId);
+}
+
 
 
   //Vincular un booking a un event
@@ -206,17 +206,17 @@ export class EventsController {
 
 
   //Cambiar visibilidad del Event
-  @Patch(':id/visibility')
-  @UseGuards(EventOrganizerGuard, EventNotCompletedGuard)
-  async updateVisibility(
-    @Req() req: AuthenticatedRequest,
-    @Body('visibility') visibility: EventVisibility
-  ) {
-    await this.updateEventVisibilityUseCase.execute(
-      req.event!,
-      visibility
-    );
-    // Recupera el evento actualizado y lo retorna
-    return this.getEventDetailQuery.execute(req.event!);
-  }
+@UseGuards(JwtAuthGuard, EventOrganizerGuard, EventNotCompletedGuard)
+@Patch(':id/visibility')
+async updateVisibility(
+  @Param('id') eventId: string,
+  @Body('visibility') visibility: EventVisibility,
+) {
+  await this.updateEventVisibilityUseCase.execute(
+    eventId,
+    visibility,
+  );
+
+  return this.getEventDetailQuery.execute(eventId);
+}
 }

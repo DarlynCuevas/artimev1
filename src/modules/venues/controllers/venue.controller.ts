@@ -1,9 +1,10 @@
-import { Controller, Get, Query, UseGuards, BadRequestException, Req, Param } from '@nestjs/common'
+import { Controller, Get, Query, UseGuards, BadRequestException, Req, Param, ForbiddenException } from '@nestjs/common'
 import { JwtAuthGuard } from '@/src/modules/auth/jwt-auth.guard'
 import { VenueDiscoverService } from '../services/venue-discover.service'
 import type { AuthenticatedRequest } from '@/src/shared/authenticated-request'
 import { Public } from '@/src/shared/public.decorator';
 import { VenuesService } from '../services/venues.service';
+import { UserContextGuard } from '../../auth/user-context.guard';
 
 
 @Controller('venues')
@@ -23,11 +24,23 @@ export class VenueController {
             genres: genres ? genres.split(',') : undefined,
         });
     }
+@UseGuards(JwtAuthGuard, UserContextGuard)
+@Get('/dashboard')
+async getVenueDashboard(
+  @Req() req: AuthenticatedRequest,
+) {
+  const { venueId } = req.userContext;
+
+  if (!venueId) {
+    throw new ForbiddenException('ONLY_VENUE');
+  }
+
+  return this.venuesService.getVenueDashboard(venueId);
+}
+
+
     @Get(':id')
     async getVenueById(@Param('id') id: string) {
         return this.venuesService.getPublicVenueProfile(id);
     }
-
-
-
 }

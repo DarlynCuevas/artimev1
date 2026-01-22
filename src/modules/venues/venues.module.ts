@@ -12,6 +12,7 @@ import { DbVenueRepository } from '../../infrastructure/database/repositories/ve
 import { VenueController } from './controllers/venue.controller';
 import { DiscoverVenuesUseCase } from './use-cases/discover-venues.usecase';
 import { VenuesService } from './services/venues.service';
+import { GetVenueDashboardUseCase } from './use-cases/dashboard-venue.usecase';
 
 @Module({
   imports: [forwardRef(() => ArtistsModule), forwardRef(() => BookingsModule)],
@@ -20,6 +21,7 @@ import { VenuesService } from './services/venues.service';
     VenueDiscoverService,
     DiscoverVenuesUseCase,
     VenuesService,
+    GetVenueDashboardUseCase,
     {
       provide: ARTIST_REPOSITORY,
       useClass: DbArtistRepository,
@@ -33,6 +35,6 @@ import { VenuesService } from './services/venues.service';
       useClass: DbVenueRepository,
     },
   ],
-  exports: [VenuesService],
+  exports: [VenuesService, VENUE_REPOSITORY],
 })
 export class VenuesModule {}

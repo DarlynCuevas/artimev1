@@ -7,6 +7,8 @@ import { ArtistProps } from '../entities/artist.entity';
 import { CreateArtistDto } from '../dto/create-artist.dto';
 import { ArtistFormat } from '../enums/artist-format.enum';
 import { buildDayRange } from '../utils/build-day-range';
+import { GetArtistDashboardUseCase } from '../use-cases/dashboard-artist.usecase';
+import { UpdateArtistDto } from '../dto/update-artist.dto';
 
 
 @Injectable()
@@ -14,6 +16,7 @@ export class ArtistsService {
   constructor(
     @Inject(ARTIST_REPOSITORY)
     private readonly artistRepository: ArtistRepository,
+    private readonly getArtistDashboardUseCase: GetArtistDashboardUseCase,
   ) { }
 
   async findAll() {
@@ -58,6 +61,27 @@ export class ArtistsService {
   async discover() {
 
     return this.artistRepository.findForDiscover();
+  }
+
+  async updateArtistProfile(artistId: string, dto: UpdateArtistDto) {
+    await this.artistRepository.updateProfile(artistId, {
+      name: dto.name,
+      city: dto.city,
+      genres: dto.genres,
+      bio: dto.bio,
+      format: dto.format,
+      basePrice: dto.basePrice,
+      currency: dto.currency,
+      isNegotiable: dto.isNegotiable,
+      managerId: dto.managerId ?? null,
+      rating: dto.rating,
+    });
+
+    return this.getPublicArtistProfile(artistId);
+  }
+
+  async getArtistDashboard(artistId: string) {
+    return this.getArtistDashboardUseCase.execute(artistId);
   }
 
   private assertArtistIsComplete(artist: ArtistProps) {

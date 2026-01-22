@@ -7,11 +7,10 @@ import { EventEntity } from '../entities/event.entity';
 export class GetEventDetailQuery {
   constructor(private readonly eventRepository: EventRepository) {}
 
-  async execute(event: EventEntity): Promise<EventReadDto> {
-    
-    const data = await this.eventRepository.findById(event.id);
+  async execute(eventId: string): Promise<EventReadDto> {
+    const event = await this.eventRepository.findById(eventId);
 
-    if (!data) {
+    if (!event) {
       throw new Error('EVENT_NOT_FOUND');
     }
 

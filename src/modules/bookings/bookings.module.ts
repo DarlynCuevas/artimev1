@@ -1,5 +1,7 @@
 import { PAYMENT_REPOSITORY } from '../payments/repositories/payment.repository.token';
 import { forwardRef } from '@nestjs/common';
+import { VenuesModule } from '../venues/venues.module';
+import { ArtistsModule } from '../artists/artists.module';
 import { PaymentsModule } from '../payments/payments.module';
 import { DbPaymentRepository } from '../../infrastructure/database/repositories/payment.repository';
 // src/modules/bookings/bookings.module.ts
@@ -42,12 +44,13 @@ import { ExecuteCancellationEconomicImpactUseCase } from './cancellations/econom
 import { ConfirmPaymentMilestoneUseCase } from './use-cases/confirm/confirm-payment-milestone.usecase';
 import { PAYMENT_MILESTONE_REPOSITORY } from '../payments/payment-milestone-repository.token';
 import { DbPaymentMilestoneRepository } from '@/src/infrastructure/database/repositories/db-payment-milestone.repository';
+import { ArtistCalendarBlockRepository } from '@/src/infrastructure/database/repositories/artist/artist-calendar-block.repository';
 
 
 
 
 @Module({
-  imports: [SupabaseModule, ManagersModule, ContractsModule, forwardRef(() => PaymentsModule)],
+  imports: [SupabaseModule, ManagersModule, ContractsModule, forwardRef(() => PaymentsModule), forwardRef(() => ArtistsModule), VenuesModule],
   controllers: [BookingsController, CancellationsController, CancellationResolutionsController],
   providers: [
     BookingService,
@@ -67,6 +70,7 @@ import { DbPaymentMilestoneRepository } from '@/src/infrastructure/database/repo
     ResolveCancellationCaseUseCase,
     ExecuteCancellationEconomicImpactUseCase,
     ConfirmPaymentMilestoneUseCase,
+    ArtistCalendarBlockRepository,
     {
       provide: CANCELLATION_ECONOMIC_EXECUTION_REPOSITORY,
       useClass: DbCancellationEconomicExecutionRepository,

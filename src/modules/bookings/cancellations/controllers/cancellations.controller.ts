@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  ForbiddenException,
   Param,
   Post,
   Req,
@@ -11,33 +12,46 @@ import { RequestBookingCancellationUseCase } from '../use-cases/request-booking-
 import { CancellationReason } from '../enums/cancellation-reason.enum';
 import type { AuthenticatedRequest } from '@/src/shared/authenticated-request';
 import { JwtAuthGuard } from '@/src/modules/auth/jwt-auth.guard';
+import { UserContextGuard } from '@/src/modules/auth/user-context.guard';
 
 @Controller('internal/bookings-cancellations')
 export class CancellationsController {
   constructor(
     private readonly requestBookingCancellationUseCase: RequestBookingCancellationUseCase,
   ) {}
-  @UseGuards(JwtAuthGuard)  
-  @Post(':bookingId')
-  async cancel(
-    @Param('bookingId') bookingId: string,
-    @Req() req: AuthenticatedRequest,
-    @Body()
-    body: {
-      reason: CancellationReason;
-      description?: string;
-    },
-  ) {
-    const user = req.user;
+@UseGuards(JwtAuthGuard, UserContextGuard)
+@Post(':bookingId')
+async cancel(
+  @Param('bookingId') bookingId: string,
+  @Req() req: AuthenticatedRequest,
+  @Body()
+  body: {
+    reason: CancellationReason;
+    description?: string;
+  },
+) {
+  const { userId, venueId, artistId, managerId } = req.userContext;
 
-   await this.requestBookingCancellationUseCase.execute({
-  bookingId,
-  userId: user.sub,
-  userRole: user.role as 'ARTIST' | 'MANAGER' | 'VENUE' | 'PROMOTER',
-  reason: body.reason,
-  description: body.description,
-});
+  let userRole: 'ARTIST' | 'MANAGER' | 'VENUE' | 'PROMOTER';
 
-    return { status: 'CANCELLED' };
+  if (artistId) {
+    userRole = 'ARTIST';
+  } else if (managerId) {
+    userRole = 'MANAGER';
+  } else if (venueId) {
+    userRole = 'VENUE';
+  } else {
+    throw new ForbiddenException();
   }
+
+  await this.requestBookingCancellationUseCase.execute({
+    bookingId,
+    userId,
+    userRole,
+    reason: body.reason,
+    description: body.description,
+  });
+
+  return { status: 'CANCELLED' };
+}
 }

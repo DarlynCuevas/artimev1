@@ -11,7 +11,11 @@ export class UpdateEventVisibilityUseCase {
     private readonly eventRepository: EventRepository,
   ) {}
 
-  async execute(event: EventEntity , visibility: EventVisibility) {
+  async execute(eventId: string , visibility: EventVisibility) {
+    const event = await this.eventRepository.findById(eventId);
+    if (!event) {
+      throw new Error('Event not found');
+    }
     
   event.changeVisibility(visibility);
   

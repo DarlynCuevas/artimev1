@@ -3,6 +3,7 @@ import { Injectable } from '@nestjs/common';
 import type { ArtistRepository } from '../../../../modules/artists/repositories/artist.repository.interface';
 import { Artist } from '../../../../modules/artists/entities/artist.entity';
 import { StripeOnboardingStatus } from '../../../../modules/payments/stripe/stripe-onboarding-status.enum';
+import { BookingStatus } from '../../../../modules/bookings/booking-status.enum';
 import { supabase } from '../../supabase.client';
 import { format } from 'path';
 
@@ -40,14 +41,14 @@ export class DbArtistRepository implements ArtistRepository {
   }
 
   async findByUserId(userId: string) {
-  const { data } = await supabase
-    .from('artists')
-    .select('*')
-    .eq('user_id', userId)
-    .single();
+    const { data } = await supabase
+      .from('artists')
+      .select('*')
+      .eq('user_id', userId)
+      .single();
 
-  return data ?? null;
-}
+    return data ?? null;
+  }
 
 
   async update(artist: Artist): Promise<void> {
@@ -160,9 +161,9 @@ export class DbArtistRepository implements ArtistRepository {
 
 
   async findPublicProfileById(id: string) {
-        const { data, error } = await supabase
-          .from('artists')
-          .select(`
+    const { data, error } = await supabase
+      .from('artists')
+      .select(`
             id,
             name,
             city,
@@ -175,13 +176,13 @@ export class DbArtistRepository implements ArtistRepository {
             format,
             manager_id
           `)
-          .eq('id', id)
-          .maybeSingle();
-        // Si data es array, tomar el primer elemento
+      .eq('id', id)
+      .maybeSingle();
+    // Si data es array, tomar el primer elemento
     const artist = Array.isArray(data) ? data[0] : data;
-        if (error || !artist) {
-          return null;
-        }
+    if (error || !artist) {
+      return null;
+    }
     return {
       id: artist.id,
       name: artist.name,
@@ -193,16 +194,16 @@ export class DbArtistRepository implements ArtistRepository {
       rating: artist.rating ?? undefined,
       bio: artist.bio ?? '',
       format: artist.format ?? '',
-          managerId: artist.manager_id ?? undefined,
+      managerId: artist.manager_id ?? undefined,
     };
   }
 
-async findForDiscover() {
-  // ...
-  
-  const { data, error } = await supabase
-    .from('artists')
-    .select(`
+  async findForDiscover() {
+    // ...
+
+    const { data, error } = await supabase
+      .from('artists')
+      .select(`
       id,
       name,
       city,
@@ -211,45 +212,125 @@ async findForDiscover() {
       currency,
       rating
     `)
-    .order('rating', { ascending: false })
-    .limit(50);
+      .order('rating', { ascending: false })
+      .limit(50);
 
     // ...
-    
 
-  if (error) throw error;
-  return data;
-}
 
-async findBookedDates(
-  artistId: string,
-  from: string,
-  to: string,
-): Promise<string[]> {
-
-  if (!from || !to) {
-    throw new Error('Parámetros de fecha inválidos: from y to son requeridos');
+    if (error) throw error;
+    return data;
   }
+
+  async findBookedDates(
+    artistId: string,
+    from: string,
+    to: string,
+  ): Promise<string[]> {
+
+    if (!from || !to) {
+      throw new Error('Parámetros de fecha inválidos: from y to son requeridos');
+    }
+
+    const { data, error } = await supabase
+      .from('bookings')
+      .select('start_date')
+      .eq('artist_id', artistId)
+      .in('status', [
+        BookingStatus.ACCEPTED,
+        BookingStatus.CONTRACT_SIGNED,
+        BookingStatus.PAID_PARTIAL,
+        BookingStatus.PAID_FULL,
+        BookingStatus.COMPLETED,
+      ])
+      .gte('start_date', from)
+      .lte('start_date', to);
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    if (!data || data.length === 0) {
+      return [];
+    }
+
+    // Normalizamos a YYYY-MM-DD
+    return data.map(b => b.start_date.slice(0, 10));
+  }
+  async findByIds(ids: string[]): Promise<Artist[]> {
+  if (ids.length === 0) return [];
 
   const { data, error } = await supabase
-    .from('bookings')
-    .select('start_date')
-    .eq('artist_id', artistId)
-    .in('status', ['PAID_PARTIAL', 'PAID_FULL', 'COMPLETED'])
-    .gte('start_date', from)
-    .lte('start_date', to);
+    .from('artists')
+    .select('*')
+    .in('id', ids);
 
-  if (error) {
-    throw new Error(error.message);
-  }
+  if (error || !data) return [];
 
-  if (!data || data.length === 0) {
-    return [];
-  }
-
-  // Normalizamos a YYYY-MM-DD
-  return data.map(b => b.start_date.slice(0, 10));
+  return data.map(
+    (row) =>
+      new Artist({
+        id: row.id,
+        email: row.email,
+        stripeOnboardingStatus: row.stripe_onboarding_status,
+        name: row.name,
+        city: row.city,
+        genres: row.genres,
+        basePrice: row.base_price,
+        currency: row.currency,
+        isNegotiable: row.is_negotiable,
+        bio: row.bio,
+        format: row.format,
+        stripeAccountId: row.stripe_account_id ?? undefined,
+        rating: row.rating ?? undefined,
+        managerId: row.manager_id ?? null,
+        createdAt: new Date(row.created_at),
+        updatedAt: new Date(row.updated_at),
+      }),
+  );
 }
+
+
+  async updateProfile(
+    artistId: string,
+    payload: {
+      name?: string;
+      city?: string;
+      genres?: string[];
+      bio?: string;
+      format?: string;
+      basePrice?: number;
+      currency?: string;
+      isNegotiable?: boolean;
+      managerId?: string | null;
+      rating?: number;
+    },
+  ): Promise<void> {
+    const updatePayload: Record<string, any> = {
+      updated_at: new Date(),
+    };
+
+    if (payload.name !== undefined) updatePayload.name = payload.name;
+    if (payload.city !== undefined) updatePayload.city = payload.city;
+    if (payload.genres !== undefined) updatePayload.genres = payload.genres;
+    if (payload.bio !== undefined) updatePayload.bio = payload.bio;
+    if (payload.format !== undefined) updatePayload.format = payload.format;
+    if (payload.basePrice !== undefined) updatePayload.base_price = payload.basePrice;
+    if (payload.currency !== undefined) updatePayload.currency = payload.currency;
+    if (payload.isNegotiable !== undefined) updatePayload.is_negotiable = payload.isNegotiable;
+    if (payload.managerId !== undefined) updatePayload.manager_id = payload.managerId;
+    if (payload.rating !== undefined) updatePayload.rating = payload.rating;
+
+    const { error } = await supabase
+      .from('artists')
+      .update(updatePayload)
+      .eq('id', artistId);
+
+    if (error) {
+      throw new Error(error.message);
+    }
+  }
+
 
 
 }

@@ -3,6 +3,7 @@ export class BookingResponseDto {
   artistId: string;
   venueId: string;
   promoterId: string | null;
+  managerId?: string | null;
   status: string;
   currency: string;
   totalAmount: number;

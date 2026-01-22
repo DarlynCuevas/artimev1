@@ -1,9 +1,15 @@
 import { Request } from 'express';
-import { EventEntity } from '../modules/events/entities/event.entity';
+
+export type UserContext = {
+  userId: string;
+  artistId?: string;
+  venueId?: string;
+  managerId?: string;
+};
+
 export interface AuthenticatedRequest extends Request {
   user: {
     sub: string;
-    role: string;
   };
-  event?: EventEntity;
+  userContext: UserContext;
 }

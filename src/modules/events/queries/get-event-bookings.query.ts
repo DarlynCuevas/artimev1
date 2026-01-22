@@ -9,7 +9,7 @@ export class GetEventBookingsQuery {
     private readonly supabase: SupabaseClient,
   ) {}
 
-  async execute(event: EventEntity) {
+  async execute(eventId: string) {
     const { data, error } = await this.supabase
       .from('bookings')
       .select(`
@@ -21,7 +21,7 @@ export class GetEventBookingsQuery {
           name
         )
       `)
-      .eq('event_id', event.id);
+      .eq('event_id', eventId);
 
     if (error) {
       throw new Error(error.message);

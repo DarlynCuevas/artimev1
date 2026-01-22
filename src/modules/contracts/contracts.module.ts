@@ -10,11 +10,16 @@ import { GetContractByBookingUseCase } from './use-cases/get-contract-by-booking
 
 import { ContractsController } from './controllers/contracts.controller';
 import { CreatePaymentScheduleForBookingUseCase } from '../payments/use-cases/create-payment-schedule-for-booking.usecase';
+import { ArtistsModule } from '../artists/artists.module';
+import { VenuesModule } from '../venues/venues.module';
+import { UserContextGuard } from '../auth/user-context.guard';
 
 @Module({
   imports: [
     forwardRef(() => BookingsModule),
     forwardRef(() => require('../payments/payments.module').PaymentsModule),
+    forwardRef(() => ArtistsModule),
+    forwardRef(() => VenuesModule),
   ],
   controllers: [ContractsController],
   providers: [
@@ -24,6 +29,7 @@ import { CreatePaymentScheduleForBookingUseCase } from '../payments/use-cases/cr
     GenerateContractUseCase,
     GetContractByBookingUseCase,
     CreatePaymentScheduleForBookingUseCase,
+    UserContextGuard,
     {
       provide: BOOKING_REPOSITORY,
       useClass: SupabaseBookingRepository,

@@ -23,6 +23,8 @@ export class SignContractUseCase {
 
   async execute(input: {
     contractId: string;
+    artistId?: string;
+    managerId?: string;
     userId: string;
     conditionsAccepted: boolean;
     conditionsVersion?: string;
@@ -60,6 +62,8 @@ export class SignContractUseCase {
 
     // 5. Validar permisos (v1)
     const isAllowed =
+      (input.artistId && booking.artistId === input.artistId) ||
+      (input.managerId && booking.managerId === input.managerId) ||
       booking.artistId === input.userId ||
       booking.managerId === input.userId;
 

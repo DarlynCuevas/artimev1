@@ -21,6 +21,8 @@ import type { BookingRepository } from '../repositories/booking.repository.inter
 import { SignContractUseCase } from '../../contracts/use-cases/sign-contract.use-case';
 import { AcceptBookingUseCase } from '../use-cases/confirm/confirm-booking.use-case';
 import { ConfirmPaymentMilestoneUseCase } from '../use-cases/confirm/confirm-payment-milestone.usecase';
+import { UserContextGuard } from '../../auth/user-context.guard';
+import { VenuesService } from '../../venues/services/venues.service';
 
 
 
@@ -42,7 +44,7 @@ export class BookingsController {
     @Inject(SignContractUseCase) private readonly signContractUseCase: SignContractUseCase,
   ) { }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, UserContextGuard)
   @Get(':id')
   async getById(
     @Req() req: AuthenticatedRequest,
@@ -52,6 +54,17 @@ export class BookingsController {
 
     if (!booking) {
       throw new NotFoundException('Booking not found');
+    }
+
+    const { artistId, venueId, managerId } = req.userContext;
+
+    const isAllowed =
+      (artistId && booking.artistId === artistId) ||
+      (venueId && booking.venueId === venueId) ||
+      (managerId && booking.managerId === managerId);
+
+    if (!isAllowed) {
+      throw new ForbiddenException('You are not allowed to view this booking');
     }
 
     // Obtener cantidad de mensajes de negociación
@@ -66,6 +79,7 @@ export class BookingsController {
       status: booking.status,
       currency: booking.currency,
       totalAmount: booking.totalAmount,
+      managerId: booking.managerId ?? null,
       start_date: booking.start_date,
       messagesCount: messages.length,
       lastMessage: lastMessage
@@ -77,18 +91,19 @@ export class BookingsController {
     };
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard,UserContextGuard)
   @Get()
   async getMyBookings(
     @Req() req: AuthenticatedRequest,
-  ): Promise<BookingResponseDto[]> {
-    const bookings = await this.bookingService.getForUser(req.user.sub, req.user.role);
+  ): Promise<BookingResponseDto[]> {    
+    const bookings = await this.bookingService.getForUser(req.userContext);
 
     // Para mínimo viable, devolvemos messagesCount: 0 (sin consulta extra)
     return bookings.map((booking) => ({
       id: booking.id,
       artistId: booking.artistId,
       venueId: booking.venueId ?? '',
+      managerId: booking.managerId ?? null,
       promoterId: booking.promoterId ?? null,
       status: booking.status,
       currency: booking.currency,
@@ -101,106 +116,117 @@ export class BookingsController {
 
 
 
-  @UseGuards(JwtAuthGuard)
-  @Post()
-  async create(
-    @Req() req: AuthenticatedRequest,
-    @Body() dto: CreateBookingDto,
-  ): Promise<BookingResponseDto> {
-    if (req.user.role !== 'VENUE' && req.user.role !== 'PROMOTER') {
-      throw new ForbiddenException(
-        'Only venues or promoters can create bookings',
-      );
-    }
-    const booking = await this.bookingService.createBooking({
-      artistId: dto.artistId,
-      venueId: req.user.sub,
-      eventId: dto.eventId,
-      currency: dto.currency,
-      totalAmount: dto.totalAmount,
-      start_date: dto.start_date,
-      role: req.user.role,
-      sub: req.user.sub,
-      message: dto.message,
-    });
+@UseGuards(JwtAuthGuard, UserContextGuard)
+@Post()
 
-    return {
-      id: booking.id,
-      artistId: booking.artistId,
-      venueId: booking.venueId ?? '',
-      promoterId: booking.promoterId ?? null,
-      status: booking.status,
-      currency: booking.currency,
-      totalAmount: booking.totalAmount,
-      start_date: booking.start_date,
-      messagesCount: 0,
-      lastMessage: null,
-    };
+async create(
+  @Req() req: AuthenticatedRequest,
+  @Body() dto: CreateBookingDto,
+): Promise<BookingResponseDto> {
+  // LOG: contexto de usuario completo
+  const { venueId, userId } = req.userContext;
+  // LOG: valores clave
+
+  if (!venueId) {
+    throw new ForbiddenException('Only venues can create bookings');
   }
+
+  const booking = await this.bookingService.createBooking({
+    artistId: dto.artistId,
+    venueId,
+    eventId: dto.eventId,
+    currency: dto.currency,
+    totalAmount: dto.totalAmount,
+    start_date: dto.start_date,
+    message: dto.message,
+    senderRole: NegotiationSenderRole.VENUE,
+    senderUserId: userId,
+  });
+
+  // LOG: booking creado
+  console.log('Booking creado:', booking);
+
+  return {
+    id: booking.id,
+    artistId: booking.artistId,
+    venueId: booking.venueId ?? '',
+    promoterId: booking.promoterId ?? null,
+    status: booking.status,
+    currency: booking.currency,
+    totalAmount: booking.totalAmount,
+    start_date: booking.start_date,
+    messagesCount: 0,
+    lastMessage: null,
+  };
+}
+
+
 
   //CANCELACIONES
-  @UseGuards(JwtAuthGuard)
-  @Post(':id/cancel')
-  async cancelBooking(
-    @Param('id') bookingId: string,
-    @Body() body: CancelBookingDto,
-    @Req() req: AuthenticatedRequest,
-  ) {
-    const user = req.user;
+  @UseGuards(JwtAuthGuard, UserContextGuard)
+@Post(':id/cancel')
+async cancelBooking(
+  @Param('id') bookingId: string,
+  @Body() body: CancelBookingDto,
+  @Req() req: AuthenticatedRequest,
+) {
+  const { venueId, artistId, managerId } = req.userContext;
 
-    let initiator: CancellationInitiator;
+  let initiator: CancellationInitiator;
 
-    switch (user.role) {
-      case 'ARTIST':
-        initiator = CancellationInitiator.ARTIST;
-        break;
-      case 'VENUE':
-        initiator = CancellationInitiator.VENUE;
-        break;
-      case 'PROMOTER':
-        initiator = CancellationInitiator.PROMOTER;
-        break;
-      default:
-        initiator = CancellationInitiator.SYSTEM;
-    }
-
-    return this.cancelBookingUseCase.execute({
-      bookingId,
-      initiator: CancellationInitiator[initiator],
-      reason: body.reason,
-      description: body.description,
-    });
+  if (artistId) {
+    initiator = CancellationInitiator.ARTIST;
+  } else if (venueId) {
+    initiator = CancellationInitiator.VENUE;
+  } else if (managerId) {
+    initiator = CancellationInitiator.MANAGER;
+  } else {
+    initiator = CancellationInitiator.SYSTEM;
   }
+
+  return this.cancelBookingUseCase.execute({
+    bookingId,
+    initiator,
+    reason: body.reason,
+    description: body.description,
+  });
+}
+
 
   //NEGOCIATIONS
 
-  @UseGuards(JwtAuthGuard)
-  @Post(':id/negotiations/messages')
-  async sendNegotiationMessage(
-    @Req() req: AuthenticatedRequest,
-    @Param('id') bookingId: string,
-    @Body() body: { message: string; proposedFee?: number },
-  ) {
-    const senderRole = req.user.role as NegotiationSenderRole;
+@UseGuards(JwtAuthGuard, UserContextGuard)
+@Post(':id/negotiations/messages')
+async sendNegotiationMessage(
+  @Req() req: AuthenticatedRequest,
+  @Param('id') bookingId: string,
+  @Body() body: { message: string; proposedFee?: number },
+) {
+  const { userId, venueId, artistId, managerId } = req.userContext;
 
-    console.log('[SEND NEGOTIATION MESSAGE] Params:', {
-      bookingId,
-      senderUserId: req.user.sub,
-      senderRole,
-      message: body.message,
-      proposedFee: body.proposedFee,
-    });
-    await this.sendNegotiationMessageUseCase.execute({
-      bookingId,
-      senderUserId: req.user.sub,
-      senderRole,
-      message: body.message,
-      proposedFee: body.proposedFee,
-    });
-    console.log('[SEND NEGOTIATION MESSAGE] Mensaje enviado');
+  let senderRole: NegotiationSenderRole;
 
-    return { ok: true };
+  if (venueId) {
+    senderRole = NegotiationSenderRole.VENUE;
+  } else if (artistId) {
+    senderRole = NegotiationSenderRole.ARTIST;
+  } else if (managerId) {
+    senderRole = NegotiationSenderRole.MANAGER;
+  } else {
+    throw new ForbiddenException();
   }
+
+  await this.sendNegotiationMessageUseCase.execute({
+    bookingId,
+    senderUserId: userId,
+    senderRole,
+    message: body.message,
+    proposedFee: body.proposedFee,
+  });
+
+  return { ok: true };
+}
+
   //Get negotiation query messages
   @UseGuards(JwtAuthGuard)
   @Get(':id/negotiations/messages')
@@ -235,145 +261,201 @@ export class BookingsController {
   }
 
   //negotiation final offer
-  @UseGuards(JwtAuthGuard)
-  @Post(':id/negotiations/final-offer')
-  async sendFinalOffer(
-    @Req() req: AuthenticatedRequest,
-    @Param('id') bookingId: string,
-    @Body() body: {
-      proposedFee: number;
-      message?: string;
-    },
-  ) {
-    await this.sendFinalOfferUseCase.execute({
-      bookingId,
-      senderUserId: req.user.sub,
-      senderRole: req.user.role as NegotiationSenderRole,
-      proposedFee: body.proposedFee,
-      message: body.message,
-    });
+@UseGuards(JwtAuthGuard, UserContextGuard)
+@Post(':id/negotiations/final-offer')
+async sendFinalOffer(
+  @Req() req: AuthenticatedRequest,
+  @Param('id') bookingId: string,
+  @Body() body: {
+    proposedFee: number;
+    message?: string;
+  },
+) {
+  const { userId, venueId, artistId, managerId } = req.userContext;
+
+  let senderRole: NegotiationSenderRole;
+
+  if (venueId) {
+    senderRole = NegotiationSenderRole.VENUE;
+  } else if (artistId) {
+    senderRole = NegotiationSenderRole.ARTIST;
+  } else if (managerId) {
+    senderRole = NegotiationSenderRole.MANAGER;
+  } else {
+    throw new ForbiddenException();
   }
 
+  await this.sendFinalOfferUseCase.execute({
+    bookingId,
+    senderUserId: userId,
+    senderRole,
+    proposedFee: body.proposedFee,
+    message: body.message,
+  });
+
+  return { ok: true };
+}
 
   //Final offert bookings
-  @UseGuards(JwtAuthGuard)
-  @Post(':id/final-offer/accept')
-  async finalOfferAccept(
-    @Req() req: AuthenticatedRequest,
-    @Param('id') bookingId: string,
-    @Body()
-    body: {
-      proposedFee: number;
-      message?: string;
-    },
-  ) {
-    await this.acceptFinalOfferUseCase.execute({
-      bookingId,
-      senderRole: req.user.role as NegotiationSenderRole,
-      senderUserId: req.user.sub,
-    });
+@UseGuards(JwtAuthGuard, UserContextGuard)
+@Post(':id/final-offer/accept')
+async finalOfferAccept(
+  @Req() req: AuthenticatedRequest,
+  @Param('id') bookingId: string,
+) {
+  const { userId, venueId, artistId, managerId } = req.userContext;
 
-    return { success: true };
+  let senderRole: NegotiationSenderRole;
+
+  if (artistId) {
+    senderRole = NegotiationSenderRole.ARTIST;
+  } else if (managerId) {
+    senderRole = NegotiationSenderRole.MANAGER;
+  } else if (venueId) {
+    senderRole = NegotiationSenderRole.VENUE;
+  } else {
+    throw new ForbiddenException();
   }
+
+  await this.acceptFinalOfferUseCase.execute({
+    bookingId,
+    senderRole,
+    senderUserId: userId,
+  });
+
+  return { success: true };
+}
+
 //Rechazar offer
-  @UseGuards(JwtAuthGuard)
-  @Post(':id/final-offer/reject')
-  async finalOfferReject(
-    @Req() req: AuthenticatedRequest,
-    @Param('id') bookingId: string,
-    @Body()
-    body: {
-      proposedFee: number;
-      message?: string;
-    },
-  ) {
-    await this.rejectFinalOfferUseCase.execute({
-      bookingId,
-      senderRole: req.user.role as NegotiationSenderRole,
-      senderUserId: req.user.sub,
-    });
+@UseGuards(JwtAuthGuard, UserContextGuard)
+@Post(':id/final-offer/reject')
+async finalOfferReject(
+  @Req() req: AuthenticatedRequest,
+  @Param('id') bookingId: string,
+) {
+  const { userId, venueId, artistId, managerId } = req.userContext;
 
-    return { success: true };
+  let senderRole: NegotiationSenderRole;
+
+  if (artistId) {
+    senderRole = NegotiationSenderRole.ARTIST;
+  } else if (managerId) {
+    senderRole = NegotiationSenderRole.MANAGER;
+  } else if (venueId) {
+    senderRole = NegotiationSenderRole.VENUE;
+  } else {
+    throw new ForbiddenException();
   }
+
+  await this.rejectFinalOfferUseCase.execute({
+    bookingId,
+    senderRole,
+    senderUserId: userId,
+  });
+
+  return { success: true };
+}
 
 
   //CONTRATO 
-  @UseGuards(JwtAuthGuard)
-  @Get(':id/contract')
-  async getContract(
-    @Param('id') bookingId: string,
-    @Req() req: AuthenticatedRequest,
-  ): Promise<ContractResponseDto> {
-    const booking = await this.bookingRepository.findById(bookingId);
-    if (!booking) {
-      throw new NotFoundException('Booking not found');
-    }
-
-    // Permisos básicos v1
-    const userId = req.user.sub;
-    const role = req.user.role;
-
-    const isAllowed =
-      booking.artistId === userId ||
-      booking.managerId === userId ||
-      booking.venueId === userId ||
-      booking.promoterId === userId;
-
-    if (!isAllowed) {
-      throw new ForbiddenException(
-        'You are not allowed to view this contract',
-      );
-    }
-
-    const contract =
-      await this.contractRepository.findByBookingId(bookingId);
-
-    if (!contract) {
-      throw new NotFoundException('Contract not found');
-    }
-
-    return {
-      id: contract.id,
-      bookingId: contract.bookingId,
-      version: contract.version,
-      status: contract.status,
-      currency: contract.currency,
-      totalAmount: contract.totalAmount,
-      artimeCommissionPercentage: contract.artimeCommissionPercentage,
-      finalOfferId: contract.finalOfferId,
-      signedAt: contract.signedAt,
-      signedByRole: contract.signedByRole,
-      snapshotData: contract.snapshotData,
-      createdAt: contract.createdAt,
-    };
+  @UseGuards(JwtAuthGuard, UserContextGuard)
+@Get(':id/contract')
+async getContract(
+  @Param('id') bookingId: string,
+  @Req() req: AuthenticatedRequest,
+): Promise<ContractResponseDto> {
+  const booking = await this.bookingRepository.findById(bookingId);
+  if (!booking) {
+    throw new NotFoundException('Booking not found');
   }
 
+  const { venueId, artistId, managerId } = req.userContext;
 
-@UseGuards(JwtAuthGuard)
+  const isAllowed =
+    (artistId && booking.artistId === artistId) ||
+    (managerId && booking.managerId === managerId) ||
+    (venueId && booking.venueId === venueId);
+
+  if (!isAllowed) {
+    throw new ForbiddenException(
+      'You are not allowed to view this contract',
+    );
+  }
+
+  const contract =
+    await this.contractRepository.findByBookingId(bookingId);
+
+  if (!contract) {
+    throw new NotFoundException('Contract not found');
+  }
+
+  return {
+    id: contract.id,
+    bookingId: contract.bookingId,
+    version: contract.version,
+    status: contract.status,
+    currency: contract.currency,
+    totalAmount: contract.totalAmount,
+    artimeCommissionPercentage: contract.artimeCommissionPercentage,
+    finalOfferId: contract.finalOfferId,
+    signedAt: contract.signedAt,
+    signedByRole: contract.signedByRole,
+    snapshotData: contract.snapshotData,
+    createdAt: contract.createdAt,
+  };
+}
+
+@UseGuards(JwtAuthGuard, UserContextGuard)
 @Post(':id/accept')
 async acceptBooking(
   @Param('id') bookingId: string,
   @Req() req: AuthenticatedRequest,
 ) {
+  const { userId, venueId, artistId, managerId } = req.userContext;
+
+  let senderRole: NegotiationSenderRole;
+
+  if (artistId) {
+    senderRole = NegotiationSenderRole.ARTIST;
+  } else if (managerId) {
+    senderRole = NegotiationSenderRole.MANAGER;
+  } else if (venueId) {
+    senderRole = NegotiationSenderRole.VENUE;
+  } else {
+    throw new ForbiddenException();
+  }
+
   await this.acceptBookingUseCase.execute({
     bookingId,
-    senderUserId: req.user.sub,
-    senderRole: req.user.role as NegotiationSenderRole,
+    senderUserId: userId,
+    senderRole,
   });
+
+  return { success: true };
 }
 
-@UseGuards(JwtAuthGuard)
+
+@UseGuards(JwtAuthGuard, UserContextGuard)
 @Post(':id/payments/confirm')
 async confirmPayment(
   @Param('id') bookingId: string,
   @Body('milestoneId') milestoneId: string,
   @Req() req: AuthenticatedRequest,
 ) {
+  const { userId, venueId, artistId, managerId } = req.userContext;
+
+  // Solo quien participa en el booking puede confirmar pagos (v1: normalmente VENUE)
+  if (!venueId && !artistId && !managerId) {
+    throw new ForbiddenException();
+  }
+
   await this.confirmPaymentMilestoneUseCase.execute({
     bookingId,
     milestoneId,
-    executedByUserId: req.user.sub,
+    executedByUserId: userId,
   });
+
+  return { success: true };
 }
 
 }
