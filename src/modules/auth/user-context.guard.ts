@@ -8,12 +8,15 @@ import type { VenueRepository } from '../venues/repositories/venue.repository.in
 import { Inject } from '@nestjs/common';
 import { ARTIST_REPOSITORY } from '../artists/repositories/artist-repository.token';
 import { VENUE_REPOSITORY } from '../venues/repositories/venue-repository.token';
+import type { PromoterRepository } from '../promoter/repositories/promoter.repository.interface';
+import { PROMOTER_REPOSITORY } from '../promoter/repositories/promoter-repository.token';
 
 export type UserContext = {
   userId: string;
   artistId?: string;
   venueId?: string;
   managerId?: string;
+  promoterId?: string;
   
 };
 
@@ -24,6 +27,8 @@ export class UserContextGuard implements CanActivate {
     private readonly artistsRepository: ArtistRepository,
     @Inject(VENUE_REPOSITORY)
     private readonly venuesRepository: VenueRepository,
+      @Inject(PROMOTER_REPOSITORY)
+    private readonly promotersRepository: PromoterRepository,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -37,15 +42,17 @@ export class UserContextGuard implements CanActivate {
     }
 
     // Resolver perfiles (una vez por request)
-    const [artist, venue] = await Promise.all([
+    const [artist, venue, promoter] = await Promise.all([
       this.artistsRepository.findByUserId(userId),
       this.venuesRepository.findByUserId(userId),
+       this.promotersRepository.findByUserId(userId),
     ]);
 
     request.userContext = {
       userId,
       artistId: artist?.id,
       venueId: venue?.id,
+      promoterId: promoter?.id,
     } satisfies UserContext;
 
     return true;

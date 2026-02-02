@@ -1,3 +1,4 @@
+// removed duplicate forwardRef import
 import { Module, forwardRef } from '@nestjs/common';
 
 import { ArtistsController } from './controllers/artists.controller';

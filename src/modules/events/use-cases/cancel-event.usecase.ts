@@ -20,7 +20,7 @@ export class CancelEventUseCase {
       throw new Error('EVENT_NOT_FOUND');
     }
 
-    if (event.ownerId !== command.requesterId) {
+    if (event.organizerPromoterId !== command.requesterId && event.organizerVenueId !== command.requesterId) {
       throw new Error('FORBIDDEN');
     }
 

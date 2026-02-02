@@ -29,9 +29,13 @@ import { MiddlewareConsumer, Module, NestModule, RequestMethod } from '@nestjs/c
 import { LoadEventMiddleware } from './middleware/load-event.middleware';
 import { LoadBookingMiddleware } from './middleware/load-booking.middleware';
 import { BookingsModule } from '../bookings/bookings.module';
+import { UserContextModule } from '../auth/user-context/user-context.module';
+import { ArtistsModule } from '../artists/artists.module';
+import { VenuesModule } from '../venues/venues.module';
+import { forwardRef } from '@nestjs/common';
 import { BookingsController } from '../bookings/controllers/bookings.controller';
 @Module({
-  imports: [BookingsModule],
+  imports: [UserContextModule, BookingsModule, ArtistsModule, VenuesModule],
   controllers: [EventsController],
   providers: [
     //Events

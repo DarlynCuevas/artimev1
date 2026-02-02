@@ -16,7 +16,7 @@ export class EventOrganizerGuard implements CanActivate {
       throw new ForbiddenException('Event not found');
     }
 
-    if (event.ownerId !== user.id) {
+    if (event.organizerPromoterId !== user.id && event.organizerVenueId !== user.id) {
       throw new ForbiddenException(
         'Only the event organizer can perform this action'
       );

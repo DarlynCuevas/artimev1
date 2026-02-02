@@ -3,25 +3,25 @@ import type { EventRepository } from '../repositories/event.repository';
 import { EventStatus } from '../enums/event-status.enum';
 import { EVENT_REPOSITORY } from '../repositories/event.repository.token';
 import { Inject } from '@nestjs/common';
-
 export interface UpdateEventCommand {
   eventId: string;
-  requesterId: string;
-
+  organizerPromoterId?: string;
+  organizerVenueId?: string;
   name?: string;
-  start_date?: Date;
-  endDate?: Date | null;
-
-  venueId?: string | null;
-  type?: string | null;
-  estimatedBudget?: number | null;
-  description?: string | null;
+  startDate?: Date;
+  endDate?: Date;
+  venueId?: string;
+  type?: string;
+  estimatedBudget?: number;
+  description?: string;
 }
 
 
-
 export class UpdateEventUseCase {
-  constructor(@Inject(EVENT_REPOSITORY) private readonly eventRepository: EventRepository) {}
+  constructor(
+    @Inject(EVENT_REPOSITORY)
+    private readonly eventRepository: EventRepository,
+  ) {}
 
   async execute(command: UpdateEventCommand): Promise<void> {
     const event = await this.eventRepository.findById(command.eventId);
@@ -30,7 +30,16 @@ export class UpdateEventUseCase {
       throw new Error('EVENT_NOT_FOUND');
     }
 
-    if (event.ownerId !== command.requesterId) {
+    // Validación de organizador
+    const isPromoterOrganizer =
+      command.organizerPromoterId &&
+      event.organizerPromoterId === command.organizerPromoterId;
+
+    const isVenueOrganizer =
+      command.organizerVenueId &&
+      event.organizerVenueId === command.organizerVenueId;
+
+    if (!isPromoterOrganizer && !isVenueOrganizer) {
       throw new Error('FORBIDDEN');
     }
 
@@ -43,8 +52,8 @@ export class UpdateEventUseCase {
       event.name = command.name;
     }
 
-    if (command.start_date !== undefined) {
-      event.start_date = command.start_date;
+    if (command.startDate !== undefined) {
+      event.startDate = command.startDate;
     }
 
     if (command.endDate !== undefined) {

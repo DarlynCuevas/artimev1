@@ -13,6 +13,9 @@ export class BookingResponseDto {
   totalAmount: number;
   eventId?: string;
   start_date: string;
+  handledAt?: string | null;
+  createdAt?: string;
+  updatedAt?: string | null;
   messagesCount: number;
   lastMessage: {
     senderRole: string;

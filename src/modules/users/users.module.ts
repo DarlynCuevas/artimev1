@@ -1,16 +1,20 @@
-import { Module } from '@nestjs/common';
-import { MeController } from './controllers/me.controller';
-import { VenuesModule } from '../venues/venues.module';
+import { Module, forwardRef } from '@nestjs/common';
 import { ArtistsModule } from '../artists/artists.module';
+import { VenuesModule } from '../venues/venues.module';
 import { MeService } from './services/me.service';
-
+import { PromotersModule } from '../promoter/promoter.module';
 
 @Module({
   imports: [
-    ArtistsModule,
-    VenuesModule,
+    forwardRef(() => ArtistsModule),
+    forwardRef(() => VenuesModule),
+    forwardRef(() => PromotersModule), // 🔴 CLAVE
   ],
-  controllers: [MeController],
-  providers: [MeService],
+  providers: [
+    MeService,
+  ],
+  exports: [
+    MeService,
+  ],
 })
 export class UsersModule {}

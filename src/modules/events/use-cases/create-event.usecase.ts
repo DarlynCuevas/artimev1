@@ -5,10 +5,14 @@ import { EventStatus } from '../enums/event-status.enum';
 import { randomUUID } from 'crypto';
 import { EVENT_REPOSITORY } from '../repositories/event.repository.token';
 import { Inject } from '@nestjs/common';
+import { EventVisibility } from '../enums/event-visibility.enum';
 
 export interface CreateEventCommand {
   name: string;
-  ownerId: string;
+
+  // Organizador (exactamente uno)
+  organizerPromoterId?: string | null;
+  organizerVenueId?: string | null;
 
   start_date: Date;
   endDate?: Date | null;
@@ -21,43 +25,49 @@ export interface CreateEventCommand {
 
 
 
+
 export class CreateEventUseCase {
-  constructor(@Inject(EVENT_REPOSITORY) 
-                private readonly eventRepository: EventRepository) {}
+  constructor(
+    @Inject(EVENT_REPOSITORY)
+    private readonly eventRepository: EventRepository,
+  ) { }
 
   async execute(command: CreateEventCommand): Promise<void> {
+
+    // Validación de integridad (OBLIGATORIA)
+    if (!command.organizerPromoterId && !command.organizerVenueId) {
+      throw new Error('Event must have exactly one organizer');
+    }
+    if (command.organizerPromoterId && command.organizerVenueId) {
+      throw new Error('Event cannot have two organizers');
+    }
+
     const event = new EventEntity(
       randomUUID(),
-
-      // Identidad
       command.name,
 
-      // Owner
-      command.ownerId,
+      command.organizerPromoterId ?? null,
+      command.organizerVenueId ?? null,
 
-      // Estado inicial (cerrado)
       EventStatus.DRAFT,
+      EventVisibility.PRIVATE, // o el default que tengas definido
 
-      // Marco temporal
       command.start_date,
       command.endDate ?? null,
 
-      // Contexto opcional
       command.venueId ?? null,
       command.type ?? null,
 
-      // Planificación
       command.estimatedBudget ?? null,
-
-      // Notas
       command.description ?? null,
 
-      // Auditoría
       new Date(),
       new Date(),
-      
     );
+
 
     await this.eventRepository.save(event);
   }
 }
+
+

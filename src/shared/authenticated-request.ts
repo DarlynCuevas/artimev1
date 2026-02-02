@@ -5,6 +5,7 @@ export type UserContext = {
   artistId?: string;
   venueId?: string;
   managerId?: string;
+  promoterId?: string;
 };
 
 export interface AuthenticatedRequest extends Request {

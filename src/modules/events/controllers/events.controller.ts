@@ -8,6 +8,7 @@ import {
   Body,
   Req,
   UseGuards,
+  ForbiddenException,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 import type { Request } from 'express';
@@ -37,9 +38,10 @@ import { BookingConfirmedGuard } from '../guards/booking-confirmed.guard';
 import { LinkBookingToEventUseCase } from '../use-cases/link-booking-to-event.usecase';
 import { UpdateEventBookingOrganizationUseCase } from '../use-cases/update-event-booking-organization.usecase';
 import { UpdateEventVisibilityUseCase } from '../use-cases/update-event-visibility.usecase';
+import { UserContextGuard } from '../../auth/user-context.guard';
 
 @Controller('events')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, UserContextGuard)
 export class EventsController {
   constructor(
     private readonly createEventUseCase: CreateEventUseCase,
@@ -58,12 +60,24 @@ export class EventsController {
   ) { }
 
   @Post()
-  async create(@Req() req: AuthenticatedRequest, @Body() dto: CreateEventDto) {
-    const userId = req.user.sub;
+  async create(
+    @Req() req: AuthenticatedRequest,
+    @Body() dto: CreateEventDto,
+  ) {
+    const { promoterId, venueId } = req.userContext;
 
-    await this.createEventUseCase.execute({
+    if (!promoterId && !venueId) {
+      throw new ForbiddenException(
+        'Only promoters or venues can create events',
+      );
+    }
+
+    // ownerId debe ser string garantizado
+
+    return this.createEventUseCase.execute({
+      organizerPromoterId: promoterId ? promoterId : null,
+      organizerVenueId: venueId ? venueId : null,
       name: dto.name,
-      ownerId: userId,
       start_date: new Date(dto.start_date),
       endDate: dto.endDate ? new Date(dto.endDate) : null,
       venueId: dto.venueId ?? null,
@@ -79,17 +93,22 @@ export class EventsController {
       throw new Error('User or user.sub not found in request. Check JWT and guard.');
     }
 
-    const userId = req.user.sub;
-    return this.getEventsQuery.execute(userId);
+    const { promoterId, venueId } = req.userContext;
+
+    return this.getEventsQuery.execute({
+      organizerPromoterId: promoterId ?? null,
+      organizerVenueId: venueId ?? null,
+    });
+
   }
 
-@UseGuards(JwtAuthGuard)
-@Get(':id')
-async detail(
-  @Param('id') eventId: string,
-) {
-  return this.getEventDetailQuery.execute(eventId);
-}
+  @UseGuards(JwtAuthGuard)
+  @Get(':id')
+  async detail(
+    @Param('id') eventId: string,
+  ) {
+    return this.getEventDetailQuery.execute(eventId);
+  }
 
 
 
@@ -156,12 +175,12 @@ async detail(
   }
 
   //Obtener Bookings de un Evento
-@Get(':id/bookings')
-async getEventBookings(
-  @Param('id') eventId: string,
-) {
-  return this.getEventBookingsQuery.execute(eventId);
-}
+  @Get(':id/bookings')
+  async getEventBookings(
+    @Param('id') eventId: string,
+  ) {
+    return this.getEventBookingsQuery.execute(eventId);
+  }
 
 
 
@@ -206,17 +225,17 @@ async getEventBookings(
 
 
   //Cambiar visibilidad del Event
-@UseGuards(JwtAuthGuard, EventOrganizerGuard, EventNotCompletedGuard)
-@Patch(':id/visibility')
-async updateVisibility(
-  @Param('id') eventId: string,
-  @Body('visibility') visibility: EventVisibility,
-) {
-  await this.updateEventVisibilityUseCase.execute(
-    eventId,
-    visibility,
-  );
+  @UseGuards(JwtAuthGuard, EventOrganizerGuard, EventNotCompletedGuard)
+  @Patch(':id/visibility')
+  async updateVisibility(
+    @Param('id') eventId: string,
+    @Body('visibility') visibility: EventVisibility,
+  ) {
+    await this.updateEventVisibilityUseCase.execute(
+      eventId,
+      visibility,
+    );
 
-  return this.getEventDetailQuery.execute(eventId);
-}
+    return this.getEventDetailQuery.execute(eventId);
+  }
 }

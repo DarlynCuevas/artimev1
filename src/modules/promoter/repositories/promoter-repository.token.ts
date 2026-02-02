@@ -1,0 +1,1 @@
+export const PROMOTER_REPOSITORY = Symbol('PROMOTER_REPOSITORY');

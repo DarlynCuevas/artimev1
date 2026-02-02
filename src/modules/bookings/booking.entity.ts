@@ -30,6 +30,7 @@ interface BookingProps {
   handledByRole: BookingHandlerRole | null;
   handledByUserId: string | null;
   handledAt: Date | null;
+  updatedAt?: Date | null;
 }
 
 export class Booking {
@@ -123,6 +124,10 @@ export class Booking {
     return this.props.handledAt;
   }
 
+  get updatedAt(): Date | null | undefined {
+    return this.props.updatedAt;
+  }
+
   get eventId(): string | null | undefined {
     return this.props.eventId;
   }
@@ -187,6 +192,7 @@ export class Booking {
       handledByRole: this.handledByRole,
       handledByUserId: this.handledByUserId,
       handledAt: this.handledAt,
+      updatedAt: this.updatedAt ?? null,
       message: this.props.message,
     };
   }

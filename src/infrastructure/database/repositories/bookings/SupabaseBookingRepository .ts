@@ -71,6 +71,7 @@ export class SupabaseBookingRepository {
       handledByRole: data.handled_by_role ?? null,
       handledByUserId: data.handled_by_user_id ?? null,
       handledAt: data.handled_at ? new Date(data.handled_at) : null,
+      updatedAt: data.updated_at ? new Date(data.updated_at) : null,
       venueName,
       venueCity,
     });
@@ -174,6 +175,7 @@ export class SupabaseBookingRepository {
         handledByRole: row.handled_by_role ?? null,
         handledByUserId: row.handled_by_user_id ?? null,
         handledAt: row.handled_at ? new Date(row.handled_at) : null,
+        updatedAt: row.updated_at ? new Date(row.updated_at) : null,
         venueName: venueInfo?.name ?? null,
         venueCity: venueInfo?.city ?? null,
       });

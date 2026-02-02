@@ -3,6 +3,8 @@ import type { VenueRepository } from '../repositories/venue.repository.interface
 import { VENUE_REPOSITORY } from '../repositories/venue-repository.token'
 import { mapVenueToPublicDto } from '../mappers/venue-public.mapper';
 import { GetVenueDashboardUseCase } from '../use-cases/dashboard-venue.usecase';
+import type { UpdateVenueDto } from '../dto/update-venue.dto';
+import type { UserContext } from '../../auth/user-context.guard';
 
 @Injectable()
 export class VenuesService {
@@ -25,6 +27,26 @@ export class VenuesService {
 
   async findByUserId(userId: string) {
     return this.venueRepository.findByUserId(userId);
+  }
+
+  async getMyVenueProfile(userId: string) {
+    const venue = await this.venueRepository.findByUserId(userId);
+
+    if (!venue) {
+      throw new NotFoundException('VENUE_PROFILE_NOT_FOUND');
+    }
+
+    return venue;
+  }
+
+  async upsertMyVenueProfile(userContext: UserContext, dto: UpdateVenueDto) {
+    const { userId, venueId } = userContext;
+
+    if (venueId) {
+      return this.venueRepository.updateProfile(venueId, dto);
+    }
+
+    return this.venueRepository.createForUser(userId, dto);
   }
 
 

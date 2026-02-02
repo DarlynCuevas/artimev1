@@ -85,6 +85,9 @@ export class BookingsController {
       totalAmount: booking.totalAmount,
       managerId: booking.managerId ?? null,
       start_date: booking.start_date,
+      handledAt: booking.handledAt ? booking.handledAt.toISOString() : null,
+      createdAt: booking.createdAt.toISOString(),
+      updatedAt: (booking as any).updatedAt ? (booking as any).updatedAt.toISOString() : null,
       messagesCount: messages.length,
       lastMessage: lastMessage
         ? {
@@ -117,6 +120,9 @@ export class BookingsController {
       currency: booking.currency,
       totalAmount: booking.totalAmount,
       start_date: booking.start_date,
+      handledAt: booking.handledAt ? booking.handledAt.toISOString() : null,
+      createdAt: booking.createdAt.toISOString(),
+      updatedAt: (booking as any).updatedAt ? (booking as any).updatedAt.toISOString() : null,
       messagesCount: 0,
       lastMessage: null,
     }));
@@ -126,7 +132,6 @@ export class BookingsController {
 
 @UseGuards(JwtAuthGuard, UserContextGuard)
 @Post()
-
 async create(
   @Req() req: AuthenticatedRequest,
   @Body() dto: CreateBookingDto,

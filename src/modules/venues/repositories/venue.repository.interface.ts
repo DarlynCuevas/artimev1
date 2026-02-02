@@ -10,4 +10,18 @@ export interface VenueRepository {
     city?: string;
     genres?: string[];
   }): Promise<VenueEntity[]>;
+
+  createForUser(
+    userId: string,
+    payload: Partial<Pick<VenueEntity,
+      'name' | 'city' | 'address' | 'capacity' | 'description' | 'genres' | 'amenities' | 'website' | 'contactEmail' | 'contactPhone'
+    >>,
+  ): Promise<VenueEntity>;
+
+  updateProfile(
+    venueId: string,
+    payload: Partial<Pick<VenueEntity,
+      'name' | 'city' | 'address' | 'capacity' | 'description' | 'genres' | 'amenities' | 'website' | 'contactEmail' | 'contactPhone'
+    >>,
+  ): Promise<VenueEntity>;
 }

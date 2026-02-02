@@ -5,7 +5,10 @@ export interface EventRepository {
 
   findById(eventId: string): Promise<EventEntity | null>;
 
-  findByOwner(ownerId: string): Promise<EventEntity[]>;
 
   update(event: EventEntity): Promise<void>;
+  findByOrganizer(params: {
+  organizerPromoterId: string | null;
+  organizerVenueId: string | null;
+}): Promise<EventEntity[]>;
 }

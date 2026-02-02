@@ -8,17 +8,20 @@ import { EventVisibility } from '@/src/modules/events/enums/event-visibility.enu
 
 @Injectable()
 export class SupabaseEventRepository implements EventRepository {
-  constructor(private readonly supabase: SupabaseClient) {}
+  constructor(private readonly supabase: SupabaseClient) { }
 
   async save(event: EventEntity): Promise<void> {
     const { error } = await this.supabase.from('events').insert({
       id: event.id,
       name: event.name,
 
-      owner_id: event.ownerId,
-      status: event.status,
+      organizer_promoter_id: event.organizerPromoterId,
+      organizer_venue_id: event.organizerVenueId,
 
-      start_date: event.start_date,
+      status: event.status,
+      visibility: event.visibility,
+
+      start_date: event.startDate,
       end_date: event.endDate,
 
       venue_id: event.venueId,
@@ -37,14 +40,14 @@ export class SupabaseEventRepository implements EventRepository {
   }
 
   async update(event: EventEntity): Promise<void> {
-    
     const { error } = await this.supabase
       .from('events')
       .update({
         name: event.name,
         status: event.status,
+        visibility: event.visibility,
 
-        start_date: event.start_date,
+        start_date: event.startDate,
         end_date: event.endDate,
 
         venue_id: event.venueId,
@@ -54,7 +57,6 @@ export class SupabaseEventRepository implements EventRepository {
         description: event.description,
 
         updated_at: event.updatedAt,
-        visibility: event.visibility,
       })
       .eq('id', event.id);
 
@@ -62,6 +64,7 @@ export class SupabaseEventRepository implements EventRepository {
       throw new Error(error.message);
     }
   }
+
 
   async findById(eventId: string): Promise<EventEntity | null> {
     const { data, error } = await this.supabase
@@ -77,35 +80,64 @@ export class SupabaseEventRepository implements EventRepository {
     return this.mapRowToEvent(data);
   }
 
-  async findByOwner(ownerId: string): Promise<EventEntity[]> {
-    const { data, error } = await this.supabase
+
+  async findByOrganizer(params: {
+    organizerPromoterId: string | null;
+    organizerVenueId: string | null;
+  }): Promise<EventEntity[]> {
+    let query = this.supabase
       .from('events')
       .select('*')
-      .eq('owner_id', ownerId)
       .order('created_at', { ascending: false });
+
+    if (params.organizerPromoterId) {
+      query = query.eq(
+        'organizer_promoter_id',
+        params.organizerPromoterId,
+      );
+    }
+
+    if (params.organizerVenueId) {
+      query = query.eq(
+        'organizer_venue_id',
+        params.organizerVenueId,
+      );
+    }
+
+    const { data, error } = await query;
 
     if (error || !data) {
       return [];
     }
 
-    return data.map(this.mapRowToEvent);
+    return data.map((row) => this.mapRowToEvent(row));
   }
 
-  private mapRowToEvent(row: any):  EventEntity {
+
+  private mapRowToEvent(row: any): EventEntity {
     return new EventEntity(
       row.id,
       row.name,
-      row.owner_id,
+
+      row.organizer_promoter_id ?? null,
+      row.organizer_venue_id ?? null,
+
       row.status as EventStatus,
+      (row.visibility as EventVisibility) ?? EventVisibility.PRIVATE,
+
       new Date(row.start_date),
       row.end_date ? new Date(row.end_date) : null,
-      row.venue_id,
-      row.type,
-      row.estimated_budget,
-      row.description, 
+
+      row.venue_id ?? null,
+      row.type ?? null,
+
+      row.estimated_budget ?? null,
+      row.description ?? null,
+
       new Date(row.created_at),
       new Date(row.updated_at),
-      row.visibility ?? EventVisibility.PRIVATE,
     );
   }
 }
+
+
