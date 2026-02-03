@@ -21,6 +21,7 @@ import { SplitCalculator } from './split/split-calculator.service';
 // Tokens
 import { SPLIT_SUMMARY_REPOSITORY } from './split/split-summary.tokens';
 import { PAYMENT_PROVIDER } from './providers/payment-provider.token';
+import { PAYMENT_INTENT_REPOSITORY } from './repositories/payment-intent.repository.token';
 
 // Interfaces
 import { BOOKING_REPOSITORY } from '../bookings/repositories/booking-repository.token';
@@ -31,6 +32,7 @@ import { SupabaseBookingRepository } from '../../infrastructure/database/reposit
 import { DbSplitSummaryRepository } from '../../infrastructure/database/repositories/split-summary.repository';
 import { StripePaymentProvider } from '../../infrastructure/payments/stripe-payment.provider';
 import { DbPayoutRepository } from '../../infrastructure/database/db-payout-repository';
+import { DbPaymentIntentRepository } from '../../infrastructure/database/repositories/db-payment-intent.repository';
 import { SupabaseModule } from '../../infrastructure/database/supabase.module';
 import { CANCELLATION_REPOSITORY } from './cancellations/cancellation.repository.token';
 import { DbCancellationRepository } from 'src/infrastructure/database/repositories/db-cancellation.repository';
@@ -76,6 +78,10 @@ import { ExecuteCancellationRefundUseCase } from './use-cases/cancellation-refun
     {
       provide: PAYMENT_PROVIDER,
       useClass: StripePaymentProvider,
+    },
+    {
+      provide: PAYMENT_INTENT_REPOSITORY,
+      useClass: DbPaymentIntentRepository,
     },
     StripePaymentProvider,
     {

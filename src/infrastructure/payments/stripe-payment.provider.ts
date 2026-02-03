@@ -24,14 +24,22 @@ export class StripePaymentProvider implements PaymentProvider {
     amount: number;
     currency: string;
     destinationAccountId: string;
+    idempotencyKey?: string;
   }): Promise<void> {
     const stripe = this.getStripe();
 
-    await stripe.transfers.create({
-      amount: input.amount,
-      currency: input.currency,
-      destination: input.destinationAccountId,
-    });
+    const options = input.idempotencyKey
+      ? { idempotencyKey: input.idempotencyKey }
+      : undefined;
+
+    await stripe.transfers.create(
+      {
+        amount: input.amount,
+        currency: input.currency,
+        destination: input.destinationAccountId,
+      },
+      options,
+    );
   }
 
   /* =======================
@@ -42,6 +50,7 @@ export class StripePaymentProvider implements PaymentProvider {
     amount: number;
     currency: string;
     metadata: Record<string, string>;
+    idempotencyKey?: string;
   }): Promise<{
     providerPaymentId: string;
     clientSecret: string;
@@ -49,12 +58,19 @@ export class StripePaymentProvider implements PaymentProvider {
   }> {
     const stripe = this.getStripe();
 
-    const intent = await stripe.paymentIntents.create({
-      amount: input.amount,
-      currency: input.currency,
-      metadata: input.metadata,
-      automatic_payment_methods: { enabled: true },
-    });
+    const options = input.idempotencyKey
+      ? { idempotencyKey: input.idempotencyKey }
+      : undefined;
+
+    const intent = await stripe.paymentIntents.create(
+      {
+        amount: input.amount,
+        currency: input.currency,
+        metadata: input.metadata,
+        automatic_payment_methods: { enabled: true },
+      },
+      options,
+    );
 
     return {
       providerPaymentId: intent.id,

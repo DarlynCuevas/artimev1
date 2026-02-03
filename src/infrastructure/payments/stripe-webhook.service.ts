@@ -14,6 +14,8 @@ import type { PaymentMilestoneRepository } from '../../modules/payments/payment-
 import { BOOKING_REPOSITORY } from '../../modules/bookings/repositories/booking-repository.token';
 import type { SupabaseBookingRepository } from '../database/repositories/bookings/SupabaseBookingRepository ';
 import { BookingStatus } from '../../modules/bookings/booking-status.enum';
+import { PAYMENT_INTENT_REPOSITORY } from '../../modules/payments/repositories/payment-intent.repository.token';
+import type { PaymentIntentRepository } from '../../modules/payments/repositories/payment-intent.repository.interface';
 
 @Injectable()
 export class StripeWebhookService {
@@ -24,6 +26,8 @@ export class StripeWebhookService {
     private readonly milestoneRepository: PaymentMilestoneRepository,
     @Inject(BOOKING_REPOSITORY)
     private readonly supabaseBookingRepository: SupabaseBookingRepository,
+    @Inject(PAYMENT_INTENT_REPOSITORY)
+    private readonly paymentIntentRepository: PaymentIntentRepository,
   ) {}
 
   async handleWebhook(
@@ -48,6 +52,26 @@ export class StripeWebhookService {
     }
     if (event.type === 'payment_intent.succeeded') {
       await this.handlePaymentIntentSucceeded(
+        event.data.object as Stripe.PaymentIntent,
+      );
+    }
+    if (event.type === 'payment_intent.created') {
+      await this.handlePaymentIntentCreated(
+        event.data.object as Stripe.PaymentIntent,
+      );
+    }
+    if (event.type === 'payment_intent.processing') {
+      await this.handlePaymentIntentProcessing(
+        event.data.object as Stripe.PaymentIntent,
+      );
+    }
+    if (event.type === 'payment_intent.canceled') {
+      await this.handlePaymentIntentCanceled(
+        event.data.object as Stripe.PaymentIntent,
+      );
+    }
+    if (event.type === 'payment_intent.payment_failed') {
+      await this.handlePaymentIntentFailed(
         event.data.object as Stripe.PaymentIntent,
       );
     }
@@ -90,6 +114,8 @@ export class StripeWebhookService {
       console.warn('[Webhook] Falta milestoneId o bookingId en metadata');
       return;
     }
+
+    await this.upsertPaymentIntentFromStripe(paymentIntent);
 
     // 1️ Load milestone
     const milestone = await this.milestoneRepository.findById(milestoneId);
@@ -141,4 +167,76 @@ export class StripeWebhookService {
     console.log('[Webhook] booking actualizado en BD');
   }
 
+  private async handlePaymentIntentFailed(
+    paymentIntent: Stripe.PaymentIntent,
+  ): Promise<void> {
+    const errorMessage =
+      paymentIntent.last_payment_error?.message ??
+      paymentIntent.last_payment_error?.code ??
+      'Payment failed';
+
+    await this.upsertPaymentIntentFromStripe(
+      paymentIntent,
+      errorMessage,
+    );
+  }
+
+  private async handlePaymentIntentCreated(
+    paymentIntent: Stripe.PaymentIntent,
+  ): Promise<void> {
+    await this.upsertPaymentIntentFromStripe(paymentIntent);
+  }
+
+  private async handlePaymentIntentProcessing(
+    paymentIntent: Stripe.PaymentIntent,
+  ): Promise<void> {
+    await this.upsertPaymentIntentFromStripe(paymentIntent);
+  }
+
+  private async handlePaymentIntentCanceled(
+    paymentIntent: Stripe.PaymentIntent,
+  ): Promise<void> {
+    await this.upsertPaymentIntentFromStripe(paymentIntent);
+  }
+
+  private async upsertPaymentIntentFromStripe(
+    paymentIntent: Stripe.PaymentIntent,
+    errorMessage?: string,
+  ): Promise<void> {
+    const { milestoneId, bookingId } =
+      paymentIntent.metadata ?? {};
+
+    const existing =
+      await this.paymentIntentRepository.findByProviderPaymentId(
+        paymentIntent.id,
+      );
+
+    if (!existing && bookingId) {
+      await this.paymentIntentRepository.save({
+        provider: 'stripe',
+        bookingId,
+        milestoneId: milestoneId ?? null,
+        amount: paymentIntent.amount,
+        currency: paymentIntent.currency,
+        status: paymentIntent.status,
+        providerPaymentId: paymentIntent.id,
+        clientSecret: paymentIntent.client_secret ?? null,
+        idempotencyKey: `stripe-${paymentIntent.id}`,
+        metadata: paymentIntent.metadata ?? null,
+        error: errorMessage ?? null,
+      });
+
+      return;
+    }
+
+    await this.paymentIntentRepository.updateByProviderPaymentId(
+      paymentIntent.id,
+      {
+        status: paymentIntent.status,
+        clientSecret: paymentIntent.client_secret ?? null,
+        metadata: paymentIntent.metadata ?? null,
+        error: errorMessage ?? null,
+      },
+    );
+  }
 }
