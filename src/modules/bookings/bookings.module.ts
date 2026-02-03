@@ -9,7 +9,7 @@ import { DbPaymentRepository } from '../../infrastructure/database/repositories/
 
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { BookingsController } from './controllers/bookings.controller';
-import { SupabaseBookingRepository } from '../../infrastructure/database/repositories/bookings/SupabaseBookingRepository ';
+import { SupabaseBookingRepository } from '../../infrastructure/database/repositories/bookings/SupabaseBookingRepository';
 import { BOOKING_REPOSITORY } from './repositories/booking-repository.token';
 import { BookingService } from './service/booking.service';
 import { CancelBookingUseCase } from './cancellations/use-cases/cancel-booking.use-case';

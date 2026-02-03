@@ -7,6 +7,7 @@ export interface PaymentProvider {
     amount: number;
     currency: string;
     metadata: Record<string, string>;
+    idempotencyKey?: string;
   }): Promise<{
     providerPaymentId: string;
     clientSecret: string;
@@ -32,5 +33,6 @@ export interface PaymentProvider {
     amount: number;
     currency: string;
     destinationAccountId: string;
+    idempotencyKey?: string;
   }): Promise<void>;
 }

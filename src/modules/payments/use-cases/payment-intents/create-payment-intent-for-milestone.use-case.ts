@@ -107,6 +107,7 @@ export class CreatePaymentIntentForMilestoneUseCase {
           bookingId: booking.id,
           milestoneId: milestone.id,
         },
+        idempotencyKey: `milestone-${milestone.id}`,
       });
 
     // 7️ Persist providerPaymentId in milestone
@@ -122,4 +123,3 @@ export class CreatePaymentIntentForMilestoneUseCase {
     };
   }
 }
-

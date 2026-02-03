@@ -1,4 +1,4 @@
-import { SupabaseBookingRepository } from '../../../infrastructure/database/repositories/bookings/SupabaseBookingRepository ';
+import { SupabaseBookingRepository } from '../../../infrastructure/database/repositories/bookings/SupabaseBookingRepository';
 import { DbPaymentRepository } from '../../../infrastructure/database/repositories/payment.repository';
 import { PaymentProvider } from '../providers/payment-provider.interface';
 import { BookingStatus } from '../../bookings/booking-status.enum';
@@ -51,6 +51,7 @@ export class CreateFinalPaymentIntentUseCase {
         milestoneId: finalMilestone.id,
         type: 'FINAL',
       },
+      idempotencyKey: `final-${finalMilestone.id}`,
     });
     console.log('[CreateFinalPaymentIntentUseCase] Intent creado:', intent);
 

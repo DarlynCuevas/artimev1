@@ -31,6 +31,7 @@ export class CreatePaymentIntentUseCase {
       metadata: {
         bookingId: input.bookingId,
       },
+      idempotencyKey: `booking-${input.bookingId}`,
     });
 
     // 3. Guardar referencia en DB (a implementar)

@@ -2,6 +2,7 @@ import {
   CanActivate,
   ExecutionContext,
   Injectable,
+  UnauthorizedException,
 } from '@nestjs/common';
 import type { ArtistRepository } from '../artists/repositories/artist.repository.interface';
 import type { VenueRepository } from '../venues/repositories/venue.repository.interface';
@@ -13,11 +14,16 @@ import { PROMOTER_REPOSITORY } from '../promoter/repositories/promoter-repositor
 
 export type UserContext = {
   userId: string;
-  artistId?: string;
-  venueId?: string;
-  managerId?: string;
-  promoterId?: string;
-  
+  artistId?: string | null;
+  venueId?: string | null;
+  managerId?: string | null;
+  promoterId?: string | null;
+  roles: {
+    ARTIST: boolean;
+    VENUE: boolean;
+    MANAGER: boolean;
+    PROMOTER: boolean;
+  };
 };
 
 @Injectable()
@@ -38,7 +44,7 @@ export class UserContextGuard implements CanActivate {
     const userId: string | undefined = request.user?.sub;
 
     if (!userId) {
-      return false;
+      throw new UnauthorizedException();
     }
 
     // Resolver perfiles (una vez por request)
@@ -50,9 +56,16 @@ export class UserContextGuard implements CanActivate {
 
     request.userContext = {
       userId,
-      artistId: artist?.id,
-      venueId: venue?.id,
-      promoterId: promoter?.id,
+      artistId: artist?.id ?? null,
+      venueId: venue?.id ?? null,
+      managerId: null,
+      promoterId: promoter?.id ?? null,
+      roles: {
+        ARTIST: !!artist,
+        VENUE: !!venue,
+        MANAGER: false,
+        PROMOTER: !!promoter,
+      },
     } satisfies UserContext;
 
     return true;

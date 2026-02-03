@@ -36,8 +36,8 @@ export class ContractsController {
 
         await this.signContractUseCase.execute({
             contractId: contractId,
-            artistId,
-            managerId,
+            artistId: artistId ?? undefined,
+            managerId: managerId ?? undefined,
             userId: req.user.sub,
             conditionsAccepted: body.conditionsAccepted,
             conditionsVersion: body.conditionsVersion,
