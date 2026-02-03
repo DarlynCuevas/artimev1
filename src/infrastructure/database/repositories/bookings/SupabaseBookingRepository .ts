@@ -1,4 +1,4 @@
-
+﻿
 // booking.repository.ts
 
 import { supabase } from '../../supabase.client';
@@ -252,7 +252,61 @@ export class SupabaseBookingRepository {
     });
   }
 
-  async findActiveByVenueId(
+
+  async findByPromoterId(promoterId: string): Promise<Booking[]> {
+    const { data, error } = await supabase
+      .from('bookings')
+      .select('*')
+      .eq('promoter_id', promoterId)
+      .order('created_at', { ascending: false });
+
+    if (error || !data) {
+      return [];
+    }
+
+    const artistIds = Array.from(new Set((data ?? []).map((row: any) => row.artist_id).filter(Boolean)));
+    const artistMap = new Map<string, { name: string | null; city: string | null }>();
+
+    if (artistIds.length) {
+      const { data: artistsData } = await supabase
+        .from('artists')
+        .select('id, name, city')
+        .in('id', artistIds);
+
+      artistsData?.forEach((artist: any) => {
+        artistMap.set(artist.id, { name: artist.name ?? null, city: artist.city ?? null });
+      });
+    }
+
+    return data.map((row) => {
+      const artistInfo = row.artist_id ? artistMap.get(row.artist_id) : undefined;
+
+      return new Booking({
+        id: row.id,
+        artistId: row.artist_id,
+        artistName: artistInfo?.name ?? null,
+        artistCity: artistInfo?.city ?? null,
+        venueId: row.venue_id,
+        promoterId: row.promoter_id,
+        eventId: row.event_id,
+        status: row.status,
+        createdAt: new Date(row.created_at),
+        currency: row.currency,
+        totalAmount: row.total_amount,
+        start_date: row.start_date,
+
+        artistStripeAccountId: row.artist_stripe_account_id,
+        managerStripeAccountId: row.manager_stripe_account_id,
+        artimeCommissionPercentage: row.artime_commission_percentage,
+        managerCommissionPercentage: row.manager_commission_percentage,
+        managerId: row.manager_id,
+
+        handledByRole: row.handled_by_role ?? null,
+        handledByUserId: row.handled_by_user_id ?? null,
+        handledAt: row.handled_at ? new Date(row.handled_at) : null,
+      });
+    });
+  }  async findActiveByVenueId(
     venueId: string,
   ): Promise<
     {

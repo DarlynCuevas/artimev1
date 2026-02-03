@@ -6,7 +6,10 @@ import { MeService } from './services/me.service';
 import { PromotersModule } from '../promoter/promoter.module';
 import { MeController } from './controllers/me.controller';
 import { NotificationsController } from './controllers/notifications.controller';
+import { UsersController } from './controllers/users.controller';
 import { ArtistNotificationRepository } from '@/src/infrastructure/database/repositories/notifications/artist-notification.repository';
+import { UsersService } from './services/users.service';
+import { OnboardingService } from './services/onboarding.service';
 
 @Module({
   imports: [
@@ -15,10 +18,12 @@ import { ArtistNotificationRepository } from '@/src/infrastructure/database/repo
     forwardRef(() => VenuesModule),
     forwardRef(() => PromotersModule), // CLAVE
   ],
-  controllers: [MeController, NotificationsController],
+  controllers: [MeController, NotificationsController, UsersController],
   providers: [
     MeService,
     ArtistNotificationRepository,
+    UsersService,
+    OnboardingService,
   ],
   exports: [
     MeService,

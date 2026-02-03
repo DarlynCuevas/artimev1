@@ -27,7 +27,11 @@ export class GetPromoterDashboardUseCase {
 
     async execute(promoterId: string): Promise<any> {
         // 1. Perfil del promotor (mock, reemplaza por consulta real si tienes repositorio)
-        const profile = await this.promoterRepository.findById(promoterId); // Implementa esta función según tu lógica
+        const profile = (await this.promoterRepository.findById(promoterId)) ?? {
+            id: promoterId,
+            name: 'Promotor',
+            created_at: new Date(),
+        };
 
         // 2. Eventos del promotor (mock, reemplaza por consulta real si tienes repositorio de eventos)
         // Aquí puedes usar tu repositorio de eventos para obtener los eventos reales

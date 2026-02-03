@@ -30,6 +30,11 @@ export class PromoterService {
     promoterId: string;
     name?: string;
     description?: string;
+    city?: string;
+    country?: string;
+    eventTypes?: string[];
+    isPublic?: boolean;
+    showPastEvents?: boolean;
   }) {
     return this.updatePromoterProfileUseCase.execute(command);
   }

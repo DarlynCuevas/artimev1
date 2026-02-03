@@ -43,6 +43,12 @@ export class DbPromoterRepository implements PromoterRepository {
       id: row.id,
       user_id: row.user_id,
       name: row.name,
+      city: row.city ?? null,
+      country: row.country ?? null,
+      description: row.description ?? null,
+      event_types: row.event_types ?? null,
+      is_public: row.is_public ?? null,
+      show_past_events: row.show_past_events ?? null,
       created_at: new Date(row.created_at),
     };
   }
@@ -51,14 +57,27 @@ export class DbPromoterRepository implements PromoterRepository {
   id: string;
   name?: string;
   description?: string;
+  city?: string;
+  country?: string;
+  eventTypes?: string[];
+  isPublic?: boolean;
+  showPastEvents?: boolean;
 }): Promise<void> {
+  const updatePayload: Record<string, any> = {
+    updated_at: new Date(),
+  };
+
+  if (data.name !== undefined) updatePayload.name = data.name;
+  if (data.description !== undefined) updatePayload.description = data.description;
+  if (data.city !== undefined) updatePayload.city = data.city;
+  if (data.country !== undefined) updatePayload.country = data.country;
+  if (data.eventTypes !== undefined) updatePayload.event_types = data.eventTypes;
+  if (data.isPublic !== undefined) updatePayload.is_public = data.isPublic;
+  if (data.showPastEvents !== undefined) updatePayload.show_past_events = data.showPastEvents;
+
   const { error } = await this.supabase
     .from('promoters')
-    .update({
-      name: data.name,
-      description: data.description,
-      updated_at: new Date(),
-    })
+    .update(updatePayload)
     .eq('id', data.id);
 
   if (error) {

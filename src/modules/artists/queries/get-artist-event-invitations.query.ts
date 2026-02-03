@@ -11,6 +11,8 @@ export type ArtistEventInvitationReadDto = {
     name: string;
     startDate: string | null;
     location: string | null;
+    organizerPromoterId?: string | null;
+    organizerVenueId?: string | null;
   };
   status: string;
   createdAt: string;
@@ -42,6 +44,8 @@ export class GetArtistEventInvitationsQuery {
             ? event.startDate.toISOString().slice(0, 10)
             : null,
           location: (event as any)?.location ?? null,
+          organizerPromoterId: event?.organizerPromoterId ?? null,
+          organizerVenueId: event?.organizerVenueId ?? null,
         },
         status: inv.status,
         createdAt: inv.createdAt.toISOString(),

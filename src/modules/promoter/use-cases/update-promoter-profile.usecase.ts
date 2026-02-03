@@ -6,6 +6,11 @@ export interface UpdatePromoterProfileCommand {
   promoterId: string;
   name?: string;
   description?: string;
+  city?: string;
+  country?: string;
+  eventTypes?: string[];
+  isPublic?: boolean;
+  showPastEvents?: boolean;
 }
 
 export class UpdatePromoterProfileUseCase {
@@ -25,6 +30,11 @@ export class UpdatePromoterProfileUseCase {
       id: promoter.id,
       name: command.name,
       description: command.description,
+      city: command.city,
+      country: command.country,
+      eventTypes: command.eventTypes,
+      isPublic: command.isPublic,
+      showPastEvents: command.showPastEvents,
     });
   }
 }

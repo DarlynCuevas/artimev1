@@ -1,4 +1,4 @@
-import { randomUUID } from 'crypto';
+ï»¿import { randomUUID } from 'crypto';
 import { BookingStatus } from '../booking-status.enum';
 import { Booking } from '../booking.entity';
 import { BadRequestException, ForbiddenException, Inject, Injectable } from '@nestjs/common';
@@ -29,7 +29,7 @@ export class BookingService {
   ) { }
 
   /**
-   * Obtener bookings del usuario según rol
+   * Obtener bookings del usuario segï¿½n rol
    */
   async getForUser(
     userContext: AuthenticatedRequest['userContext'],
@@ -41,6 +41,9 @@ export class BookingService {
     if (userContext.artistId) {
       return this.bookingRepository.findByArtistId(userContext.artistId);
     }
+    if (userContext.promoterId) {
+      return this.bookingRepository.findByPromoterId(userContext.promoterId);
+    }
     return [];
   }
   /**
@@ -48,7 +51,7 @@ export class BookingService {
    * -----------------------------------------
    * - Siempre en PENDING
    * - SIN handler
-   * - SIN negociación activa
+   * - SIN negociaciï¿½n activa
    */
   async createBooking(params: {
     artistId: string;
@@ -69,7 +72,7 @@ export class BookingService {
   }): Promise<Booking> {
     if (params.senderRole === 'PROMOTER' && !params.eventId) {
       throw new Error(
-        'Un promotor debe crear la contratación dentro de un evento',
+        'Un promotor debe crear la contrataciï¿½n dentro de un evento',
       );
     }
 
@@ -129,7 +132,7 @@ export class BookingService {
     });
 
     await this.bookingRepository.save(booking);
-    // 3. Crear mensaje inicial de negociación (CLAVE)
+    // 3. Crear mensaje inicial de negociaciï¿½n (CLAVE)
     const initialMessage = new NegotiationMessage({
       id: crypto.randomUUID(),
       bookingId: booking.id,

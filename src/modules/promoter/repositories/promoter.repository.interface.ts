@@ -16,5 +16,10 @@ export interface PromoterRepository {
   id: string;
   name?: string;
   description?: string;
+  city?: string;
+  country?: string;
+  eventTypes?: string[];
+  isPublic?: boolean;
+  showPastEvents?: boolean;
 }): Promise<void>;
 }
