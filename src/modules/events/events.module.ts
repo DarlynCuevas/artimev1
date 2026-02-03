@@ -1,4 +1,5 @@
 import { EventsController } from './controllers/events.controller';
+import { EventInvitationsController } from './controllers/event-invitations.controller';
 
 import { CreateEventUseCase } from './use-cases/create-event.usecase';
 import { UpdateEventUseCase } from './use-cases/update-event.usecase';
@@ -17,6 +18,7 @@ import { AcceptInvitationUseCase } from './use-cases/accept-invitation.usecase';
 import { DeclineInvitationUseCase } from './use-cases/decline-invitation.usecase';
 import { SupabaseEventInvitationRepository } from '@/src/infrastructure/database/repositories/event/event-invitation.supabase.repository';
 import { GetEventInterestedArtistsQuery } from './queries/get-event-interested-artists.query';
+import { GetEventInvitationsQuery } from './queries/get-event-invitations.query';
 import { GetEventBookingsQuery } from './queries/get-event-bookings.query';
 
 import { SupabaseClient } from '@supabase/supabase-js';
@@ -29,14 +31,17 @@ import { MiddlewareConsumer, Module, NestModule, RequestMethod } from '@nestjs/c
 import { LoadEventMiddleware } from './middleware/load-event.middleware';
 import { LoadBookingMiddleware } from './middleware/load-booking.middleware';
 import { BookingsModule } from '../bookings/bookings.module';
-import { UserContextModule } from '../auth/user-context/user-context.module';
+import { PromotersModule } from '../promoter/promoter.module';
 import { ArtistsModule } from '../artists/artists.module';
 import { VenuesModule } from '../venues/venues.module';
 import { forwardRef } from '@nestjs/common';
-import { BookingsController } from '../bookings/controllers/bookings.controller';
+import { UserContextModule } from '../auth/user-context/user-context.module';
+import { SupabaseModule } from '@/src/infrastructure/database/supabase.module';
+import { OutboxModule } from '../outbox/outbox.module';
+import { ArtistNotificationRepository } from '@/src/infrastructure/database/repositories/notifications/artist-notification.repository';
 @Module({
-  imports: [UserContextModule, BookingsModule, ArtistsModule, VenuesModule],
-  controllers: [EventsController],
+  imports: [SupabaseModule, OutboxModule, forwardRef(() => UserContextModule), forwardRef(() => BookingsModule), ArtistsModule, forwardRef(() => VenuesModule), forwardRef(() => PromotersModule)],
+  controllers: [EventsController, EventInvitationsController],
   providers: [
     //Events
     CreateEventUseCase,
@@ -58,6 +63,7 @@ import { BookingsController } from '../bookings/controllers/bookings.controller'
     AcceptInvitationUseCase,
     DeclineInvitationUseCase,
     GetEventInterestedArtistsQuery,
+    GetEventInvitationsQuery,
     GetEventBookingsQuery,
     {
       provide: EVENT_REPOSITORY,
@@ -74,7 +80,9 @@ import { BookingsController } from '../bookings/controllers/bookings.controller'
     LinkBookingToEventUseCase,
     UpdateEventBookingOrganizationUseCase,
     UpdateEventVisibilityUseCase,
+    ArtistNotificationRepository,
   ],
+  exports: [GetEventsQuery, GetEventBookingsQuery],
 })
 export class EventsModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
@@ -84,6 +92,8 @@ export class EventsModule implements NestModule {
         { path: 'events/:id', method: RequestMethod.ALL },
         { path: 'events/:id/cancel', method: RequestMethod.POST },
         { path: 'events/:id/start-search', method: RequestMethod.POST },
+        { path: 'events/:id/invitations', method: RequestMethod.GET },
+        { path: 'events/:id/invitations', method: RequestMethod.POST },
         { path: 'events/:id/interested-artists', method: RequestMethod.GET },
         { path: 'events/:id/bookings', method: RequestMethod.GET },
         { path: 'events/:id/visibility', method: RequestMethod.PATCH },

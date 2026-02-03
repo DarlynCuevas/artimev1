@@ -14,6 +14,7 @@ export class SupabaseEventRepository implements EventRepository {
     const { error } = await this.supabase.from('events').insert({
       id: event.id,
       name: event.name,
+      owner_id: event.ownerId,
 
       organizer_promoter_id: event.organizerPromoterId,
       organizer_venue_id: event.organizerVenueId,
@@ -118,6 +119,8 @@ export class SupabaseEventRepository implements EventRepository {
     return new EventEntity(
       row.id,
       row.name,
+
+      row.owner_id,
 
       row.organizer_promoter_id ?? null,
       row.organizer_venue_id ?? null,

@@ -19,7 +19,7 @@ export class SupabaseEventInvitationRepository
         artist_id: invitation.artistId,
         status: invitation.status,
         created_at: invitation.createdAt,
-        updated_at: invitation.updatedAt,
+        responded_at: invitation.respondedAt,
       });
 
     if (error) {
@@ -55,6 +55,39 @@ export class SupabaseEventInvitationRepository
     return data.map((row) => this.mapRowToInvitation(row));
   }
 
+  async findByArtist(artistId: string): Promise<EventInvitation[]> {
+    const { data, error } = await this.supabase
+      .from('event_invitations')
+      .select('*')
+      .eq('artist_id', artistId)
+      .order('created_at', { ascending: false });
+
+    if (error || !data) {
+      return [];
+    }
+
+    return data.map((row) => this.mapRowToInvitation(row));
+  }
+
+  async findAccepted(params: {
+    eventId: string;
+    artistId: string;
+  }): Promise<{ id: string } | null> {
+    const { data, error } = await this.supabase
+      .from('event_invitations')
+      .select('id')
+      .eq('event_id', params.eventId)
+      .eq('artist_id', params.artistId)
+      .eq('status', 'ACCEPTED')
+      .single();
+
+    if (error || !data) {
+      return null;
+    }
+
+    return { id: data.id };
+  }
+
   async findByEventAndArtist(
     eventId: string,
     artistId: string,
@@ -78,7 +111,7 @@ export class SupabaseEventInvitationRepository
       .from('event_invitations')
       .update({
         status: invitation.status,
-        updated_at: invitation.updatedAt,
+        responded_at: invitation.respondedAt,
       })
       .eq('id', invitation.id);
 
@@ -98,7 +131,7 @@ export class SupabaseEventInvitationRepository
       row.artist_id,
       row.status,
       new Date(row.created_at),
-      new Date(row.updated_at),
+      row.responded_at ? new Date(row.responded_at) : null,
     );
   }
 }

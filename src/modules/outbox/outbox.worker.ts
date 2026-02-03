@@ -1,6 +1,8 @@
-import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger, OnModuleDestroy, OnModuleInit, Inject } from '@nestjs/common';
 import { OutboxRepository, OutboxEvent } from '@/src/infrastructure/database/repositories/outbox/outbox.repository';
 import { ArtistNotificationRepository } from '@/src/infrastructure/database/repositories/notifications/artist-notification.repository';
+import { EVENT_REPOSITORY } from '@/src/modules/events/repositories/event.repository.token';
+import type { EventRepository } from '@/src/modules/events/repositories/event.repository';
 
 @Injectable()
 export class OutboxWorkerService implements OnModuleInit, OnModuleDestroy {
@@ -11,6 +13,8 @@ export class OutboxWorkerService implements OnModuleInit, OnModuleDestroy {
   constructor(
     private readonly outboxRepo: OutboxRepository,
     private readonly artistNotificationRepo: ArtistNotificationRepository,
+    @Inject(EVENT_REPOSITORY)
+    private readonly eventRepository: EventRepository,
   ) {}
 
   onModuleInit() {
@@ -55,6 +59,12 @@ export class OutboxWorkerService implements OnModuleInit, OnModuleDestroy {
         case 'ARTIST_CALL_CREATED':
           await this.handleArtistCallCreated(processingEvent);
           break;
+        case 'EVENT_INVITATION_CREATED':
+          await this.handleEventInvitationCreated(processingEvent);
+          break;
+        case 'BOOKING_CREATED':
+          await this.handleBookingCreated(processingEvent);
+          break;
         default:
           this.logger.warn(`Unhandled outbox event type: ${processingEvent.type}`);
       }
@@ -81,5 +91,42 @@ export class OutboxWorkerService implements OnModuleInit, OnModuleDestroy {
         payload: { callId, venueId, venueName, date, city, filters, offeredMaxPrice },
       })),
     );
+  }
+
+  private async handleEventInvitationCreated(event: OutboxEvent) {
+    const { artistId, eventId, invitationId } = event.payload ?? {};
+
+    if (!artistId || !eventId || !invitationId) {
+      this.logger.warn(`Event ${event.id} missing payload for EVENT_INVITATION_CREATED`);
+      return;
+    }
+
+    const eventEntity = await this.eventRepository.findById(eventId);
+    const eventName = eventEntity?.name ?? null;
+
+    await this.artistNotificationRepo.createMany([
+      {
+        artistId,
+        type: 'EVENT_INVITATION_CREATED',
+        payload: { eventId, invitationId, eventName },
+      },
+    ]);
+  }
+
+  private async handleBookingCreated(event: OutboxEvent) {
+    const { artistId, bookingId, eventId } = event.payload ?? {};
+
+    if (!artistId || !bookingId) {
+      this.logger.warn(`Event ${event.id} missing payload for BOOKING_CREATED`);
+      return;
+    }
+
+    await this.artistNotificationRepo.createMany([
+      {
+        artistId,
+        type: 'BOOKING_REQUEST',
+        payload: { bookingId, eventId },
+      },
+    ]);
   }
 }

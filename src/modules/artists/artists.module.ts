@@ -1,5 +1,6 @@
 // removed duplicate forwardRef import
 import { Module, forwardRef } from '@nestjs/common';
+import { PromotersModule } from '../promoter/promoter.module';
 
 import { ArtistsController } from './controllers/artists.controller';
 import { ArtistsService } from './services/artists.service';
@@ -21,15 +22,23 @@ import { ArtistCallController } from './controllers/artist-call.controller';
 import { RespondArtistCallUseCase } from './use-cases/respond-artist-call.usecase';
 import { ArtistNotificationsController } from './controllers/artist-notifications.controller';
 import { ArtistNotificationRepository } from '@/src/infrastructure/database/repositories/notifications/artist-notification.repository';
+import { EVENT_INVITATION_REPOSITORY } from '../events/repositories/event-invitation.repository.token';
+import { SupabaseEventInvitationRepository } from '@/src/infrastructure/database/repositories/event/event-invitation.supabase.repository';
+import { GetArtistEventInvitationsQuery } from './queries/get-artist-event-invitations.query';
+import { EVENT_REPOSITORY } from '../events/repositories/event.repository.token';
+import { SupabaseEventRepository } from '@/src/infrastructure/database/repositories/event/event.supabase.repository';
+import { SupabaseClient } from '@supabase/supabase-js';
+import { supabase } from '@/src/infrastructure/database/supabase.client';
 
 
 @Module({
-  imports: [SupabaseModule, forwardRef(() => VenuesModule), forwardRef(() => BookingsModule)],
+  imports: [SupabaseModule, forwardRef(() => VenuesModule), forwardRef(() => BookingsModule), forwardRef(() => PromotersModule)],
   controllers: [ArtistsController, ArtistCalendarController, ArtistCallController, ArtistNotificationsController],
   providers: [
     ArtistsService,
     DiscoverArtistsUseCase,
     GetArtistDashboardUseCase,
+    GetArtistEventInvitationsQuery,
     CreateArtistCalendarBlockUseCase,
     GetArtistCalendarBlocksUseCase,
     DeleteArtistCalendarBlockUseCase,
@@ -38,6 +47,18 @@ import { ArtistNotificationRepository } from '@/src/infrastructure/database/repo
     RespondArtistCallUseCase,
     ArtistCalendarBlockRepository,
     ArtistNotificationRepository,
+    {
+      provide: SupabaseClient,
+      useValue: supabase,
+    },
+    {
+      provide: EVENT_INVITATION_REPOSITORY,
+      useClass: SupabaseEventInvitationRepository,
+    },
+    {
+      provide: EVENT_REPOSITORY,
+      useClass: SupabaseEventRepository,
+    },
     {
       provide: ARTIST_REPOSITORY,
       useClass: DbArtistRepository,

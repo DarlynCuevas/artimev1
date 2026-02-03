@@ -141,6 +141,7 @@ export class SupabaseBookingRepository {
     }
 
     const venueIds = Array.from(new Set((data ?? []).map((row: any) => row.venue_id).filter(Boolean)));
+    const eventIds = Array.from(new Set((data ?? []).map((row: any) => row.event_id).filter(Boolean)));
 
     const venueMap = new Map<string, { name: string | null; city: string | null }>();
     if (venueIds.length) {
@@ -154,8 +155,21 @@ export class SupabaseBookingRepository {
       });
     }
 
+    const eventNameMap = new Map<string, string>();
+    if (eventIds.length) {
+      const { data: eventsData } = await supabase
+        .from('events')
+        .select('id, name')
+        .in('id', eventIds);
+
+      eventsData?.forEach((e: any) => {
+        eventNameMap.set(e.id, e.name ?? 'Evento');
+      });
+    }
+
     return data.map((row: any) => {
       const venueInfo = row.venue_id ? venueMap.get(row.venue_id) : undefined;
+      const eventName = row.event_id ? eventNameMap.get(row.event_id) : undefined;
 
       return new Booking({
         id: row.id,
@@ -176,7 +190,7 @@ export class SupabaseBookingRepository {
         handledByUserId: row.handled_by_user_id ?? null,
         handledAt: row.handled_at ? new Date(row.handled_at) : null,
         updatedAt: row.updated_at ? new Date(row.updated_at) : null,
-        venueName: venueInfo?.name ?? null,
+        venueName: venueInfo?.name ?? eventName ?? null,
         venueCity: venueInfo?.city ?? null,
       });
     });

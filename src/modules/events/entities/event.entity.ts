@@ -6,6 +6,9 @@ export class EventEntity {
     public readonly id: string,
     public name: string,
 
+    // Usuario creador (auth user)
+    public readonly ownerId: string,
+
     // Organizador (exactamente uno)
     public readonly organizerPromoterId: string | null,
     public readonly organizerVenueId: string | null,

@@ -5,12 +5,14 @@ import type { AuthenticatedRequest } from 'src/shared/authenticated-request';
 import { Public } from '@/src/shared/public.decorator';
 import { UserContextGuard } from '../../auth/user-context.guard';
 import { UpdateArtistDto } from '../dto/update-artist.dto';
+import { GetArtistEventInvitationsQuery } from '../queries/get-artist-event-invitations.query';
 
 
 @Controller('artists')
 export class ArtistsController {
   constructor(
     private readonly artistsService: ArtistsService,
+    private readonly getArtistEventInvitationsQuery: GetArtistEventInvitationsQuery,
   ) { }
 
   @UseGuards(JwtAuthGuard)
@@ -63,6 +65,18 @@ export class ArtistsController {
     }
 
     return this.artistsService.getArtistDashboard(artistId);
+  }
+
+  @UseGuards(JwtAuthGuard, UserContextGuard)
+  @Get('me/event-invitations')
+  async getMyEventInvitations(@Req() req: AuthenticatedRequest) {
+    const { artistId } = req.userContext;
+
+    if (!artistId) {
+      throw new ForbiddenException('ONLY_ARTIST');
+    }
+
+    return this.getArtistEventInvitationsQuery.execute(artistId);
   }
 
   @Get(':id')

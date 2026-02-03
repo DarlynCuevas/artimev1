@@ -11,18 +11,16 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
-import type { Request } from 'express';
 
 
 import { CreateEventUseCase } from '../use-cases/create-event.usecase';
 import { UpdateEventUseCase } from '../use-cases/update-event.usecase';
 import { CancelEventUseCase } from '../use-cases/cancel-event.usecase';
 import { ChangeEventStatusUseCase } from '../use-cases/change-event-status.usecase';
-import { AcceptInvitationUseCase } from '../use-cases/accept-invitation.usecase';
-import { DeclineInvitationUseCase } from '../use-cases/decline-invitation.usecase';
 
 import { GetEventsQuery } from '../queries/get-events.query';
 import { GetEventDetailQuery } from '../queries/get-event-detail.query';
+import { GetEventInvitationsQuery } from '../queries/get-event-invitations.query';
 
 import { CreateEventDto } from '../dto/create-event.dto';
 import type { AuthenticatedRequest } from 'src/shared/authenticated-request';
@@ -39,6 +37,7 @@ import { LinkBookingToEventUseCase } from '../use-cases/link-booking-to-event.us
 import { UpdateEventBookingOrganizationUseCase } from '../use-cases/update-event-booking-organization.usecase';
 import { UpdateEventVisibilityUseCase } from '../use-cases/update-event-visibility.usecase';
 import { UserContextGuard } from '../../auth/user-context.guard';
+import { SendInvitationUseCase } from '../use-cases/send-invitation.usecase';
 
 @Controller('events')
 @UseGuards(JwtAuthGuard, UserContextGuard)
@@ -48,15 +47,15 @@ export class EventsController {
     private readonly updateEventUseCase: UpdateEventUseCase,
     private readonly cancelEventUseCase: CancelEventUseCase,
     private readonly changeEventStatusUseCase: ChangeEventStatusUseCase,
-    private readonly acceptInvitationUseCase: AcceptInvitationUseCase,
-    private readonly declineInvitationUseCase: DeclineInvitationUseCase,
     private readonly getEventsQuery: GetEventsQuery,
     private readonly getEventDetailQuery: GetEventDetailQuery,
+    private readonly getEventInvitationsQuery: GetEventInvitationsQuery,
     private readonly getEventInterestedArtistsQuery: GetEventInterestedArtistsQuery,
     private readonly getEventBookingsQuery: GetEventBookingsQuery,
     private readonly linkBookingToEventUseCase: LinkBookingToEventUseCase,
     private readonly updateEventBookingOrganizationUseCase: UpdateEventBookingOrganizationUseCase,
     private readonly updateEventVisibilityUseCase: UpdateEventVisibilityUseCase,
+    private readonly sendInvitationUseCase: SendInvitationUseCase,
   ) { }
 
   @Post()
@@ -64,6 +63,9 @@ export class EventsController {
     @Req() req: AuthenticatedRequest,
     @Body() dto: CreateEventDto,
   ) {
+    if (!req.user?.sub) {
+      throw new ForbiddenException('User not found');
+    }
     const { promoterId, venueId } = req.userContext;
 
     if (!promoterId && !venueId) {
@@ -75,6 +77,7 @@ export class EventsController {
     // ownerId debe ser string garantizado
 
     return this.createEventUseCase.execute({
+      ownerId: req.user.sub,
       organizerPromoterId: promoterId ? promoterId : null,
       organizerVenueId: venueId ? venueId : null,
       name: dto.name,
@@ -141,28 +144,36 @@ export class EventsController {
 
   @Post(':id/start-search')
   async startSearch(@Req() req: AuthenticatedRequest, @Param('id') id: string) {
+    const requesterId =
+      req.userContext.promoterId ??
+      req.userContext.venueId ??
+      req.user.sub;
+
     await this.changeEventStatusUseCase.execute({
       eventId: id,
-      requesterId: req.user.sub,
+      requesterId,
       nextStatus: EventStatus.SEARCHING,
     });
   }
 
   //INVITACIONES 
-  @Post('/invitations/:invitationId/accept')
-  async accept(
-    @Req() req: AuthenticatedRequest,
-    @Param('invitationId') invitationId: string,
-  ) {
-    await this.acceptInvitationUseCase.execute(invitationId, req.user.sub);
+
+  @Get(':id/invitations')
+  async getInvitations(@Param('id') eventId: string) {
+    return this.getEventInvitationsQuery.execute(eventId);
   }
 
-  @Post('/invitations/:invitationId/decline')
-  async decline(
-    @Req() req: AuthenticatedRequest,
-    @Param('invitationId') invitationId: string,
+  @Post(':id/invitations')
+  @UseGuards(EventOrganizerGuard)
+  async sendInvitation(
+    @Param('id') eventId: string,
+    @Body('artistId') artistId: string,
   ) {
-    await this.declineInvitationUseCase.execute(invitationId, req.user.sub);
+    if (!artistId) {
+      throw new ForbiddenException('artistId is required');
+    }
+
+    await this.sendInvitationUseCase.execute(eventId, artistId);
   }
 
   @Get(':id/interested-artists')

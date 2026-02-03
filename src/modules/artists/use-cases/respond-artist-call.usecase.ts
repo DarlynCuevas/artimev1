@@ -40,7 +40,7 @@ export class RespondArtistCallUseCase {
       throw error;
     }
 
-    await this.notificationsRepo.markCallNotificationsRead({ artistId: artist.id, callId });
+    await this.notificationsRepo.markCallNotificationsRead({ userId: userContext.userId, callId });
 
     return data;
   }

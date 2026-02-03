@@ -1,6 +1,7 @@
 import { PAYMENT_REPOSITORY } from '../payments/repositories/payment.repository.token';
 import { forwardRef } from '@nestjs/common';
 import { VenuesModule } from '../venues/venues.module';
+import { PromotersModule } from '../promoter/promoter.module';
 import { ArtistsModule } from '../artists/artists.module';
 import { PaymentsModule } from '../payments/payments.module';
 import { DbPaymentRepository } from '../../infrastructure/database/repositories/payment.repository';
@@ -45,12 +46,19 @@ import { ConfirmPaymentMilestoneUseCase } from './use-cases/confirm/confirm-paym
 import { PAYMENT_MILESTONE_REPOSITORY } from '../payments/payment-milestone-repository.token';
 import { DbPaymentMilestoneRepository } from '@/src/infrastructure/database/repositories/db-payment-milestone.repository';
 import { ArtistCalendarBlockRepository } from '@/src/infrastructure/database/repositories/artist/artist-calendar-block.repository';
+import { OutboxModule } from '../outbox/outbox.module';
+import { EVENT_INVITATION_REPOSITORY } from '../events/repositories/event-invitation.repository.token';
+import { SupabaseEventInvitationRepository } from '@/src/infrastructure/database/repositories/event/event-invitation.supabase.repository';
+import { EVENT_REPOSITORY } from '../events/repositories/event.repository.token';
+import { SupabaseEventRepository } from '@/src/infrastructure/database/repositories/event/event.supabase.repository';
+import { SupabaseClient } from '@supabase/supabase-js';
+import { supabase } from '@/src/infrastructure/database/supabase.client';
 
 
 
 
 @Module({
-  imports: [SupabaseModule, ManagersModule, ContractsModule, forwardRef(() => PaymentsModule), forwardRef(() => ArtistsModule), VenuesModule],
+  imports: [SupabaseModule, OutboxModule, ManagersModule, ContractsModule, forwardRef(() => PaymentsModule), forwardRef(() => ArtistsModule), VenuesModule, forwardRef(() => PromotersModule)],
   controllers: [BookingsController, CancellationsController, CancellationResolutionsController],
   providers: [
     BookingService,
@@ -71,6 +79,18 @@ import { ArtistCalendarBlockRepository } from '@/src/infrastructure/database/rep
     ExecuteCancellationEconomicImpactUseCase,
     ConfirmPaymentMilestoneUseCase,
     ArtistCalendarBlockRepository,
+    {
+      provide: SupabaseClient,
+      useValue: supabase,
+    },
+    {
+      provide: EVENT_INVITATION_REPOSITORY,
+      useClass: SupabaseEventInvitationRepository,
+    },
+    {
+      provide: EVENT_REPOSITORY,
+      useClass: SupabaseEventRepository,
+    },
     {
       provide: CANCELLATION_ECONOMIC_EXECUTION_REPOSITORY,
       useClass: DbCancellationEconomicExecutionRepository,

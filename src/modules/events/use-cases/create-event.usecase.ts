@@ -9,6 +9,7 @@ import { EventVisibility } from '../enums/event-visibility.enum';
 
 export interface CreateEventCommand {
   name: string;
+  ownerId: string;
 
   // Organizador (exactamente uno)
   organizerPromoterId?: string | null;
@@ -35,6 +36,9 @@ export class CreateEventUseCase {
   async execute(command: CreateEventCommand): Promise<void> {
 
     // Validación de integridad (OBLIGATORIA)
+    if (!command.ownerId) {
+      throw new Error('Event must have an owner');
+    }
     if (!command.organizerPromoterId && !command.organizerVenueId) {
       throw new Error('Event must have exactly one organizer');
     }
@@ -45,6 +49,8 @@ export class CreateEventUseCase {
     const event = new EventEntity(
       randomUUID(),
       command.name,
+
+      command.ownerId,
 
       command.organizerPromoterId ?? null,
       command.organizerVenueId ?? null,

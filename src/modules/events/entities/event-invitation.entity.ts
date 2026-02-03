@@ -1,4 +1,4 @@
-export type InvitationStatus = 'SENT' | 'INTERESTED' | 'DECLINED';
+export type InvitationStatus = 'PENDING' | 'ACCEPTED' | 'DECLINED';
 
 export class EventInvitation {
   constructor(
@@ -7,6 +7,6 @@ export class EventInvitation {
     public readonly artistId: string,
     public status: InvitationStatus,
     public readonly createdAt: Date,
-    public updatedAt: Date,
+    public respondedAt: Date | null,
   ) {}
 }

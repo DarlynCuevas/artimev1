@@ -12,7 +12,8 @@ import { ContractsController } from './controllers/contracts.controller';
 import { CreatePaymentScheduleForBookingUseCase } from '../payments/use-cases/create-payment-schedule-for-booking.usecase';
 import { ArtistsModule } from '../artists/artists.module';
 import { VenuesModule } from '../venues/venues.module';
-import { UserContextGuard } from '../auth/user-context.guard';
+import { UserContextModule } from '../auth/user-context/user-context.module';
+import { PromotersModule } from '../promoter/promoter.module';
 
 @Module({
   imports: [
@@ -20,6 +21,8 @@ import { UserContextGuard } from '../auth/user-context.guard';
     forwardRef(() => require('../payments/payments.module').PaymentsModule),
     forwardRef(() => ArtistsModule),
     forwardRef(() => VenuesModule),
+    PromotersModule,
+    UserContextModule,
   ],
   controllers: [ContractsController],
   providers: [
@@ -29,7 +32,6 @@ import { UserContextGuard } from '../auth/user-context.guard';
     GenerateContractUseCase,
     GetContractByBookingUseCase,
     CreatePaymentScheduleForBookingUseCase,
-    UserContextGuard,
     {
       provide: BOOKING_REPOSITORY,
       useClass: SupabaseBookingRepository,

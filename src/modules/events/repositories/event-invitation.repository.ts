@@ -8,6 +8,13 @@ export interface EventInvitationRepository {
 
   findByEvent(eventId: string): Promise<EventInvitation[]>;
 
+  findByArtist(artistId: string): Promise<EventInvitation[]>;
+
+  findAccepted(params: {
+    eventId: string;
+    artistId: string;
+  }): Promise<{ id: string } | null>;
+
   findByEventAndArtist(
     eventId: string,
     artistId: string,

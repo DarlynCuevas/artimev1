@@ -20,7 +20,13 @@ export class ChangeEventStatusUseCase {
     const event = await this.eventRepository.findById(command.eventId);
 
     if (!event) throw new Error('EVENT_NOT_FOUND');
-    if (event.organizerPromoterId !== command.requesterId && event.organizerVenueId !== command.requesterId) throw new Error('FORBIDDEN');
+    if (
+      event.ownerId !== command.requesterId &&
+      event.organizerPromoterId !== command.requesterId &&
+      event.organizerVenueId !== command.requesterId
+    ) {
+      throw new Error('FORBIDDEN');
+    }
 
     // Transición permitida (cerrada)
     if (

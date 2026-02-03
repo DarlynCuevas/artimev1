@@ -1,4 +1,4 @@
-import { Controller, Get, Param, NotFoundException, Post, Req, Body, UseGuards, ForbiddenException, Inject } from '@nestjs/common';
+import { Controller, Get, Param, NotFoundException, Post, Req, Body, UseGuards, ForbiddenException, Inject, BadRequestException } from '@nestjs/common';
 import { BookingResponseDto } from '../dto/booking-response.dto';
 import { BookingService } from '../service/booking.service';
 import type { AuthenticatedRequest } from 'src/shared/authenticated-request';
@@ -56,12 +56,13 @@ export class BookingsController {
       throw new NotFoundException('Booking not found');
     }
 
-    const { artistId, venueId, managerId } = req.userContext;
+    const { artistId, venueId, managerId, promoterId } = req.userContext;
 
     const isAllowed =
       (artistId && booking.artistId === artistId) ||
       (venueId && booking.venueId === venueId) ||
-      (managerId && booking.managerId === managerId);
+      (managerId && booking.managerId === managerId) ||
+      (promoterId && booking.promoterId === promoterId);
 
     if (!isAllowed) {
       throw new ForbiddenException('You are not allowed to view this booking');
@@ -136,23 +137,39 @@ async create(
   @Req() req: AuthenticatedRequest,
   @Body() dto: CreateBookingDto,
 ): Promise<BookingResponseDto> {
+  console.log('[BookingsController.create] payload:', {
+    artistId: dto.artistId,
+    eventId: dto.eventId,
+    start_date: dto.start_date,
+    totalAmount: dto.totalAmount,
+    currency: dto.currency,
+  });
   // LOG: contexto de usuario completo
-  const { venueId, userId } = req.userContext;
+  const { venueId, promoterId, userId } = req.userContext;
   // LOG: valores clave
 
-  if (!venueId) {
-    throw new ForbiddenException('Only venues can create bookings');
+  if (!venueId && !promoterId) {
+    throw new ForbiddenException('Only venues or promoters can create bookings');
+  }
+
+  if (!dto.eventId) {
+    if (!dto.currency || dto.totalAmount === undefined || !dto.start_date) {
+      throw new BadRequestException('MISSING_BOOKING_FIELDS');
+    }
   }
 
   const booking = await this.bookingService.createBooking({
     artistId: dto.artistId,
-    venueId,
+    venueId: venueId ?? undefined,
+    promoterId: promoterId ?? undefined,
     eventId: dto.eventId,
     currency: dto.currency,
     totalAmount: dto.totalAmount,
     start_date: dto.start_date,
     message: dto.message,
-    senderRole: NegotiationSenderRole.VENUE,
+    senderRole: promoterId
+      ? NegotiationSenderRole.PROMOTER
+      : NegotiationSenderRole.VENUE,
     senderUserId: userId,
   });
 

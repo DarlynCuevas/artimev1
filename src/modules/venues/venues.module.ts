@@ -1,4 +1,5 @@
 import { Module, forwardRef } from '@nestjs/common'
+import { PromotersModule } from '../promoter/promoter.module';
 import { VenueDiscoverController } from './controllers/venue-discover.controller'
 import { VenueDiscoverService } from './services/venue-discover.service'
 import { ARTIST_REPOSITORY } from '../artists/repositories/artist-repository.token';
@@ -20,7 +21,7 @@ import { OutboxModule } from '../outbox/outbox.module';
 import { GetInterestedArtistCallsUseCase } from './use-cases/get-interested-artist-calls.usecase';
 
 @Module({
-  imports: [SupabaseModule, OutboxModule, forwardRef(() => ArtistsModule), forwardRef(() => BookingsModule)],
+  imports: [SupabaseModule, OutboxModule, forwardRef(() => ArtistsModule), forwardRef(() => BookingsModule), forwardRef(() => PromotersModule)],
   controllers: [VenueDiscoverController,VenueController],
   providers: [
     VenueDiscoverService,
