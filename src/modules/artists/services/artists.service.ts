@@ -48,6 +48,7 @@ export class ArtistsService {
 
 
   async getPublicArtistProfile(artistId: string, viewerManagerId: string | null = null): Promise<CreateArtistDto & {
+    id: string;
     canRequestRepresentation: boolean;
     representationStatus: 'NONE' | 'PENDING' | 'ACTIVE' | 'REJECTED';
     representationRequestId: string | null;
@@ -89,6 +90,7 @@ export class ArtistsService {
     }
 
     return {
+      id: artist.id,
       name: artist.name,
       city: artist.city,
       genres: artist.genres,
