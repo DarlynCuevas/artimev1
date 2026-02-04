@@ -11,7 +11,9 @@ export class BookingResponseDto {
   status: string;
   currency: string;
   totalAmount: number;
+  paidPercent?: number | null;
   eventId?: string | null;
+  eventName?: string | null;
   start_date: string;
   handledAt?: string | null;
   createdAt?: string;

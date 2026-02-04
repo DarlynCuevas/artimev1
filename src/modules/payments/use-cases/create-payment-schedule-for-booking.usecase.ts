@@ -2,8 +2,10 @@ import { Injectable } from '@nestjs/common';
 import { v4 as uuid } from 'uuid';
 
 import type { PaymentRepository } from '../repositories/payment.repository.interface';
+import type { BookingRepository } from '../../bookings/repositories/booking.repository.interface';
 import { Inject } from '@nestjs/common';
 import { PAYMENT_REPOSITORY } from '../repositories/payment.repository.token';
+import { BOOKING_REPOSITORY } from '../../bookings/repositories/booking-repository.token';
 import { PaymentSchedule } from '../payment-schedule.entity';
 import { PaymentMilestone, PaymentMilestoneType } from '../payment-milestone.entity';
 import { PaymentMilestoneStatus } from '../payment-milestone-status.enum';
@@ -13,10 +15,20 @@ export class CreatePaymentScheduleForBookingUseCase {
     constructor(
         @Inject(PAYMENT_REPOSITORY)
         private readonly paymentRepository: PaymentRepository,
+        @Inject(BOOKING_REPOSITORY)
+        private readonly bookingRepository: BookingRepository,
     ) { }
 
     async execute(input: { bookingId: string }) {
         console.log('[CreatePaymentScheduleForBookingUseCase] Ejecutando con bookingId:', input.bookingId);
+        const booking = await this.bookingRepository.findById(input.bookingId);
+        if (!booking) {
+            throw new Error('Booking not found');
+        }
+
+        const totalAmount = booking.totalAmount ?? 0;
+        const currency = booking.currency ?? 'EUR';
+
         // 1. Ver si ya existe un schedule
         const existingSchedule = await this.paymentRepository.findScheduleByBookingId(input.bookingId);
         console.log('[CreatePaymentScheduleForBookingUseCase] existingSchedule:', existingSchedule);
@@ -30,7 +42,7 @@ export class CreatePaymentScheduleForBookingUseCase {
                     id: milestoneId,
                     bookingId: input.bookingId,
                     type: PaymentMilestoneType.ADVANCE,
-                    amount: 50000,
+                    amount: totalAmount,
                     status: PaymentMilestoneStatus.PENDING,
                     requiresManualPayment: false,
                 });
@@ -50,8 +62,8 @@ export class CreatePaymentScheduleForBookingUseCase {
         const schedule = new PaymentSchedule({
             id: scheduleId,
             bookingId: input.bookingId,
-            totalAmount: 0,
-            currency: 'EUR',
+            totalAmount,
+            currency,
             milestones: [],
             createdAt: new Date(),
         });
@@ -62,7 +74,7 @@ export class CreatePaymentScheduleForBookingUseCase {
             id: milestoneId,
             bookingId: input.bookingId,
             type: PaymentMilestoneType.ADVANCE,
-            amount: 50000,
+            amount: totalAmount,
             status: PaymentMilestoneStatus.PENDING,
             requiresManualPayment: false,
         });

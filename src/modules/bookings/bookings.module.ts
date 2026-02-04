@@ -53,6 +53,7 @@ import { EVENT_REPOSITORY } from '../events/repositories/event.repository.token'
 import { SupabaseEventRepository } from '@/src/infrastructure/database/repositories/event/event.supabase.repository';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { supabase } from '@/src/infrastructure/database/supabase.client';
+import { GetPaymentMilestonesForBookingQuery } from '../payments/queries/get-payment-milestones-for-booking.query';
 
 
 
@@ -78,6 +79,7 @@ import { supabase } from '@/src/infrastructure/database/supabase.client';
     ResolveCancellationCaseUseCase,
     ExecuteCancellationEconomicImpactUseCase,
     ConfirmPaymentMilestoneUseCase,
+    GetPaymentMilestonesForBookingQuery,
     ArtistCalendarBlockRepository,
     {
       provide: SupabaseClient,

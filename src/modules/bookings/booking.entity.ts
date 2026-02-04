@@ -22,6 +22,7 @@ interface BookingProps {
   managerCommissionPercentage?: number;
   totalAmount: number;
   eventId?: string | null;
+  eventName?: string | null;
   artistStripeAccountId?: string | null;
   managerStripeAccountId?: string | null;
   artimeCommissionPercentage?: number;
@@ -132,6 +133,10 @@ export class Booking {
     return this.props.eventId;
   }
 
+  get eventName(): string | null | undefined {
+    return this.props.eventName;
+  }
+
   get message(): string | undefined {
     return this.props.message;
   }
@@ -179,6 +184,7 @@ export class Booking {
       venueCity: this.venueCity ?? null,
       promoterId: this.promoterId ?? null,
       eventId: this.eventId ?? null,
+      eventName: this.eventName ?? null,
       status: this.status,
       currency: this.currency,
       totalAmount: this.totalAmount,

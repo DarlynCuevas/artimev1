@@ -1,6 +1,4 @@
-
 import { Injectable, Inject } from '@nestjs/common';
-import { PaymentMilestoneStatus } from '../../payment-milestone-status.enum';
 import type { PaymentMilestoneRepository } from '../../payment-milestone.repository.interface';
 import type { BookingRepository } from '../../../bookings/repositories/booking.repository.interface';
 import type { ArtistRepository } from '../../../artists/repositories/artist.repository.interface';
@@ -19,6 +17,7 @@ interface CreatePaymentIntentForMilestoneInput {
 
 interface CreatePaymentIntentForMilestoneOutput {
   clientSecret: string;
+  status?: string;
 }
 
 @Injectable()
@@ -26,16 +25,12 @@ export class CreatePaymentIntentForMilestoneUseCase {
   constructor(
     @Inject(PAYMENT_MILESTONE_REPOSITORY)
     private readonly milestoneRepository: PaymentMilestoneRepository,
-
     @Inject(BOOKING_REPOSITORY)
     private readonly bookingRepository: BookingRepository,
-
     @Inject(ARTIST_REPOSITORY)
     private readonly artistRepository: ArtistRepository,
-
     @Inject(PAYMENT_PROVIDER)
     private readonly paymentProvider: PaymentProvider,
-
     @Inject(PAYMENT_INTENT_REPOSITORY)
     private readonly paymentIntentRepository: PaymentIntentRepository,
   ) {}
@@ -43,8 +38,9 @@ export class CreatePaymentIntentForMilestoneUseCase {
   async execute(
     input: CreatePaymentIntentForMilestoneInput,
   ): Promise<CreatePaymentIntentForMilestoneOutput> {
-    // 1️ Load milestone
-    const milestone = await this.milestoneRepository.findById(input.paymentMilestoneId);
+    const milestone = await this.milestoneRepository.findById(
+      input.paymentMilestoneId,
+    );
 
     if (!milestone) {
       throw new Error('Payment milestone not found');
@@ -54,7 +50,6 @@ export class CreatePaymentIntentForMilestoneUseCase {
       throw new Error('Payment milestone cannot be paid');
     }
 
-    // 3️ Load booking
     const booking = await this.bookingRepository.findById(
       milestone.bookingId,
     );
@@ -65,15 +60,103 @@ export class CreatePaymentIntentForMilestoneUseCase {
 
     const idempotencyKey = `milestone-${milestone.id}`;
 
-    // 2️ Idempotency: reuse existing PaymentIntent record
+    const isTerminalStatus = (status?: string | null) =>
+      status === 'succeeded' || status === 'canceled';
+
+    const ensurePayerId = async () => {
+      const artist = await this.artistRepository.findById(
+        booking.artistId,
+      );
+
+      if (!artist) {
+        throw new Error('Artist not found');
+      }
+
+      if (
+        artist.stripeOnboardingStatus !==
+        StripeOnboardingStatus.COMPLETED
+      ) {
+        throw new Error('Artist cannot receive payments');
+      }
+
+      const payerId =
+        booking.promoterId ?? booking.venueId;
+
+      if (!payerId) {
+        throw new Error('No payer defined for booking');
+      }
+
+      if (booking.status !== 'CONTRACT_SIGNED') {
+        throw new Error('Contract is not signed');
+      }
+
+      return payerId;
+    };
+
     const existingIntent =
       await this.paymentIntentRepository.findByIdempotencyKey(
         idempotencyKey,
       );
 
-    if (existingIntent?.clientSecret) {
+    const createNewIntent = async (
+      payerId: string,
+      overrideIdempotencyKey?: string,
+    ) => {
+      const intent =
+        await this.paymentProvider.createPaymentIntent({
+          amount: milestone.amount,
+          currency: booking.currency,
+          metadata: {
+            payerId,
+            bookingId: booking.id,
+            milestoneId: milestone.id,
+          },
+          idempotencyKey: overrideIdempotencyKey ?? idempotencyKey,
+        });
+
+      milestone.markProviderPaymentIdCreated(
+        intent.providerPaymentId,
+      );
+      await this.milestoneRepository.update(milestone);
+
+      if (existingIntent) {
+        await this.paymentIntentRepository.updateByIdempotencyKey(
+          idempotencyKey,
+          {
+            providerPaymentId: intent.providerPaymentId,
+            clientSecret: intent.clientSecret,
+            status: intent.status,
+          },
+        );
+      } else {
+        await this.paymentIntentRepository.save({
+          provider: 'stripe',
+          bookingId: booking.id,
+          milestoneId: milestone.id,
+          amount: milestone.amount,
+          currency: booking.currency,
+          status: intent.status,
+          providerPaymentId: intent.providerPaymentId,
+          clientSecret: intent.clientSecret,
+          idempotencyKey,
+          metadata: {
+            payerId,
+            bookingId: booking.id,
+            milestoneId: milestone.id,
+          },
+        });
+      }
+
+      return {
+        clientSecret: intent.clientSecret,
+        status: intent.status,
+      };
+    };
+
+    if (existingIntent?.clientSecret && !existingIntent?.providerPaymentId) {
       return {
         clientSecret: existingIntent.clientSecret,
+        status: existingIntent.status,
       };
     }
 
@@ -83,13 +166,14 @@ export class CreatePaymentIntentForMilestoneUseCase {
           existingIntent.providerPaymentId,
         );
       const clientSecret = intent.client_secret ?? null;
+      const status = (intent.status as string | undefined) ?? 'unknown';
 
       await this.paymentIntentRepository.updateByIdempotencyKey(
         idempotencyKey,
         {
           providerPaymentId: intent.id,
           clientSecret,
-          status: intent.status,
+          status,
         },
       );
 
@@ -97,7 +181,17 @@ export class CreatePaymentIntentForMilestoneUseCase {
         throw new Error('PaymentIntent has no client_secret');
       }
 
-      return { clientSecret };
+      if (isTerminalStatus(status)) {
+        if (status === 'succeeded') {
+          return { clientSecret, status };
+        }
+
+        const payerId = await ensurePayerId();
+        const retryKey = `${idempotencyKey}-retry-${Date.now()}`;
+        return createNewIntent(payerId, retryKey);
+      }
+
+      return { clientSecret, status };
     }
 
     if (milestone.providerPaymentId) {
@@ -106,6 +200,7 @@ export class CreatePaymentIntentForMilestoneUseCase {
           milestone.providerPaymentId,
         );
       const clientSecret = intent.client_secret ?? null;
+      const status = (intent.status as string | undefined) ?? 'unknown';
 
       await this.paymentIntentRepository.save({
         provider: 'stripe',
@@ -113,7 +208,7 @@ export class CreatePaymentIntentForMilestoneUseCase {
         milestoneId: milestone.id,
         amount: milestone.amount,
         currency: booking.currency,
-        status: intent.status,
+        status,
         providerPaymentId: intent.id,
         clientSecret,
         idempotencyKey,
@@ -127,78 +222,20 @@ export class CreatePaymentIntentForMilestoneUseCase {
         throw new Error('PaymentIntent has no client_secret');
       }
 
-      return { clientSecret };
+      if (isTerminalStatus(status)) {
+        if (status === 'succeeded') {
+          return { clientSecret, status };
+        }
+
+        const payerId = await ensurePayerId();
+        const retryKey = `${idempotencyKey}-retry-${Date.now()}`;
+        return createNewIntent(payerId, retryKey);
+      }
+
+      return { clientSecret, status };
     }
 
-    // 4️ Load artist
-    const artist = await this.artistRepository.findById(
-      booking.artistId,
-    );
-
-    if (!artist) {
-      throw new Error('Artist not found');
-    }
-
-    if (
-      artist.stripeOnboardingStatus !==
-      StripeOnboardingStatus.COMPLETED
-    ) {
-      throw new Error('Artist cannot receive payments');
-    }
-
-    // 5️ Determine payer (venue or promoter)
-    const payerId =
-      booking.promoterId ?? booking.venueId;
-
-    if (!payerId) {
-      throw new Error('No payer defined for booking');
-    }
-
-    if (booking.status !== 'CONTRACT_SIGNED') {
-      throw new Error('Contract is not signed');
-    }
-
-      
-    const intent =
-      await this.paymentProvider.createPaymentIntent({
-        amount: milestone.amount,
-        currency: booking.currency,
-        metadata: {
-          payerId,
-          bookingId: booking.id,
-          milestoneId: milestone.id,
-        },
-        idempotencyKey,
-      });
-
-    // 7️ Persist providerPaymentId in milestone
-    milestone.markProviderPaymentIdCreated(
-      intent.providerPaymentId,
-    );
-
-    await this.milestoneRepository.update(milestone);
-
-    await this.paymentIntentRepository.save({
-      provider: 'stripe',
-      bookingId: booking.id,
-      milestoneId: milestone.id,
-      amount: milestone.amount,
-      currency: booking.currency,
-      status: intent.status,
-      providerPaymentId: intent.providerPaymentId,
-      clientSecret: intent.clientSecret,
-      idempotencyKey,
-      metadata: {
-        payerId,
-        bookingId: booking.id,
-        milestoneId: milestone.id,
-      },
-    });
-
-    // 8️ Return client secret to frontend
-    return {
-      clientSecret: intent.clientSecret,
-    };
+    const payerId = await ensurePayerId();
+    return createNewIntent(payerId);
   }
 }
-

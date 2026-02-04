@@ -25,6 +25,7 @@ export class SupabaseBookingRepository {
     let venueCity: string | null = null;
     let artistName: string | null = null;
     let artistCity: string | null = null;
+    let eventName: string | null = null;
 
     if (data.artist_id) {
       const { data: artist } = await supabase
@@ -45,6 +46,15 @@ export class SupabaseBookingRepository {
         .maybeSingle();
       venueName = venue?.name ?? null;
       venueCity = venue?.city ?? null;
+    }
+
+    if (data.event_id) {
+      const { data: event } = await supabase
+        .from('events')
+        .select('id, name')
+        .eq('id', data.event_id)
+        .maybeSingle();
+      eventName = event?.name ?? null;
     }
 
     return new Booking({
@@ -74,6 +84,7 @@ export class SupabaseBookingRepository {
       updatedAt: data.updated_at ? new Date(data.updated_at) : null,
       venueName,
       venueCity,
+      eventName,
     });
 
   }
@@ -190,8 +201,9 @@ export class SupabaseBookingRepository {
         handledByUserId: row.handled_by_user_id ?? null,
         handledAt: row.handled_at ? new Date(row.handled_at) : null,
         updatedAt: row.updated_at ? new Date(row.updated_at) : null,
-        venueName: venueInfo?.name ?? eventName ?? null,
+        venueName: venueInfo?.name ?? null,
         venueCity: venueInfo?.city ?? null,
+        eventName: eventName ?? null,
       });
     });
   }
@@ -265,6 +277,8 @@ export class SupabaseBookingRepository {
     }
 
     const artistIds = Array.from(new Set((data ?? []).map((row: any) => row.artist_id).filter(Boolean)));
+    const venueIds = Array.from(new Set((data ?? []).map((row: any) => row.venue_id).filter(Boolean)));
+    const eventIds = Array.from(new Set((data ?? []).map((row: any) => row.event_id).filter(Boolean)));
     const artistMap = new Map<string, { name: string | null; city: string | null }>();
 
     if (artistIds.length) {
@@ -278,8 +292,34 @@ export class SupabaseBookingRepository {
       });
     }
 
+    const venueMap = new Map<string, { name: string | null; city: string | null }>();
+    if (venueIds.length) {
+      const { data: venuesData } = await supabase
+        .from('venues')
+        .select('id, name, city')
+        .in('id', venueIds);
+
+      venuesData?.forEach((venue: any) => {
+        venueMap.set(venue.id, { name: venue.name ?? null, city: venue.city ?? null });
+      });
+    }
+
+    const eventNameMap = new Map<string, string>();
+    if (eventIds.length) {
+      const { data: eventsData } = await supabase
+        .from('events')
+        .select('id, name')
+        .in('id', eventIds);
+
+      eventsData?.forEach((event: any) => {
+        eventNameMap.set(event.id, event.name ?? 'Evento');
+      });
+    }
+
     return data.map((row) => {
       const artistInfo = row.artist_id ? artistMap.get(row.artist_id) : undefined;
+      const venueInfo = row.venue_id ? venueMap.get(row.venue_id) : undefined;
+      const eventName = row.event_id ? eventNameMap.get(row.event_id) : undefined;
 
       return new Booking({
         id: row.id,
@@ -304,6 +344,9 @@ export class SupabaseBookingRepository {
         handledByRole: row.handled_by_role ?? null,
         handledByUserId: row.handled_by_user_id ?? null,
         handledAt: row.handled_at ? new Date(row.handled_at) : null,
+        venueName: venueInfo?.name ?? null,
+        venueCity: venueInfo?.city ?? null,
+        eventName: eventName ?? null,
       });
     });
   }  async findActiveByVenueId(

@@ -23,6 +23,7 @@ import { AcceptBookingUseCase } from '../use-cases/confirm/confirm-booking.use-c
 import { ConfirmPaymentMilestoneUseCase } from '../use-cases/confirm/confirm-payment-milestone.usecase';
 import { UserContextGuard } from '../../auth/user-context.guard';
 import { VenuesService } from '../../venues/services/venues.service';
+import { GetPaymentMilestonesForBookingQuery } from '../../payments/queries/get-payment-milestones-for-booking.query';
 
 
 
@@ -42,6 +43,7 @@ export class BookingsController {
     @Inject(BOOKING_REPOSITORY) private readonly bookingRepository: BookingRepository,
     private readonly contractRepository: ContractRepository,
     @Inject(SignContractUseCase) private readonly signContractUseCase: SignContractUseCase,
+    private readonly getPaymentMilestonesForBookingQuery: GetPaymentMilestonesForBookingQuery,
   ) { }
 
   @UseGuards(JwtAuthGuard, UserContextGuard)
@@ -71,6 +73,16 @@ export class BookingsController {
     // Obtener cantidad de mensajes de negociación
     const messages = await this.getNegotiationMessagesQuery.execute(id);
     const lastMessage = messages.length > 0 ? messages[messages.length - 1] : null;
+    const milestones = await this.getPaymentMilestonesForBookingQuery.execute({
+      bookingId: booking.id,
+    });
+    const paidAmount = milestones
+      .filter((m: any) => m.status === 'PAID' || m.status === 'FINALIZED')
+      .reduce((sum: number, m: any) => sum + (m.amount ?? 0), 0);
+    const paidPercent =
+      booking.totalAmount && booking.totalAmount > 0
+        ? Math.round((paidAmount / booking.totalAmount) * 100)
+        : null;
 
     return {
       id: booking.id,
@@ -82,9 +94,11 @@ export class BookingsController {
       venueCity: (booking as any).venueCity ?? null,
       promoterId: booking.promoterId ?? null,
       eventId: booking.eventId ?? null,
+      eventName: (booking as any).eventName ?? null,
       status: booking.status,
       currency: booking.currency,
       totalAmount: booking.totalAmount,
+      paidPercent,
       managerId: booking.managerId ?? null,
       start_date: booking.start_date,
       handledAt: booking.handledAt ? booking.handledAt.toISOString() : null,
@@ -108,7 +122,20 @@ export class BookingsController {
     const bookings = await this.bookingService.getForUser(req.userContext);
 
     // Para mínimo viable, devolvemos messagesCount: 0 (sin consulta extra)
-    return bookings.map((booking) => ({
+    const rows = await Promise.all(
+      bookings.map(async (booking) => {
+        const milestones = await this.getPaymentMilestonesForBookingQuery.execute({
+          bookingId: booking.id,
+        });
+        const paidAmount = milestones
+          .filter((m: any) => m.status === 'PAID' || m.status === 'FINALIZED')
+          .reduce((sum: number, m: any) => sum + (m.amount ?? 0), 0);
+        const paidPercent =
+          booking.totalAmount && booking.totalAmount > 0
+            ? Math.round((paidAmount / booking.totalAmount) * 100)
+            : null;
+
+        return {
       id: booking.id,
       artistId: booking.artistId,
       artistName: (booking as any).artistName ?? null,
@@ -119,16 +146,22 @@ export class BookingsController {
       managerId: booking.managerId ?? null,
       promoterId: booking.promoterId ?? null,
       eventId: booking.eventId ?? null,
+      eventName: (booking as any).eventName ?? null,
       status: booking.status,
-      currency: booking.currency,
-      totalAmount: booking.totalAmount,
-      start_date: booking.start_date,
+          currency: booking.currency,
+          totalAmount: booking.totalAmount,
+          paidPercent,
+          start_date: booking.start_date,
       handledAt: booking.handledAt ? booking.handledAt.toISOString() : null,
       createdAt: booking.createdAt.toISOString(),
       updatedAt: (booking as any).updatedAt ? (booking as any).updatedAt.toISOString() : null,
       messagesCount: 0,
       lastMessage: null,
-    }));
+        };
+      }),
+    );
+
+    return rows;
   }
 
 
@@ -467,19 +500,30 @@ async acceptBooking(
 }
 
 
-@UseGuards(JwtAuthGuard, UserContextGuard)
-@Post(':id/payments/confirm')
-async confirmPayment(
-  @Param('id') bookingId: string,
-  @Body('milestoneId') milestoneId: string,
-  @Req() req: AuthenticatedRequest,
-) {
-  const { userId, venueId, artistId, managerId } = req.userContext;
+  @UseGuards(JwtAuthGuard, UserContextGuard)
+  @Post(':id/payments/confirm')
+  async confirmPayment(
+    @Param('id') bookingId: string,
+    @Body('milestoneId') milestoneId: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    const { userId, venueId, artistId, managerId, promoterId } = req.userContext;
 
-  // Solo quien participa en el booking puede confirmar pagos (v1: normalmente VENUE)
-  if (!venueId && !artistId && !managerId) {
-    throw new ForbiddenException();
-  }
+    const booking = await this.bookingRepository.findById(bookingId);
+    if (!booking) {
+      throw new NotFoundException('Booking not found');
+    }
+
+    // Solo quien participa en el booking puede confirmar pagos (v1: normalmente VENUE)
+    const isAllowed =
+      (artistId && booking.artistId === artistId) ||
+      (venueId && booking.venueId === venueId) ||
+      (managerId && booking.managerId === managerId) ||
+      (promoterId && booking.promoterId === promoterId);
+
+    if (!isAllowed) {
+      throw new ForbiddenException();
+    }
 
   await this.confirmPaymentMilestoneUseCase.execute({
     bookingId,
