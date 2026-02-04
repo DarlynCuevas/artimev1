@@ -41,6 +41,9 @@ export class GetPromoterDashboardUseCase {
         });
 
         let confirmedArtists = 0;
+        let pendingContractsCount = 0;
+        let pendingPaymentsCount = 0;
+        let pendingResponsesCount = 0;
         const confirmedStatuses = [
             BookingStatus.CONTRACT_SIGNED,
             BookingStatus.PAID_FULL,
@@ -50,6 +53,27 @@ export class GetPromoterDashboardUseCase {
         for (const event of events) {
             const bookings = await this.getEventBookingsQuery.execute(event.id);
             confirmedArtists += bookings.filter(b => confirmedStatuses.includes(b.status)).length;
+
+            for (const booking of bookings) {
+                if (booking.status === BookingStatus.ACCEPTED) {
+                    pendingContractsCount += 1;
+                }
+
+                if (
+                    booking.status === BookingStatus.CONTRACT_SIGNED ||
+                    booking.status === BookingStatus.PAID_PARTIAL
+                ) {
+                    pendingPaymentsCount += 1;
+                }
+
+                if (
+                    booking.status === BookingStatus.PENDING ||
+                    booking.status === BookingStatus.NEGOTIATING ||
+                    booking.status === BookingStatus.FINAL_OFFER_SENT
+                ) {
+                    pendingResponsesCount += 1;
+                }
+            }
         }
         // 3. Métricas
         const metrics = {
@@ -58,6 +82,10 @@ export class GetPromoterDashboardUseCase {
             draftEvents: events.filter(e => e.status === EventStatus.DRAFT).length,
             confirmedEvents: events.filter(e => e.status === EventStatus.CONFIRMED).length,
             confirmedArtists: confirmedArtists,
+            pendingContractsCount,
+            pendingPaymentsCount,
+            pendingResponsesCount,
+            pendingActionsCount: pendingContractsCount + pendingPaymentsCount + pendingResponsesCount,
 
 
         };
