@@ -6,6 +6,8 @@ import { ARTIST_REPOSITORY } from '../artists/repositories/artist-repository.tok
 import { DbArtistRepository } from '../../infrastructure/database/repositories/artist/artist.repository';
 import { BOOKING_REPOSITORY } from '../bookings/repositories/booking-repository.token';
 import { SupabaseBookingRepository } from '../../infrastructure/database/repositories/bookings/SupabaseBookingRepository '; 
+import { PAYMENT_MILESTONE_REPOSITORY } from '../payments/payment-milestone-repository.token';
+import { DbPaymentMilestoneRepository } from '../../infrastructure/database/repositories/db-payment-milestone.repository';
 import { ArtistsModule } from '../artists/artists.module';
 import { BookingsModule } from '../bookings/bookings.module';
 import { VENUE_REPOSITORY } from './repositories/venue-repository.token';
@@ -38,6 +40,10 @@ import { GetInterestedArtistCallsUseCase } from './use-cases/get-interested-arti
     {
       provide: BOOKING_REPOSITORY,
       useClass: SupabaseBookingRepository,
+    },
+    {
+      provide: PAYMENT_MILESTONE_REPOSITORY,
+      useClass: DbPaymentMilestoneRepository,
     },
     {
       provide: VENUE_REPOSITORY,

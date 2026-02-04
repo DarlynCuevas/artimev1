@@ -77,7 +77,17 @@ export class OutboxWorkerService implements OnModuleInit, OnModuleDestroy {
   }
 
   private async handleArtistCallCreated(event: OutboxEvent) {
-    const { eligibleArtistIds, callId, venueId, venueName, date, city, filters, offeredMaxPrice } = event.payload ?? {};
+    const {
+      eligibleArtistIds,
+      callId,
+      venueId,
+      venueName,
+      date,
+      city,
+      filters,
+      offeredMaxPrice,
+      offeredMinPrice,
+    } = event.payload ?? {};
 
     if (!Array.isArray(eligibleArtistIds) || eligibleArtistIds.length === 0) {
       this.logger.log(`Event ${event.id} has no eligible artists; skipping fan-out.`);
@@ -88,7 +98,7 @@ export class OutboxWorkerService implements OnModuleInit, OnModuleDestroy {
       eligibleArtistIds.map((artistId: string) => ({
         artistId,
         type: 'ARTIST_CALL_CREATED',
-        payload: { callId, venueId, venueName, date, city, filters, offeredMaxPrice },
+        payload: { callId, venueId, venueName, date, city, filters, offeredMaxPrice, offeredMinPrice },
       })),
     );
   }

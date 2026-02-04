@@ -368,11 +368,16 @@ export class SupabaseBookingRepository {
       )
     `)
       .eq('venue_id', venueId)
-      .in('status', ['PENDING',
+      .in('status', [
+        'PENDING',
         'FINAL_OFFER_SENT',
         'ACCEPTED',
         'CONTRACT_SIGNED',
-        'PAID_PARTIAL', 'NEGOTIATING'])
+        'NEGOTIATING',
+        'PAID_PARTIAL',
+        'PAID_FULL',
+        'COMPLETED',
+      ])
       .order('start_date', { ascending: true })
       .limit(5);
 
