@@ -52,7 +52,7 @@ export class ArtistsService {
     representationStatus: 'NONE' | 'PENDING' | 'ACTIVE' | 'REJECTED';
     representationRequestId: string | null;
     representationCommission: number | null;
-    managerName?: string | null;
+    managerName?: string;
   }> {
     const artist = await this.artistRepository.findPublicProfileById(artistId);
 
@@ -66,14 +66,14 @@ export class ArtistsService {
     let representationStatus: 'NONE' | 'PENDING' | 'ACTIVE' | 'REJECTED' = hasManager ? 'ACTIVE' : 'NONE';
     let representationRequestId: string | null = null;
     let representationCommission: number | null = null;
-    let managerName: string | null = null;
+    let managerName: string | undefined;
 
     if (activeContract?.managerId) {
       const manager = await this.managerRepo.findById(activeContract.managerId);
-      managerName = manager?.name ?? null;
+      managerName = manager?.name;
     } else if (artist.managerId) {
       const manager = await this.managerRepo.findById(artist.managerId);
-      managerName = manager?.name ?? null;
+      managerName = manager?.name;
     }
 
     let canRequestRepresentation = !hasManager;
