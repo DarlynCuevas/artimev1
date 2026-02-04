@@ -4,6 +4,7 @@ import { BOOKING_REPOSITORY } from '../../bookings/repositories/booking-reposito
 import { ARTIST_REPOSITORY } from "../../artists/repositories/artist-repository.token";
 import type { ArtistRepository } from "../../artists/repositories/artist.repository.interface";
 import { VenueDashboardDto } from "../dto/venue-dashboard.dto";
+import { BookingStatus } from "../../bookings/booking-status.enum";
 
 
 @Injectable()
@@ -34,18 +35,31 @@ export class GetVenueDashboardUseCase {
             .reduce((sum, b) => sum + (b.totalAmount ?? 0), 0);
 
 
+        const pendingContractsCount = bookings.filter(
+            b => b.status === BookingStatus.ACCEPTED,
+        ).length;
+
+        const pendingPaymentsCount = bookings.filter(
+            b => b.status === BookingStatus.CONTRACT_SIGNED || b.status === BookingStatus.PAID_PARTIAL,
+        ).length;
+
+        const pendingResponsesCount = bookings.filter(
+            b =>
+                b.status === BookingStatus.PENDING ||
+                b.status === BookingStatus.NEGOTIATING ||
+                b.status === BookingStatus.FINAL_OFFER_SENT,
+        ).length;
+
         return {
             metrics: {
                 activeBookingsCount: bookings.length,
                 upcomingBookingsCount: bookings.length,
                 confirmedSpent,
                 expectedSpent,
-                pendingActionsCount: bookings.filter(
-                    b =>
-                        b.status === 'PENDING' ||
-                        b.status === 'NEGOTIATING' ||
-                        b.status === 'FINAL_OFFER_SENT',
-                ).length,
+                pendingContractsCount,
+                pendingPaymentsCount,
+                pendingResponsesCount,
+                pendingActionsCount: pendingContractsCount + pendingPaymentsCount + pendingResponsesCount,
             },
 
             upcomingBookings: rows.map(r => ({

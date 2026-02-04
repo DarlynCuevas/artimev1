@@ -4,6 +4,9 @@ export interface VenueDashboardDto {
     upcomingBookingsCount: number;
     confirmedSpent: number;
     expectedSpent: number;
+    pendingContractsCount: number;
+    pendingPaymentsCount: number;
+    pendingResponsesCount: number;
     pendingActionsCount: number;
   };
 
