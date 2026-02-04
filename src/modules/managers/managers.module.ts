@@ -1,5 +1,8 @@
 import { Module, forwardRef } from '@nestjs/common';
 import { SupabaseModule } from '@/src/infrastructure/database/supabase.module';
+import { ArtistsModule } from '../artists/artists.module';
+import { VenuesModule } from '../venues/venues.module';
+import { PromotersModule } from '../promoter/promoter.module';
 
 import { ARTIST_MANAGER_REPRESENTATION_REPOSITORY } from './repositories/artist-manager-representation.repository.token';
 import { ArtistManagerRepresentationService } from './services/artist-manager-representation.service';
@@ -11,7 +14,13 @@ import { DbManagerRepository } from '@/src/infrastructure/database/repositories/
 import { UserContextModule } from '../auth/user-context/user-context.module';
 
 @Module({
-  imports: [SupabaseModule, forwardRef(() => UserContextModule)],
+  imports: [
+    SupabaseModule,
+    forwardRef(() => UserContextModule),
+    forwardRef(() => ArtistsModule),
+    forwardRef(() => VenuesModule),
+    forwardRef(() => PromotersModule),
+  ],
   controllers: [ManagerController],
   providers: [
     {

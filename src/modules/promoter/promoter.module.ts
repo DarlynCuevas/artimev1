@@ -16,6 +16,8 @@ import { ArtistsModule } from '../artists/artists.module';
 import { VenuesModule } from '../venues/venues.module';
 import { BookingsModule } from '../bookings/bookings.module';
 import { DbPromoterRepository } from '@/src/infrastructure/database/repositories/promoter/DbPromoterRepository ';
+import { ManagersModule } from '../managers/managers.module';
+import { UserContextModule } from '../auth/user-context/user-context.module';
 
 @Module({
   imports: [
@@ -25,6 +27,8 @@ import { DbPromoterRepository } from '@/src/infrastructure/database/repositories
     forwardRef(() => ArtistsModule),
     forwardRef(() => VenuesModule),
     forwardRef(() => BookingsModule),
+    forwardRef(() => ManagersModule),
+    forwardRef(() => UserContextModule),
   ],
   controllers: [PromotersController],
   providers: [

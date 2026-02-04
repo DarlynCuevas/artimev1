@@ -36,12 +36,13 @@ import { PromotersModule } from '../promoter/promoter.module';
 import { ArtistsModule } from '../artists/artists.module';
 import { VenuesModule } from '../venues/venues.module';
 import { forwardRef } from '@nestjs/common';
+import { ManagersModule } from '../managers/managers.module';
 import { UserContextModule } from '../auth/user-context/user-context.module';
 import { SupabaseModule } from '@/src/infrastructure/database/supabase.module';
 import { OutboxModule } from '../outbox/outbox.module';
 import { ArtistNotificationRepository } from '@/src/infrastructure/database/repositories/notifications/artist-notification.repository';
 @Module({
-  imports: [SupabaseModule, OutboxModule, forwardRef(() => UserContextModule), forwardRef(() => BookingsModule), ArtistsModule, forwardRef(() => VenuesModule), forwardRef(() => PromotersModule)],
+  imports: [SupabaseModule, OutboxModule, forwardRef(() => UserContextModule), forwardRef(() => BookingsModule), ArtistsModule, forwardRef(() => VenuesModule), forwardRef(() => PromotersModule), forwardRef(() => ManagersModule)],
   controllers: [EventsController, EventInvitationsController],
   providers: [
     //Events

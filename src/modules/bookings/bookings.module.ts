@@ -54,12 +54,13 @@ import { SupabaseEventRepository } from '@/src/infrastructure/database/repositor
 import { SupabaseClient } from '@supabase/supabase-js';
 import { supabase } from '@/src/infrastructure/database/supabase.client';
 import { GetPaymentMilestonesForBookingQuery } from '../payments/queries/get-payment-milestones-for-booking.query';
+import { UserContextModule } from '../auth/user-context/user-context.module';
 
 
 
 
 @Module({
-  imports: [SupabaseModule, OutboxModule, ManagersModule, ContractsModule, forwardRef(() => PaymentsModule), forwardRef(() => ArtistsModule), VenuesModule, forwardRef(() => PromotersModule)],
+  imports: [SupabaseModule, OutboxModule, ManagersModule, ContractsModule, forwardRef(() => PaymentsModule), forwardRef(() => ArtistsModule), VenuesModule, forwardRef(() => PromotersModule), forwardRef(() => UserContextModule)],
   controllers: [BookingsController, CancellationsController, CancellationResolutionsController],
   providers: [
     BookingService,

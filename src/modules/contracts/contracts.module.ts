@@ -14,6 +14,7 @@ import { ArtistsModule } from '../artists/artists.module';
 import { VenuesModule } from '../venues/venues.module';
 import { UserContextModule } from '../auth/user-context/user-context.module';
 import { PromotersModule } from '../promoter/promoter.module';
+import { ManagersModule } from '../managers/managers.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { PromotersModule } from '../promoter/promoter.module';
     forwardRef(() => ArtistsModule),
     forwardRef(() => VenuesModule),
     PromotersModule,
+    forwardRef(() => ManagersModule),
     UserContextModule,
   ],
   controllers: [ContractsController],

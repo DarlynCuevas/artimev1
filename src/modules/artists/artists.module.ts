@@ -1,6 +1,7 @@
 // removed duplicate forwardRef import
 import { Module, forwardRef } from '@nestjs/common';
 import { PromotersModule } from '../promoter/promoter.module';
+import { ManagersModule } from '../managers/managers.module';
 
 import { ArtistsController } from './controllers/artists.controller';
 import { ArtistsService } from './services/artists.service';
@@ -29,10 +30,11 @@ import { EVENT_REPOSITORY } from '../events/repositories/event.repository.token'
 import { SupabaseEventRepository } from '@/src/infrastructure/database/repositories/event/event.supabase.repository';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { supabase } from '@/src/infrastructure/database/supabase.client';
+import { UserContextModule } from '../auth/user-context/user-context.module';
 
 
 @Module({
-  imports: [SupabaseModule, forwardRef(() => VenuesModule), forwardRef(() => BookingsModule), forwardRef(() => PromotersModule)],
+  imports: [SupabaseModule, forwardRef(() => VenuesModule), forwardRef(() => BookingsModule), forwardRef(() => PromotersModule), forwardRef(() => ManagersModule), forwardRef(() => UserContextModule)],
   controllers: [ArtistsController, ArtistCalendarController, ArtistCallController, ArtistNotificationsController],
   providers: [
     ArtistsService,

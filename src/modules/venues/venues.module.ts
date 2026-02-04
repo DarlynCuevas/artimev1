@@ -21,9 +21,11 @@ import { CreateArtistCallUseCase } from './use-cases/create-artist-call.usecase'
 import { SupabaseModule } from '@/src/infrastructure/database/supabase.module';
 import { OutboxModule } from '../outbox/outbox.module';
 import { GetInterestedArtistCallsUseCase } from './use-cases/get-interested-artist-calls.usecase';
+import { ManagersModule } from '../managers/managers.module';
+import { UserContextModule } from '../auth/user-context/user-context.module';
 
 @Module({
-  imports: [SupabaseModule, OutboxModule, forwardRef(() => ArtistsModule), forwardRef(() => BookingsModule), forwardRef(() => PromotersModule)],
+  imports: [SupabaseModule, OutboxModule, forwardRef(() => ArtistsModule), forwardRef(() => BookingsModule), forwardRef(() => PromotersModule), forwardRef(() => ManagersModule), forwardRef(() => UserContextModule)],
   controllers: [VenueDiscoverController,VenueController],
   providers: [
     VenueDiscoverService,
