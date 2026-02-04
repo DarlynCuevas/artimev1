@@ -10,6 +10,8 @@ import { ARTIST_REPOSITORY } from '../artists/repositories/artist-repository.tok
 import { VENUE_REPOSITORY } from '../venues/repositories/venue-repository.token';
 import type { PromoterRepository } from '../promoter/repositories/promoter.repository.interface';
 import { PROMOTER_REPOSITORY } from '../promoter/repositories/promoter-repository.token';
+import type { ManagerRepository } from '../managers/repositories/manager.repository.interface';
+import { MANAGER_REPOSITORY } from '../managers/repositories/manager-repository.token';
 
 export type UserContext = {
   userId: string;
@@ -29,6 +31,8 @@ export class UserContextGuard implements CanActivate {
     private readonly venuesRepository: VenueRepository,
       @Inject(PROMOTER_REPOSITORY)
     private readonly promotersRepository: PromoterRepository,
+    @Inject(MANAGER_REPOSITORY)
+    private readonly managersRepository: ManagerRepository,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -42,10 +46,11 @@ export class UserContextGuard implements CanActivate {
     }
 
     // Resolver perfiles (una vez por request)
-    const [artist, venue, promoter] = await Promise.all([
+    const [artist, venue, promoter, manager] = await Promise.all([
       this.artistsRepository.findByUserId(userId),
       this.venuesRepository.findByUserId(userId),
        this.promotersRepository.findByUserId(userId),
+      this.managersRepository.findByUserId(userId),
     ]);
 
     request.userContext = {
@@ -53,6 +58,7 @@ export class UserContextGuard implements CanActivate {
       artistId: artist?.id,
       venueId: venue?.id,
       promoterId: promoter?.id,
+      managerId: manager?.id,
     } satisfies UserContext;
 
     return true;

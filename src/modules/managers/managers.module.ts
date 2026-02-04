@@ -2,31 +2,33 @@ import { Module } from '@nestjs/common';
 import { SupabaseModule } from '@/src/infrastructure/database/supabase.module';
 
 import { ARTIST_MANAGER_REPRESENTATION_REPOSITORY } from './repositories/artist-manager-representation.repository.token';
-import { ArtistManagerRepresentationRepository } from './repositories/artist-manager-representation.repository.interface';
-
 import { ArtistManagerRepresentationService } from './services/artist-manager-representation.service';
 import { DbArtistManagerRepresentationRepository } from '@/src/infrastructure/database/repositories/manager/artist-manager-representation.repository';
-
-// implementación concreta (infraestructura)
+import { ManagerController } from './controllers/manager.controller';
+import { ManagerService } from './services/manager.service';
+import { MANAGER_REPOSITORY } from './repositories/manager-repository.token';
+import { DbManagerRepository } from '@/src/infrastructure/database/repositories/manager/db-manager.repository';
 
 @Module({
   imports: [SupabaseModule],
+  controllers: [ManagerController],
   providers: [
-    // 🔗 Binding interface → implementación
     {
       provide: ARTIST_MANAGER_REPRESENTATION_REPOSITORY,
       useClass: DbArtistManagerRepresentationRepository,
     },
-
-    // 🧠 Dominio
+    {
+      provide: MANAGER_REPOSITORY,
+      useClass: DbManagerRepository,
+    },
     ArtistManagerRepresentationService,
+    ManagerService,
   ],
   exports: [
-    // Exportamos el service para que otros módulos (bookings) lo usen
     ArtistManagerRepresentationService,
-
-    // Exportamos el repositorio para que esté disponible en BookingsModule
     ARTIST_MANAGER_REPRESENTATION_REPOSITORY,
+    ManagerService,
+    MANAGER_REPOSITORY,
   ],
 })
 export class ManagersModule {}
