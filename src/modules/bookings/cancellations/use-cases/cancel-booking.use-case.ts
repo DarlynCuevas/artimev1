@@ -49,12 +49,16 @@ export class CancelBookingUseCase {
       throw new Error('BOOKING_CANNOT_BE_CANCELLED');
     }
 
-    // Estados desde los que SÍ se puede cancelar (v1)
-    if (
-      booking.status !== BookingStatus.FINAL_OFFER_SENT &&
-      booking.status !== BookingStatus.ACCEPTED &&
-      booking.status !== BookingStatus.CONTRACT_SIGNED
-    ) {
+    // Estados permitidos para cancelar (incluye pagos parciales/total y contrato firmado)
+    const cancellableStatuses: BookingStatus[] = [
+      BookingStatus.FINAL_OFFER_SENT,
+      BookingStatus.ACCEPTED,
+      BookingStatus.CONTRACT_SIGNED,
+      BookingStatus.PAID_PARTIAL,
+      BookingStatus.PAID_FULL,
+    ];
+
+    if (!cancellableStatuses.includes(booking.status)) {
       throw new Error('BOOKING_CANNOT_BE_CANCELLED');
     }
 
@@ -67,16 +71,20 @@ export class CancelBookingUseCase {
 
     const previousStatus = booking.status;
 
-    let resultingStatus: BookingStatus;
-    let reviewStatus: CancellationReviewStatus;
+    const hasPayments =
+      booking.status === BookingStatus.PAID_PARTIAL ||
+      booking.status === BookingStatus.PAID_FULL;
 
-    if (booking.status === BookingStatus.CONTRACT_SIGNED) {
-      resultingStatus = BookingStatus.CANCELLED_PENDING_REVIEW;
-      reviewStatus = CancellationReviewStatus.PENDING;
-    } else {
-      resultingStatus = BookingStatus.CANCELLED;
-      reviewStatus = CancellationReviewStatus.NOT_REQUIRED;
-    }
+    const requiresReview =
+      booking.status === BookingStatus.CONTRACT_SIGNED || hasPayments;
+
+    const resultingStatus = requiresReview
+      ? BookingStatus.CANCELLED_PENDING_REVIEW
+      : BookingStatus.CANCELLED;
+
+    const reviewStatus = requiresReview
+      ? CancellationReviewStatus.PENDING
+      : CancellationReviewStatus.NOT_REQUIRED;
 
     const cancellation = new CancellationRecord({
       id: uuid(),

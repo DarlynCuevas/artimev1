@@ -22,7 +22,7 @@ export class SupabaseEventRepository implements EventRepository {
       status: event.status,
       visibility: event.visibility,
 
-      start_date: event.startDate,
+      start_date: event.startDate ?? null,
       end_date: event.endDate,
 
       venue_id: event.venueId,
@@ -48,7 +48,7 @@ export class SupabaseEventRepository implements EventRepository {
         status: event.status,
         visibility: event.visibility,
 
-        start_date: event.startDate,
+        start_date: event.startDate ?? null,
         end_date: event.endDate,
 
         venue_id: event.venueId,
@@ -128,7 +128,7 @@ export class SupabaseEventRepository implements EventRepository {
       row.status as EventStatus,
       (row.visibility as EventVisibility) ?? EventVisibility.PRIVATE,
 
-      new Date(row.start_date),
+      row.start_date ? new Date(row.start_date) : null,
       row.end_date ? new Date(row.end_date) : null,
 
       row.venue_id ?? null,

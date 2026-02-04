@@ -113,6 +113,11 @@ export class Booking {
     return this.props.totalAmount;
   }
 
+  updateTotalAmount(amount: number): void {
+    this.props.totalAmount = amount;
+    this.props.updatedAt = new Date();
+  }
+
   get handledByRole(): BookingHandlerRole | null {
     return this.props.handledByRole;
   }

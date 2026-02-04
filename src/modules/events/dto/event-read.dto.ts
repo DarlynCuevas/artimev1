@@ -7,7 +7,7 @@ export interface EventReadDto {
   name: string;
   status: EventStatus;
 
-  start_date: Date;
+  start_date: Date | null;
   endDate: Date | null;
 
   venueId: string | null;

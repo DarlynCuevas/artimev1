@@ -132,6 +132,8 @@ export class SupabaseBookingRepository {
       .update({
         status: booking.status,
 
+        total_amount: booking.totalAmount,
+
         handled_by_role: booking.handledByRole,
         handled_by_user_id: booking.handledByUserId,
         handled_at: booking.handledAt,

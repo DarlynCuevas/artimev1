@@ -70,6 +70,12 @@ export class AcceptFinalOfferUseCase {
       );
     }
 
+    if (finalOffer.proposedFee == null) {
+      throw new ForbiddenException(
+        'La oferta final no tiene importe',
+      );
+    }
+
     // Validar handler
     const handlerRole = mapSenderToHandlerRole(input.senderRole);
 
@@ -86,6 +92,7 @@ export class AcceptFinalOfferUseCase {
     }
 
     // ACEPTACIÓN REAL
+    booking.updateTotalAmount(finalOffer.proposedFee);
     booking.changeStatus(BookingStatus.ACCEPTED);
     await this.bookingRepository.update(booking);
 

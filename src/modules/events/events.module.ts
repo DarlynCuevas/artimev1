@@ -26,6 +26,7 @@ import { supabase } from 'src/infrastructure/database/supabase.client';
 import { UpdateEventVisibilityUseCase } from './use-cases/update-event-visibility.usecase';
 import { UpdateEventBookingOrganizationUseCase } from './use-cases/update-event-booking-organization.usecase';
 import { LinkBookingToEventUseCase } from './use-cases/link-booking-to-event.usecase';
+import { DuplicateEventUseCase } from './use-cases/duplicate-event.usecase';
 
 import { MiddlewareConsumer, Module, NestModule, RequestMethod } from '@nestjs/common';
 import { LoadEventMiddleware } from './middleware/load-event.middleware';
@@ -58,6 +59,7 @@ import { ArtistNotificationRepository } from '@/src/infrastructure/database/repo
       inject: [EVENT_REPOSITORY],
     },
     ChangeEventStatusUseCase,
+    DuplicateEventUseCase,
     // Invitations
     SendInvitationUseCase,
     AcceptInvitationUseCase,
@@ -97,6 +99,7 @@ export class EventsModule implements NestModule {
         { path: 'events/:id/interested-artists', method: RequestMethod.GET },
         { path: 'events/:id/bookings', method: RequestMethod.GET },
         { path: 'events/:id/visibility', method: RequestMethod.PATCH },
+        { path: 'events/:id/duplicate', method: RequestMethod.POST },
         { path: 'events/:eventId/bookings/:bookingId', method: RequestMethod.ALL },
         { path: 'events/:eventId/bookings/:bookingId/organization', method: RequestMethod.PATCH },
       );

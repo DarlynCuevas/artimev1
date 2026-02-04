@@ -17,7 +17,7 @@ export class EventEntity {
     public status: EventStatus,
     public visibility: EventVisibility,
     // Fechas
-    public startDate: Date,
+    public startDate: Date | null,
     public endDate: Date | null,
 
     // Contexto

@@ -38,6 +38,7 @@ import { UpdateEventBookingOrganizationUseCase } from '../use-cases/update-event
 import { UpdateEventVisibilityUseCase } from '../use-cases/update-event-visibility.usecase';
 import { UserContextGuard } from '../../auth/user-context.guard';
 import { SendInvitationUseCase } from '../use-cases/send-invitation.usecase';
+import { DuplicateEventUseCase } from '../use-cases/duplicate-event.usecase';
 
 @Controller('events')
 @UseGuards(JwtAuthGuard, UserContextGuard)
@@ -56,6 +57,7 @@ export class EventsController {
     private readonly updateEventBookingOrganizationUseCase: UpdateEventBookingOrganizationUseCase,
     private readonly updateEventVisibilityUseCase: UpdateEventVisibilityUseCase,
     private readonly sendInvitationUseCase: SendInvitationUseCase,
+    private readonly duplicateEventUseCase: DuplicateEventUseCase,
   ) { }
 
   @Post()
@@ -153,6 +155,23 @@ export class EventsController {
       eventId: id,
       requesterId,
       nextStatus: EventStatus.SEARCHING,
+    });
+  }
+
+  @Post(':id/duplicate')
+  @UseGuards(EventOrganizerGuard)
+  async duplicateEvent(
+    @Req() req: AuthenticatedRequest,
+    @Param('id') eventId: string,
+  ) {
+    const requesterId =
+      req.userContext.promoterId ??
+      req.userContext.venueId ??
+      req.user.sub;
+
+    return this.duplicateEventUseCase.execute({
+      eventId,
+      requesterId,
     });
   }
 
