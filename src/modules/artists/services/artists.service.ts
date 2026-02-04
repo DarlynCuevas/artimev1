@@ -9,6 +9,11 @@ import { ArtistFormat } from '../enums/artist-format.enum';
 import { buildDayRange } from '../utils/build-day-range';
 import { GetArtistDashboardUseCase } from '../use-cases/dashboard-artist.usecase';
 import { UpdateArtistDto } from '../dto/update-artist.dto';
+import { REPRESENTATION_CONTRACT_REPOSITORY, REPRESENTATION_REQUEST_REPOSITORY } from '@/src/modules/representations/repositories/representation-repository.tokens';
+import type { RepresentationContractRepository } from '@/src/modules/representations/repositories/representation-contract.repository.interface';
+import type { RepresentationRequestRepository } from '@/src/modules/representations/repositories/representation-request.repository.interface';
+import { MANAGER_REPOSITORY } from '@/src/modules/managers/repositories/manager-repository.token';
+import type { ManagerRepository } from '@/src/modules/managers/repositories/manager.repository.interface';
 
 
 @Injectable()
@@ -17,6 +22,12 @@ export class ArtistsService {
     @Inject(ARTIST_REPOSITORY)
     private readonly artistRepository: ArtistRepository,
     private readonly getArtistDashboardUseCase: GetArtistDashboardUseCase,
+    @Inject(REPRESENTATION_CONTRACT_REPOSITORY)
+    private readonly contractRepo: RepresentationContractRepository,
+    @Inject(REPRESENTATION_REQUEST_REPOSITORY)
+    private readonly requestRepo: RepresentationRequestRepository,
+    @Inject(MANAGER_REPOSITORY)
+    private readonly managerRepo: ManagerRepository,
   ) { }
 
   async findAll() {
@@ -36,11 +47,45 @@ export class ArtistsService {
 }
 
 
-  async getPublicArtistProfile(artistId: string): Promise<CreateArtistDto> {
+  async getPublicArtistProfile(artistId: string, viewerManagerId: string | null = null): Promise<CreateArtistDto & {
+    canRequestRepresentation: boolean;
+    representationStatus: 'NONE' | 'PENDING' | 'ACTIVE' | 'REJECTED';
+    representationRequestId: string | null;
+    representationCommission: number | null;
+    managerName?: string | null;
+  }> {
     const artist = await this.artistRepository.findPublicProfileById(artistId);
 
     if (!artist) {
       throw new NotFoundException('ARTIST_NOT_FOUND');
+    }
+
+    const activeContract = await this.contractRepo.findActiveByArtist(artistId);
+    const hasManager = Boolean(artist.managerId || activeContract?.managerId);
+
+    let representationStatus: 'NONE' | 'PENDING' | 'ACTIVE' | 'REJECTED' = hasManager ? 'ACTIVE' : 'NONE';
+    let representationRequestId: string | null = null;
+    let representationCommission: number | null = null;
+    let managerName: string | null = null;
+
+    if (activeContract?.managerId) {
+      const manager = await this.managerRepo.findById(activeContract.managerId);
+      managerName = manager?.name ?? null;
+    } else if (artist.managerId) {
+      const manager = await this.managerRepo.findById(artist.managerId);
+      managerName = manager?.name ?? null;
+    }
+
+    let canRequestRepresentation = !hasManager;
+
+    if (viewerManagerId && canRequestRepresentation) {
+      const pending = await this.requestRepo.findPendingByArtistAndManager(artistId, viewerManagerId);
+      if (pending) {
+        representationStatus = 'PENDING';
+        representationRequestId = pending.id;
+        representationCommission = pending.commissionPercentage;
+        canRequestRepresentation = false;
+      }
     }
 
     return {
@@ -54,6 +99,11 @@ export class ArtistsService {
       isNegotiable: artist.isNegotiable,
       managerId: artist.managerId,
       rating: artist.rating,
+      canRequestRepresentation,
+      representationStatus,
+      representationRequestId,
+      representationCommission,
+      managerName,
     };
   }
 

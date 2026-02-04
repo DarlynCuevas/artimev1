@@ -79,6 +79,24 @@ export class ArtistNotificationRepository {
     return (data ?? []) as ArtistNotification[];
   }
 
+  async markReadByArtist(params: { id: string; artistId: string }) {
+    const { id, artistId } = params;
+
+    const { data, error } = await this.supabase
+      .from('artist_notifications')
+      .update({ status: 'READ' as NotificationStatus })
+      .eq('id', id)
+      .eq('artist_id', artistId)
+      .select()
+      .single();
+
+    if (error) {
+      throw error;
+    }
+
+    return data as ArtistNotification;
+  }
+
   async findByUser(params: { userId: string; role?: string; limit?: number }) {
     const { userId, role, limit = 50 } = params;
 

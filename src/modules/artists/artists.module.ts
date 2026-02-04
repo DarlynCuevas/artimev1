@@ -31,6 +31,11 @@ import { SupabaseEventRepository } from '@/src/infrastructure/database/repositor
 import { SupabaseClient } from '@supabase/supabase-js';
 import { supabase } from '@/src/infrastructure/database/supabase.client';
 import { UserContextModule } from '../auth/user-context/user-context.module';
+import { REPRESENTATION_CONTRACT_REPOSITORY, REPRESENTATION_REQUEST_REPOSITORY } from '../representations/repositories/representation-repository.tokens';
+import { SupabaseRepresentationRequestRepository } from '@/src/infrastructure/database/repositories/representation/supabase-representation-request.repository';
+import { SupabaseRepresentationContractRepository } from '@/src/infrastructure/database/repositories/representation/supabase-representation-contract.repository';
+import { MANAGER_REPOSITORY } from '../managers/repositories/manager-repository.token';
+import { DbManagerRepository } from '@/src/infrastructure/database/repositories/manager/db-manager.repository';
 
 
 @Module({
@@ -60,6 +65,18 @@ import { UserContextModule } from '../auth/user-context/user-context.module';
     {
       provide: EVENT_REPOSITORY,
       useClass: SupabaseEventRepository,
+    },
+    {
+      provide: REPRESENTATION_REQUEST_REPOSITORY,
+      useClass: SupabaseRepresentationRequestRepository,
+    },
+    {
+      provide: REPRESENTATION_CONTRACT_REPOSITORY,
+      useClass: SupabaseRepresentationContractRepository,
+    },
+    {
+      provide: MANAGER_REPOSITORY,
+      useClass: DbManagerRepository,
     },
     {
       provide: ARTIST_REPOSITORY,

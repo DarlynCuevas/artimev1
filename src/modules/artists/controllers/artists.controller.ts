@@ -80,9 +80,10 @@ export class ArtistsController {
   }
 
   @Get(':id')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, UserContextGuard)
   async getArtistById(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
-    return this.artistsService.getPublicArtistProfile(id)
+    const viewerManagerId = req.userContext.managerId ?? null;
+    return this.artistsService.getPublicArtistProfile(id, viewerManagerId);
   }
 
 

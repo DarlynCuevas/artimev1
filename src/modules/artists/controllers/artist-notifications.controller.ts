@@ -12,22 +12,22 @@ export class ArtistNotificationsController {
   @Get()
   async list(@Req() req: AuthenticatedRequest, @Query('limit') limit?: string) {
     const parsedLimit = limit ? Number(limit) : undefined;
-    const { userId, artistId } = req.userContext;
+    const { artistId } = req.userContext;
     if (!artistId) {
       throw new ForbiddenException('ONLY_ARTIST');
     }
 
-    return this.notificationsRepo.findByUser({ userId, role: 'ARTIST', limit: parsedLimit });
+    return this.notificationsRepo.findByArtist({ artistId, limit: parsedLimit });
   }
 
   @Patch(':id/read')
   async markRead(@Req() req: AuthenticatedRequest, @Param('id') id: string) {
-    const { userId, artistId } = req.userContext;
+    const { artistId } = req.userContext;
     if (!artistId) {
       throw new ForbiddenException('ONLY_ARTIST');
     }
 
-    await this.notificationsRepo.markRead({ id, userId });
+    await this.notificationsRepo.markReadByArtist({ id, artistId });
     return { ok: true };
   }
 }
