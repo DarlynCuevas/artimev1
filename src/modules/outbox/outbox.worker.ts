@@ -3,6 +3,8 @@ import { OutboxRepository, OutboxEvent } from '@/src/infrastructure/database/rep
 import { ArtistNotificationRepository } from '@/src/infrastructure/database/repositories/notifications/artist-notification.repository';
 import { EVENT_REPOSITORY } from '@/src/modules/events/repositories/event.repository.token';
 import type { EventRepository } from '@/src/modules/events/repositories/event.repository';
+import { BOOKING_REPOSITORY } from '@/src/modules/bookings/repositories/booking-repository.token';
+import type { BookingRepository } from '@/src/modules/bookings/repositories/booking.repository.interface';
 
 @Injectable()
 export class OutboxWorkerService implements OnModuleInit, OnModuleDestroy {
@@ -15,6 +17,8 @@ export class OutboxWorkerService implements OnModuleInit, OnModuleDestroy {
     private readonly artistNotificationRepo: ArtistNotificationRepository,
     @Inject(EVENT_REPOSITORY)
     private readonly eventRepository: EventRepository,
+    @Inject(BOOKING_REPOSITORY)
+    private readonly bookingRepository: BookingRepository,
   ) {}
 
   onModuleInit() {
@@ -64,6 +68,12 @@ export class OutboxWorkerService implements OnModuleInit, OnModuleDestroy {
           break;
         case 'BOOKING_CREATED':
           await this.handleBookingCreated(processingEvent);
+          break;
+        case 'REPRESENTATION_REQUEST_CREATED':
+          await this.handleRepresentationRequestCreated(processingEvent);
+          break;
+        case 'REPRESENTATION_REQUEST_RESOLVED':
+          await this.handleRepresentationRequestResolved(processingEvent);
           break;
         default:
           this.logger.warn(`Unhandled outbox event type: ${processingEvent.type}`);
@@ -131,11 +141,80 @@ export class OutboxWorkerService implements OnModuleInit, OnModuleDestroy {
       return;
     }
 
+    let eventName: string | null = null;
+    let venueName: string | null = null;
+    let bookingDate: string | null = null;
+
+    try {
+      const booking = await this.bookingRepository.findById(bookingId);
+      eventName = booking?.eventName ?? null;
+      venueName = booking?.venueName ?? null;
+      bookingDate = booking?.start_date ?? null;
+    } catch (err) {
+      this.logger.warn(`Could not load booking ${bookingId} for BOOKING_CREATED payload enrichment`);
+    }
+
+    // Fallback to event lookup if booking lacks name
+    if (!eventName && eventId) {
+      try {
+        const evt = await this.eventRepository.findById(eventId);
+        eventName = evt?.name ?? null;
+      } catch (err) {
+        this.logger.warn(`Could not load event ${eventId} for BOOKING_CREATED payload enrichment`);
+      }
+    }
+
     await this.artistNotificationRepo.createMany([
       {
         artistId,
         type: 'BOOKING_REQUEST',
-        payload: { bookingId, eventId },
+        payload: { bookingId, eventId, eventName, venueName, date: bookingDate },
+      },
+    ]);
+  }
+
+  private async handleRepresentationRequestCreated(event: OutboxEvent) {
+    const { artistId, requestId, managerId, managerName, commissionPercentage } = event.payload ?? {};
+
+    if (!artistId || !requestId || !managerId) {
+      this.logger.warn(`Event ${event.id} missing payload for REPRESENTATION_REQUEST_CREATED`);
+      return;
+    }
+
+    await this.artistNotificationRepo.createMany([
+      {
+        artistId,
+        type: 'REPRESENTATION_REQUEST_CREATED',
+        payload: {
+          requestId,
+          managerId,
+          managerName: managerName ?? null,
+          commissionPercentage: commissionPercentage ?? null,
+        },
+      },
+    ]);
+  }
+
+  private async handleRepresentationRequestResolved(event: OutboxEvent) {
+    const { managerUserId, result, requestId, artistId, managerId, contractId } = event.payload ?? {};
+
+    if (!managerUserId || !result || !requestId) {
+      this.logger.warn(`Event ${event.id} missing payload for REPRESENTATION_REQUEST_RESOLVED`);
+      return;
+    }
+
+    await this.artistNotificationRepo.createManyByUser([
+      {
+        userId: managerUserId,
+        role: 'MANAGER',
+        type: 'REPRESENTATION_REQUEST_RESOLVED',
+        payload: {
+          result,
+          requestId,
+          artistId: artistId ?? null,
+          managerId: managerId ?? null,
+          contractId: contractId ?? null,
+        },
       },
     ]);
   }
