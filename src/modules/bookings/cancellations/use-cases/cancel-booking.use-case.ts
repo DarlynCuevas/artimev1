@@ -51,11 +51,14 @@ export class CancelBookingUseCase {
 
     // Estados permitidos para cancelar (incluye pagos parciales/total y contrato firmado)
     const cancellableStatuses: BookingStatus[] = [
+      BookingStatus.PENDING,
+      BookingStatus.NEGOTIATING,
       BookingStatus.FINAL_OFFER_SENT,
       BookingStatus.ACCEPTED,
       BookingStatus.CONTRACT_SIGNED,
       BookingStatus.PAID_PARTIAL,
       BookingStatus.PAID_FULL,
+      BookingStatus.COMPLETED,
     ];
 
     if (!cancellableStatuses.includes(booking.status)) {
@@ -73,7 +76,8 @@ export class CancelBookingUseCase {
 
     const hasPayments =
       booking.status === BookingStatus.PAID_PARTIAL ||
-      booking.status === BookingStatus.PAID_FULL;
+      booking.status === BookingStatus.PAID_FULL ||
+      booking.status === BookingStatus.COMPLETED;
 
     const requiresReview =
       booking.status === BookingStatus.CONTRACT_SIGNED || hasPayments;
