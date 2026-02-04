@@ -39,11 +39,12 @@ export class GetVenueDashboardUseCase {
                     )
                     .reduce((sum, m) => sum + (m.amount ?? 0), 0);
 
-                const remainingAmount = Math.max(totalAmount - paidAmount, 0);
+                const cappedPaidAmount = Math.min(paidAmount, totalAmount);
+                const remainingAmount = Math.max(totalAmount - cappedPaidAmount, 0);
 
                 return {
                     booking,
-                    paidAmount,
+                    paidAmount: cappedPaidAmount,
                     remainingAmount,
                 };
             }),

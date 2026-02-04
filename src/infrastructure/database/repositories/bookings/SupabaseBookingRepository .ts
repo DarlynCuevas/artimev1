@@ -376,7 +376,6 @@ export class SupabaseBookingRepository {
         'NEGOTIATING',
         'PAID_PARTIAL',
         'PAID_FULL',
-        'COMPLETED',
       ])
       .order('start_date', { ascending: true })
       .limit(5);

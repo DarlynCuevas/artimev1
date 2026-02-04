@@ -43,7 +43,8 @@ export class CancelBookingUseCase {
     // Estados desde los que NO se puede cancelar
     if (
       booking.status === BookingStatus.CANCELLED ||
-      booking.status === BookingStatus.CANCELLED_PENDING_REVIEW
+      booking.status === BookingStatus.CANCELLED_PENDING_REVIEW ||
+      booking.status === BookingStatus.COMPLETED
     ) {
       throw new Error('BOOKING_CANNOT_BE_CANCELLED');
     }
@@ -57,7 +58,6 @@ export class CancelBookingUseCase {
       BookingStatus.CONTRACT_SIGNED,
       BookingStatus.PAID_PARTIAL,
       BookingStatus.PAID_FULL,
-      BookingStatus.COMPLETED,
     ];
 
     if (!cancellableStatuses.includes(booking.status)) {
