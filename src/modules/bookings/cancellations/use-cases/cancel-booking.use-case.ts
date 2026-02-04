@@ -75,8 +75,7 @@ export class CancelBookingUseCase {
 
     const hasPayments =
       booking.status === BookingStatus.PAID_PARTIAL ||
-      booking.status === BookingStatus.PAID_FULL ||
-      booking.status === BookingStatus.COMPLETED;
+      booking.status === BookingStatus.PAID_FULL;
 
     const requiresReview =
       booking.status === BookingStatus.CONTRACT_SIGNED || hasPayments;
