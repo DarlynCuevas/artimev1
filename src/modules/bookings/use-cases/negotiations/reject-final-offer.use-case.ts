@@ -20,9 +20,10 @@ export class RejectFinalOfferUseCase {
     bookingId: string;
     senderUserId: string;
     senderRole: NegotiationSenderRole;
+    senderManagerId?: string | null;
   }): Promise<void> {
 
-    const booking = await this.bookingRepository.findById(input.bookingId);
+    let booking = await this.bookingRepository.findById(input.bookingId);
     if (!booking) {
       throw new ForbiddenException('Booking not found');
     }
@@ -55,7 +56,7 @@ export class RejectFinalOfferUseCase {
 
     // Asignar handler si aún no existe
     if (!booking.handledByRole) {
-      booking.assignHandler({
+      booking = booking.assignHandler({
         role: mapSenderToHandlerRole(input.senderRole),
         userId: input.senderUserId,
         at: new Date(),

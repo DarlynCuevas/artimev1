@@ -28,8 +28,9 @@ export class AcceptFinalOfferUseCase {
     bookingId: string;
     senderRole: NegotiationSenderRole;
     senderUserId: string;
+    senderManagerId?: string | null;
   }): Promise<void> {
-    const booking = await this.bookingRepository.findById(input.bookingId);
+    let booking = await this.bookingRepository.findById(input.bookingId);
     if (!booking) {
       throw new ForbiddenException('Booking not found');
     }
@@ -46,7 +47,7 @@ export class AcceptFinalOfferUseCase {
       const represents =
         await this.artistManagerRepository.existsActiveRepresentation({
           artistId: booking.artistId,
-          managerId: input.senderUserId,
+          managerId: input.senderManagerId ?? input.senderUserId,
         });
 
       if (!represents) {
@@ -80,7 +81,7 @@ export class AcceptFinalOfferUseCase {
     const handlerRole = mapSenderToHandlerRole(input.senderRole);
 
     if (!booking.handledByRole) {
-      booking.assignHandler({
+      booking = booking.assignHandler({
         role: handlerRole,
         userId: input.senderUserId,
         at: new Date(),

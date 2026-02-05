@@ -10,6 +10,7 @@ export interface BookingRepository {
   findActiveByVenueId(venueId: string): Promise<Array<{ booking: Booking; artistName: string }>>;
   findActiveByArtistId(artistId: string): Promise<Array<{ booking: Booking; venueName: string }>>;
   findByManagerId(managerId: string): Promise<Booking[]>;
+  findActionRequiredByManagerId(managerId: string, limit?: number): Promise<Array<{ booking: Booking; artistName: string; partnerName: string }>>;
   findConfirmedByArtistAndDate(artistId: string, date: string): Promise<Booking | null>;
   
 

@@ -55,12 +55,17 @@ import { SupabaseClient } from '@supabase/supabase-js';
 import { supabase } from '@/src/infrastructure/database/supabase.client';
 import { GetPaymentMilestonesForBookingQuery } from '../payments/queries/get-payment-milestones-for-booking.query';
 import { UserContextModule } from '../auth/user-context/user-context.module';
+import { ArtistNotificationRepository } from '@/src/infrastructure/database/repositories/notifications/artist-notification.repository';
+import { ARTIST_MANAGER_REPRESENTATION_REPOSITORY } from '../managers/repositories/artist-manager-representation.repository.token';
+import { DbArtistManagerRepresentationRepository } from '@/src/infrastructure/database/repositories/manager/artist-manager-representation.repository';
+import { MANAGER_REPOSITORY } from '../managers/repositories/manager-repository.token';
+import { DbManagerRepository } from '@/src/infrastructure/database/repositories/manager/db-manager.repository';
 
 
 
 
 @Module({
-  imports: [SupabaseModule, OutboxModule, ManagersModule, ContractsModule, forwardRef(() => PaymentsModule), forwardRef(() => ArtistsModule), VenuesModule, forwardRef(() => PromotersModule), forwardRef(() => UserContextModule)],
+  imports: [SupabaseModule, OutboxModule, forwardRef(() => ManagersModule), ContractsModule, forwardRef(() => PaymentsModule), forwardRef(() => ArtistsModule), VenuesModule, forwardRef(() => PromotersModule), forwardRef(() => UserContextModule)],
   controllers: [BookingsController, CancellationsController, CancellationResolutionsController],
   providers: [
     BookingService,
@@ -82,6 +87,15 @@ import { UserContextModule } from '../auth/user-context/user-context.module';
     ConfirmPaymentMilestoneUseCase,
     GetPaymentMilestonesForBookingQuery,
     ArtistCalendarBlockRepository,
+    ArtistNotificationRepository,
+    {
+      provide: ARTIST_MANAGER_REPRESENTATION_REPOSITORY,
+      useClass: DbArtistManagerRepresentationRepository,
+    },
+    {
+      provide: MANAGER_REPOSITORY,
+      useClass: DbManagerRepository,
+    },
     {
       provide: SupabaseClient,
       useValue: supabase,

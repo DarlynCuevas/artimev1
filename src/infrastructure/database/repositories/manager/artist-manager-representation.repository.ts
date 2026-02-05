@@ -21,12 +21,13 @@ export class DbArtistManagerRepresentationRepository
     at: Date = new Date(),
   ): Promise<ArtistManagerRepresentation | null> {
     const { data } = await this.supabase
-      .from('artist_manager_representations')
+      .from('representation_contracts')
       .select('*')
       .eq('artist_id', artistId)
-      .lte('starts_at', at.toISOString())
-      .or(`ends_at.is.null,ends_at.gt.${at.toISOString()}`)
-      .order('version', { ascending: false })
+      .eq('status', 'ACTIVE')
+      .lte('start_date', at.toISOString())
+      .or(`end_date.is.null,end_date.gt.${at.toISOString()}`)
+      .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle();
 
@@ -38,11 +39,12 @@ export class DbArtistManagerRepresentationRepository
     at: Date = new Date(),
   ): Promise<ArtistManagerRepresentation[]> {
     const { data } = await this.supabase
-      .from('artist_manager_representations')
+      .from('representation_contracts')
       .select('*')
       .eq('manager_id', managerId)
-      .lte('starts_at', at.toISOString())
-      .or(`ends_at.is.null,ends_at.gt.${at.toISOString()}`);
+      .eq('status', 'ACTIVE')
+      .lte('start_date', at.toISOString())
+      .or(`end_date.is.null,end_date.gt.${at.toISOString()}`);
 
     return (data ?? []).map(this.toEntity);
   }
@@ -51,10 +53,10 @@ export class DbArtistManagerRepresentationRepository
     artistId: string,
   ): Promise<ArtistManagerRepresentation | null> {
     const { data } = await this.supabase
-      .from('artist_manager_representations')
+      .from('representation_contracts')
       .select('*')
       .eq('artist_id', artistId)
-      .order('version', { ascending: false })
+      .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle();
 
@@ -65,10 +67,10 @@ export class DbArtistManagerRepresentationRepository
     artistId: string,
   ): Promise<ArtistManagerRepresentation[]> {
     const { data } = await this.supabase
-      .from('artist_manager_representations')
+      .from('representation_contracts')
       .select('*')
       .eq('artist_id', artistId)
-      .order('version', { ascending: false });
+      .order('created_at', { ascending: false });
 
     return (data ?? []).map(this.toEntity);
   }
@@ -77,7 +79,7 @@ export class DbArtistManagerRepresentationRepository
     representation: ArtistManagerRepresentation,
   ): Promise<void> {
     await this.supabase
-      .from('artist_manager_representations')
+      .from('representation_contracts')
       .insert(this.toPersistence(representation));
   }
 
@@ -91,15 +93,15 @@ export class DbArtistManagerRepresentationRepository
       row.artist_id,
       row.manager_id,
       row.commission_percentage,
-      new Date(row.starts_at),
-      row.ends_at ? new Date(row.ends_at) : null,
+      row.start_date ? new Date(row.start_date) : new Date(),
+      row.end_date ? new Date(row.end_date) : null,
       row.termination_requested_at
         ? new Date(row.termination_requested_at)
         : null,
-      row.version,
-      new Date(row.created_at),
-      row.created_by,
-      row.ended_by,
+      row.version ?? 1,
+      row.created_at ? new Date(row.created_at) : new Date(),
+      row.created_by ?? 'SYSTEM',
+      row.ended_by ?? null,
     );
   }
 
@@ -111,8 +113,8 @@ export class DbArtistManagerRepresentationRepository
       artist_id: entity.artistId,
       manager_id: entity.managerId,
       commission_percentage: entity.commissionPercentage,
-      starts_at: entity.startsAt.toISOString(),
-      ends_at: entity.endsAt?.toISOString() ?? null,
+      start_date: entity.startsAt.toISOString(),
+      end_date: entity.endsAt?.toISOString() ?? null,
       termination_requested_at:
         entity.terminationRequestedAt?.toISOString() ?? null,
       version: entity.version,
@@ -126,13 +128,13 @@ export class DbArtistManagerRepresentationRepository
   artistId: string;
   managerId: string;
 }): Promise<boolean> {
-  const { data, error } = await this.supabase
-    .from('artist_manager_representations')
-    .select('id')
-    .eq('artist_id', params.artistId)
-    .eq('manager_id', params.managerId)
-    .eq('status', 'ACTIVE')
-    .maybeSingle();
+    const { data, error } = await this.supabase
+      .from('representation_contracts')
+      .select('id')
+      .eq('artist_id', params.artistId)
+      .eq('manager_id', params.managerId)
+      .eq('status', 'ACTIVE')
+      .maybeSingle();
 
   if (error) {
     return false;

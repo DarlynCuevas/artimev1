@@ -1,7 +1,7 @@
 ﻿import { randomUUID } from 'crypto';
 import { BookingStatus } from '../booking-status.enum';
 import { Booking } from '../booking.entity';
-import { BadRequestException, ForbiddenException, Inject, Injectable } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Inject, Injectable, Logger } from '@nestjs/common';
 import { BOOKING_REPOSITORY } from '../repositories/booking-repository.token';
 import type { BookingRepository } from '../repositories/booking.repository.interface';
 import { NegotiationMessage, NegotiationSenderRole } from '../negotiations/negotiation-message.entity';
@@ -13,9 +13,16 @@ import type { EventInvitationRepository } from '../../events/repositories/event-
 import { EVENT_REPOSITORY } from '../../events/repositories/event.repository.token';
 import type { EventRepository } from '../../events/repositories/event.repository';
 import { OutboxRepository } from '@/src/infrastructure/database/repositories/outbox/outbox.repository';
+import { ARTIST_MANAGER_REPRESENTATION_REPOSITORY } from '@/src/modules/managers/repositories/artist-manager-representation.repository.token';
+import type { ArtistManagerRepresentationRepository } from '@/src/modules/managers/repositories/artist-manager-representation.repository.interface';
+import { MANAGER_REPOSITORY } from '@/src/modules/managers/repositories/manager-repository.token';
+import type { ManagerRepository } from '@/src/modules/managers/repositories/manager.repository.interface';
+import { ArtistNotificationRepository } from '@/src/infrastructure/database/repositories/notifications/artist-notification.repository';
 
 @Injectable()
 export class BookingService {
+  private readonly logger = new Logger(BookingService.name);
+
   constructor(
     @Inject(BOOKING_REPOSITORY)
     private readonly bookingRepository: BookingRepository,
@@ -26,6 +33,11 @@ export class BookingService {
     @Inject(EVENT_REPOSITORY)
     private readonly eventRepository: EventRepository,
     private readonly outboxRepository: OutboxRepository,
+    @Inject(ARTIST_MANAGER_REPRESENTATION_REPOSITORY)
+    private readonly representationRepository: ArtistManagerRepresentationRepository,
+    @Inject(MANAGER_REPOSITORY)
+    private readonly managerRepository: ManagerRepository,
+    private readonly artistNotificationRepository: ArtistNotificationRepository,
   ) { }
 
   /**
@@ -43,6 +55,14 @@ export class BookingService {
     }
     if (userContext.promoterId) {
       return this.bookingRepository.findByPromoterId(userContext.promoterId);
+    }
+    if (userContext.managerId) {
+      const reps = await this.representationRepository.findActiveByManager(userContext.managerId);
+      const artistIds = reps.map((r) => r.artistId);
+      if (!artistIds.length) return [];
+
+      const perArtist = await Promise.all(artistIds.map((id) => this.bookingRepository.findByArtistId(id)));
+      return perArtist.flat();
     }
     return [];
   }
@@ -110,11 +130,14 @@ export class BookingService {
 
     await this.ensureDateAvailable(params.artistId, params.start_date);
 
+  const representation = await this.getRepresentationForArtist(params.artistId);
+
     const booking = new Booking({
       id: randomUUID(),
       artistId: params.artistId,
       venueId: params.venueId ?? null,
       promoterId: params.promoterId ?? null,
+      managerId: representation?.managerId ?? undefined,
       eventId: params.eventId ?? null,
       status: BookingStatus.PENDING,
       currency: params.currency,
@@ -127,7 +150,7 @@ export class BookingService {
       artistStripeAccountId: null,
       managerStripeAccountId: null,
       artimeCommissionPercentage: undefined,
-      managerCommissionPercentage: undefined,
+      managerCommissionPercentage: representation?.commissionPercentage ?? undefined,
       createdAt: new Date(),
     });
 
@@ -158,7 +181,56 @@ export class BookingService {
       },
     });
 
+    // Notificar también al manager si el artista está representado
+    await this.notifyManagerIfAny(booking.artistId, {
+      bookingId: booking.id,
+      eventId: booking.eventId ?? null,
+      eventName: null,
+      venueName: null,
+      date: booking.start_date,
+    }, representation);
+
     return booking;
+  }
+
+  private async getRepresentationForArtist(artistId: string) {
+    let representation = await this.representationRepository.findActiveByArtist(artistId);
+    if (!representation) {
+      representation = await this.representationRepository.findLatestVersionByArtist(artistId);
+    }
+    return representation;
+  }
+
+  private async notifyManagerIfAny(
+    artistId: string,
+    payload: { bookingId: string; eventId: string | null; eventName: string | null; venueName: string | null; date: string | null },
+    representationFromCaller?: any,
+  ) {
+    try {
+      const representation = representationFromCaller ?? (await this.getRepresentationForArtist(artistId));
+      if (!representation) {
+        this.logger.debug(`notifyManagerIfAny: sin representación para artist ${artistId}`);
+        return;
+      }
+
+      const manager = await this.managerRepository.findById(representation.managerId);
+      if (!manager?.userId) {
+        this.logger.debug(`notifyManagerIfAny: manager sin userId para artist ${artistId}, manager ${representation.managerId}`);
+        return;
+      }
+
+      await this.artistNotificationRepository.createManyByUser([
+        {
+          userId: manager.userId,
+          role: 'MANAGER',
+          type: 'BOOKING_REQUEST',
+          payload: { ...payload, artistId },
+        },
+      ]);
+      this.logger.debug(`notifyManagerIfAny: notificación enviada a manager ${manager.userId} para artist ${artistId}`);
+    } catch (err) {
+      this.logger.warn(`notifyManagerIfAny fallo para artist ${artistId}: ${(err as Error).message}`);
+    }
   }
 
   private async ensureDateAvailable(artistId: string, date: string) {

@@ -3,6 +3,7 @@ import { SupabaseModule } from '@/src/infrastructure/database/supabase.module';
 import { ArtistsModule } from '../artists/artists.module';
 import { VenuesModule } from '../venues/venues.module';
 import { PromotersModule } from '../promoter/promoter.module';
+import { BookingsModule } from '../bookings/bookings.module';
 
 import { ARTIST_MANAGER_REPRESENTATION_REPOSITORY } from './repositories/artist-manager-representation.repository.token';
 import { ArtistManagerRepresentationService } from './services/artist-manager-representation.service';
@@ -13,6 +14,7 @@ import { MANAGER_REPOSITORY } from './repositories/manager-repository.token';
 import { DbManagerRepository } from '@/src/infrastructure/database/repositories/manager/db-manager.repository';
 import { UserContextModule } from '../auth/user-context/user-context.module';
 import { GetManagerRepresentedArtistsUseCase } from './use-cases/get-manager-represented-artists.usecase';
+import { GetManagerActionBookingsUseCase } from './use-cases/get-manager-action-bookings.usecase';
 
 @Module({
   imports: [
@@ -21,6 +23,7 @@ import { GetManagerRepresentedArtistsUseCase } from './use-cases/get-manager-rep
     forwardRef(() => ArtistsModule),
     forwardRef(() => VenuesModule),
     forwardRef(() => PromotersModule),
+    forwardRef(() => BookingsModule),
   ],
   controllers: [ManagerController],
   providers: [
@@ -34,12 +37,14 @@ import { GetManagerRepresentedArtistsUseCase } from './use-cases/get-manager-rep
     },
     ArtistManagerRepresentationService,
     GetManagerRepresentedArtistsUseCase,
+    GetManagerActionBookingsUseCase,
     ManagerService,
   ],
   exports: [
     ArtistManagerRepresentationService,
     ARTIST_MANAGER_REPRESENTATION_REPOSITORY,
     GetManagerRepresentedArtistsUseCase,
+    GetManagerActionBookingsUseCase,
     ManagerService,
     MANAGER_REPOSITORY,
   ],

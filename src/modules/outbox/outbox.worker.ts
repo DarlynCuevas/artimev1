@@ -5,6 +5,10 @@ import { EVENT_REPOSITORY } from '@/src/modules/events/repositories/event.reposi
 import type { EventRepository } from '@/src/modules/events/repositories/event.repository';
 import { BOOKING_REPOSITORY } from '@/src/modules/bookings/repositories/booking-repository.token';
 import type { BookingRepository } from '@/src/modules/bookings/repositories/booking.repository.interface';
+import { ARTIST_MANAGER_REPRESENTATION_REPOSITORY } from '@/src/modules/managers/repositories/artist-manager-representation.repository.token';
+import type { ArtistManagerRepresentationRepository } from '@/src/modules/managers/repositories/artist-manager-representation.repository.interface';
+import { MANAGER_REPOSITORY } from '@/src/modules/managers/repositories/manager-repository.token';
+import type { ManagerRepository } from '@/src/modules/managers/repositories/manager.repository.interface';
 
 @Injectable()
 export class OutboxWorkerService implements OnModuleInit, OnModuleDestroy {
@@ -19,6 +23,10 @@ export class OutboxWorkerService implements OnModuleInit, OnModuleDestroy {
     private readonly eventRepository: EventRepository,
     @Inject(BOOKING_REPOSITORY)
     private readonly bookingRepository: BookingRepository,
+    @Inject(ARTIST_MANAGER_REPRESENTATION_REPOSITORY)
+    private readonly representationRepository: ArtistManagerRepresentationRepository,
+    @Inject(MANAGER_REPOSITORY)
+    private readonly managerRepository: ManagerRepository,
   ) {}
 
   onModuleInit() {
@@ -131,6 +139,18 @@ export class OutboxWorkerService implements OnModuleInit, OnModuleDestroy {
         payload: { eventId, invitationId, eventName },
       },
     ]);
+
+    const managerUserId = await this.getActiveManagerUserId(artistId);
+    if (managerUserId) {
+      await this.artistNotificationRepo.createManyByUser([
+        {
+          userId: managerUserId,
+          role: 'MANAGER',
+          type: 'EVENT_INVITATION_CREATED',
+          payload: { eventId, invitationId, eventName, artistId },
+        },
+      ]);
+    }
   }
 
   private async handleBookingCreated(event: OutboxEvent) {
@@ -217,5 +237,31 @@ export class OutboxWorkerService implements OnModuleInit, OnModuleDestroy {
         },
       },
     ]);
+  }
+
+  private async getActiveManagerUserId(artistId: string): Promise<string | null> {
+    if (!artistId) return null;
+
+    try {
+      let representation = await this.representationRepository.findActiveByArtist(artistId);
+      if (!representation) {
+        representation = await this.representationRepository.findLatestVersionByArtist(artistId);
+        if (!representation) {
+          this.logger.debug(`Outbox: sin representación para artist ${artistId}`);
+          return null;
+        }
+      }
+
+      const manager = await this.managerRepository.findById(representation.managerId);
+      if (!manager?.userId) {
+        this.logger.debug(`Outbox: manager sin userId para artist ${artistId}, manager ${representation.managerId}`);
+        return null;
+      }
+
+      return manager.userId;
+    } catch (err) {
+      this.logger.warn(`Could not resolve manager for artist ${artistId}: ${(err as Error).message}`);
+      return null;
+    }
   }
 }

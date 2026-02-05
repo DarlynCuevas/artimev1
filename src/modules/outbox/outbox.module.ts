@@ -9,6 +9,10 @@ import { BOOKING_REPOSITORY } from '@/src/modules/bookings/repositories/booking-
 import { SupabaseBookingRepository } from '@/src/infrastructure/database/repositories/bookings/SupabaseBookingRepository ';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { supabase } from '@/src/infrastructure/database/supabase.client';
+import { ARTIST_MANAGER_REPRESENTATION_REPOSITORY } from '@/src/modules/managers/repositories/artist-manager-representation.repository.token';
+import { DbArtistManagerRepresentationRepository } from '@/src/infrastructure/database/repositories/manager/artist-manager-representation.repository';
+import { MANAGER_REPOSITORY } from '@/src/modules/managers/repositories/manager-repository.token';
+import { DbManagerRepository } from '@/src/infrastructure/database/repositories/manager/db-manager.repository';
 
 @Module({
   imports: [SupabaseModule],
@@ -23,6 +27,14 @@ import { supabase } from '@/src/infrastructure/database/supabase.client';
     {
       provide: BOOKING_REPOSITORY,
       useClass: SupabaseBookingRepository,
+    },
+    {
+      provide: ARTIST_MANAGER_REPRESENTATION_REPOSITORY,
+      useClass: DbArtistManagerRepresentationRepository,
+    },
+    {
+      provide: MANAGER_REPOSITORY,
+      useClass: DbManagerRepository,
     },
     {
       provide: SupabaseClient,

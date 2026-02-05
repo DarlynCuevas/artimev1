@@ -559,6 +559,78 @@ export class SupabaseBookingRepository {
     });
   }
 
+  async findActionRequiredByManagerId(managerId: string, limit = 3): Promise<Array<{ booking: Booking; artistName: string; partnerName: string }>> {
+    const actionStatuses = [
+      'PENDING',
+      'NEGOTIATING',
+      'FINAL_OFFER_SENT',
+      'ACCEPTED',
+      'CONTRACT_SENT',
+      'CONTRACT_SIGNED',
+      'PAID_PARTIAL',
+    ];
+
+    const { data, error } = await supabase
+      .from('bookings')
+      .select(`
+        id,
+        artist_id,
+        venue_id,
+        promoter_id,
+        manager_id,
+        event_id,
+        status,
+        start_date,
+        currency,
+        total_amount,
+        handled_by_role,
+        handled_by_user_id,
+        handled_at,
+        artist_stripe_account_id,
+        manager_stripe_account_id,
+        artime_commission_percentage,
+        manager_commission_percentage,
+        created_at,
+        venue:venues(name),
+        promoter:promoters(name),
+        artist:artists(name)
+      `)
+      .eq('manager_id', managerId)
+      .in('status', actionStatuses)
+      .order('start_date', { ascending: true })
+      .limit(limit);
+
+    if (error || !data) return [];
+
+    return data.map((row: any) => {
+      const booking = new Booking({
+        id: row.id,
+        artistId: row.artist_id ?? '',
+        venueId: row.venue_id ?? null,
+        promoterId: row.promoter_id ?? null,
+        managerId: row.manager_id ?? managerId,
+        eventId: row.event_id ?? null,
+        status: row.status,
+        start_date: row.start_date,
+        currency: row.currency ?? 'EUR',
+        totalAmount: row.total_amount ?? 0,
+        handledByRole: row.handled_by_role ?? null,
+        handledByUserId: row.handled_by_user_id ?? null,
+        handledAt: row.handled_at ? new Date(row.handled_at) : null,
+        artistStripeAccountId: row.artist_stripe_account_id ?? null,
+        managerStripeAccountId: row.manager_stripe_account_id ?? null,
+        artimeCommissionPercentage: row.artime_commission_percentage ?? undefined,
+        managerCommissionPercentage: row.manager_commission_percentage ?? undefined,
+        createdAt: row.created_at ? new Date(row.created_at) : new Date(),
+      });
+
+      const partnerName = row.venue?.name ?? row.promoter?.name ?? '—';
+      const artistName = row.artist?.name ?? 'Artista';
+
+      return { booking, artistName, partnerName };
+    });
+  }
+
 
 
 }

@@ -26,6 +26,7 @@ export class SendNegotiationMessageUseCase {
     bookingId: string;
     senderRole: NegotiationSenderRole;
     senderUserId: string;
+    senderManagerId?: string | null;
     message?: string;
     proposedFee?: number;
     isFinalOffer?: boolean;

@@ -4,6 +4,7 @@ import { UserContextGuard } from '../../auth/user-context.guard';
 import type { AuthenticatedRequest } from '@/src/shared/authenticated-request';
 import { ManagerService } from '../services/manager.service';
 import { GetManagerRepresentedArtistsUseCase } from '../use-cases/get-manager-represented-artists.usecase';
+import { GetManagerActionBookingsUseCase } from '../use-cases/get-manager-action-bookings.usecase';
 
 @Controller('managers')
 @UseGuards(JwtAuthGuard, UserContextGuard)
@@ -11,6 +12,7 @@ export class ManagerController {
   constructor(
     private readonly managerService: ManagerService,
     private readonly getManagerRepresentedArtistsUseCase: GetManagerRepresentedArtistsUseCase,
+    private readonly getManagerActionBookingsUseCase: GetManagerActionBookingsUseCase,
   ) {}
 
   @Get('me')
@@ -46,5 +48,15 @@ export class ManagerController {
     }
 
     return this.getManagerRepresentedArtistsUseCase.execute(managerId);
+  }
+
+  @Get('me/action-bookings')
+  async getActionBookings(@Req() req: AuthenticatedRequest) {
+    const { managerId } = req.userContext;
+    if (!managerId) {
+      throw new ForbiddenException('Not a manager');
+    }
+
+    return this.getManagerActionBookingsUseCase.execute(managerId);
   }
 }
