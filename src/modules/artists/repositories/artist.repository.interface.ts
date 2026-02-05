@@ -39,6 +39,8 @@ export interface ArtistRepository {
     managerName?: string;
   } | null>;
 
+  findByManagerId(managerId: string): Promise<Artist[]>;
+
   findForDiscover(): Promise<any[]>;
 
   findBookedDates(artistId, from, to): Promise<string[]>

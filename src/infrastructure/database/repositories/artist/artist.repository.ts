@@ -304,6 +304,37 @@ export class DbArtistRepository implements ArtistRepository {
   );
 }
 
+  async findByManagerId(managerId: string): Promise<Artist[]> {
+    const { data, error } = await supabase
+      .from('artists')
+      .select('*')
+      .eq('manager_id', managerId);
+
+    if (error || !data) return [];
+
+    return data.map(
+      (row) =>
+        new Artist({
+          id: row.id,
+          email: row.email,
+          stripeOnboardingStatus: row.stripe_onboarding_status,
+          name: row.name,
+          city: row.city,
+          genres: row.genres,
+          basePrice: row.base_price,
+          currency: row.currency,
+          isNegotiable: row.is_negotiable,
+          bio: row.bio,
+          format: row.format,
+          stripeAccountId: row.stripe_account_id ?? undefined,
+          rating: row.rating ?? undefined,
+          managerId: row.manager_id ?? null,
+          createdAt: new Date(row.created_at),
+          updatedAt: new Date(row.updated_at),
+        }),
+    );
+  }
+
 
   async updateProfile(
     artistId: string,

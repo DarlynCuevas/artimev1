@@ -14,27 +14,25 @@ export class GetManagerRepresentedArtistsUseCase {
   ) {}
 
   async execute(managerId: string) {
+    // Fuente principal: artistas con manager_id directo
+    const directArtists = await this.artistRepository.findByManagerId(managerId);
+
+    // Fuente secundaria: representaciones activas con histórico
     const reps = await this.representationRepository.findActiveByManager(managerId);
-    if (!reps || reps.length === 0) return [];
+    const representedIds = reps.map((r) => r.artistId);
+    const repArtists = representedIds.length ? await this.artistRepository.findByIds(representedIds) : [];
 
-    const artistIds = reps.map((r) => r.artistId);
-    const artists = await this.artistRepository.findByIds(artistIds);
+    const combined = [...directArtists, ...repArtists];
 
-    const byId = new Map(artists.map((a) => [a.id, a]));
+    const byId = new Map(combined.map((a) => [a.id, a]));
 
-    return reps
-      .map((rep) => {
-        const artist = byId.get(rep.artistId);
-        if (!artist) return null;
-        return {
-          id: artist.id,
-          name: (artist as any).name ?? 'Artista',
-          avatar: null,
-          status: 'ACTIVE' as const,
-          nextShow: null,
-          activeBookings: 0,
-        };
-      })
-      .filter(Boolean);
+    return Array.from(byId.values()).map((artist) => ({
+      id: artist.id,
+      name: (artist as any).name ?? 'Artista',
+      avatar: null,
+      status: 'ACTIVE' as const,
+      nextShow: null,
+      activeBookings: 0,
+    }));
   }
 }
