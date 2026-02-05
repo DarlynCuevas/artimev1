@@ -50,6 +50,30 @@ export class GetPromoterDashboardUseCase {
             BookingStatus.PAID_PARTIAL,
             BookingStatus.COMPLETED
         ];
+        const actionBookings: {
+            id: string;
+            artistName: string;
+            eventName: string;
+            date: string | null;
+            status: BookingStatus;
+            actionLabel: string;
+        }[] = [];
+        const actionCopy: Record<BookingStatus, string> = {
+            [BookingStatus.PENDING]: 'Responder solicitud',
+            [BookingStatus.NEGOTIATING]: 'Responder negociación',
+            [BookingStatus.FINAL_OFFER_SENT]: 'Responder oferta final',
+            [BookingStatus.ACCEPTED]: 'Enviar o firmar contrato',
+            [BookingStatus.CONTRACT_SIGNED]: 'Pago pendiente (programar)',
+            [BookingStatus.PAID_PARTIAL]: 'Pago pendiente (completar)',
+        };
+        const actionStatuses = new Set<BookingStatus>([
+            BookingStatus.PENDING,
+            BookingStatus.NEGOTIATING,
+            BookingStatus.FINAL_OFFER_SENT,
+            BookingStatus.ACCEPTED,
+            BookingStatus.CONTRACT_SIGNED,
+            BookingStatus.PAID_PARTIAL,
+        ]);
         for (const event of events) {
             const bookings = await this.getEventBookingsQuery.execute(event.id);
             confirmedArtists += bookings.filter(b => confirmedStatuses.includes(b.status)).length;
@@ -73,6 +97,17 @@ export class GetPromoterDashboardUseCase {
                 ) {
                     pendingResponsesCount += 1;
                 }
+
+                if (actionStatuses.has(booking.status)) {
+                    actionBookings.push({
+                        id: booking.id,
+                        artistName: booking.artist?.name ?? 'Artista',
+                        eventName: event.name,
+                        date: (booking as any).start_date ?? (event as any).start_date ?? null,
+                        status: booking.status,
+                        actionLabel: actionCopy[booking.status] ?? 'Revisar booking',
+                    });
+                }
             }
         }
         // 3. Métricas
@@ -94,6 +129,7 @@ export class GetPromoterDashboardUseCase {
             profile,
             metrics,
             events,
+            actionBookings,
         };
     }
 

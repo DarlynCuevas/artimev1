@@ -12,6 +12,7 @@ import { ManagerService } from './services/manager.service';
 import { MANAGER_REPOSITORY } from './repositories/manager-repository.token';
 import { DbManagerRepository } from '@/src/infrastructure/database/repositories/manager/db-manager.repository';
 import { UserContextModule } from '../auth/user-context/user-context.module';
+import { GetManagerRepresentedArtistsUseCase } from './use-cases/get-manager-represented-artists.usecase';
 
 @Module({
   imports: [
@@ -32,11 +33,13 @@ import { UserContextModule } from '../auth/user-context/user-context.module';
       useClass: DbManagerRepository,
     },
     ArtistManagerRepresentationService,
+    GetManagerRepresentedArtistsUseCase,
     ManagerService,
   ],
   exports: [
     ArtistManagerRepresentationService,
     ARTIST_MANAGER_REPRESENTATION_REPOSITORY,
+    GetManagerRepresentedArtistsUseCase,
     ManagerService,
     MANAGER_REPOSITORY,
   ],
