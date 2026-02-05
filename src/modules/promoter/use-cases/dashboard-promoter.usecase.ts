@@ -58,7 +58,7 @@ export class GetPromoterDashboardUseCase {
             status: BookingStatus;
             actionLabel: string;
         }[] = [];
-        const actionCopy: Record<BookingStatus, string> = {
+        const actionCopy: Partial<Record<BookingStatus, string>> = {
             [BookingStatus.PENDING]: 'Responder solicitud',
             [BookingStatus.NEGOTIATING]: 'Responder negociación',
             [BookingStatus.FINAL_OFFER_SENT]: 'Responder oferta final',
@@ -99,9 +99,12 @@ export class GetPromoterDashboardUseCase {
                 }
 
                 if (actionStatuses.has(booking.status)) {
+                    const artistNode = (booking as any).artist;
+                    const artistName = artistNode?.name ?? artistNode?.[0]?.name ?? 'Artista';
+
                     actionBookings.push({
                         id: booking.id,
-                        artistName: booking.artist?.name ?? 'Artista',
+                        artistName,
                         eventName: event.name,
                         date: (booking as any).start_date ?? (event as any).start_date ?? null,
                         status: booking.status,
