@@ -1,0 +1,1556 @@
+From ac4fb43b2b019a91e810639153ab455b1b01478f Mon Sep 17 00:00:00 2001
+From: emergent-agent-e1 <github@emergent.sh>
+Date: Fri, 6 Feb 2026 12:20:05 +0000
+Subject: [PATCH] =?UTF-8?q?fix:=20correcci=C3=B3n=20de=20fallos=20cr=C3=AD?=
+ =?UTF-8?q?ticos=20de=20seguridad=20y=20consistencia?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+SEGURIDAD:
+- Habilitado JwtAuthGuard en PaymentsController (endpoints expuestos)
+- Eliminado fallback inseguro de STRIPE_SECRET_KEY y JWT_SECRET
+- CORS restringido a ALLOWED_ORIGINS (configurable por env)
+
+CONSISTENCIA:
+- Agregado markAsPaidIfPending() para prevenir race conditions en webhooks
+- Setter de booking.status ahora valida transiciones permitidas
+- Agregada transición de salida para CANCELLED_PENDING_REVIEW
+
+PAGOS:
+- Validación de monto máximo en refunds (no exceder PaymentIntent original)
+- Protección contra doble procesamiento de webhooks
+
+OTROS:
+- Renombrados archivos con espacios: SupabaseBookingRepository, DbPromoterRepository
+- Actualizados imports afectados
+---
+ ANALISIS_TECNICO_ARTIME.md                    | 456 ++++++++++++++++++
+ package-lock.json                             | 207 ++++++--
+ ...itory .ts => SupabaseBookingRepository.ts} |   0
+ .../db-payment-milestone.repository.ts        |  24 +
+ ...Repository .ts => DbPromoterRepository.ts} |   0
+ .../payments/stripe-payment.provider.ts       |   5 +-
+ .../payments/stripe-webhook.service.ts        |  59 ++-
+ src/main.ts                                   |   2 +-
+ src/modules/auth/auth.module.ts               |   2 +-
+ src/modules/bookings/booking-transitions.ts   |   4 +-
+ src/modules/bookings/booking.entity.ts        |  12 +
+ src/modules/bookings/bookings.module.ts       |   2 +-
+ .../reject-cancellation.use-case.ts           |   2 +-
+ src/modules/contracts/contracts.module.ts     |   2 +-
+ src/modules/outbox/outbox.module.ts           |   2 +-
+ .../controllers/payments.controller.ts        |   2 +-
+ .../payment-milestone.repository.interface.ts |   6 +
+ src/modules/payments/payments.module.ts       |   2 +-
+ .../execute-cancellation-refund.usecase.ts    |  23 +-
+ .../confirm-advance-payment.use-case.ts       |   2 +-
+ .../confirm-final-payment.use-case.ts         |   2 +-
+ .../create-advance-payment-intent.use-case.ts |   2 +-
+ .../create-final-payment-intent.use-case.ts   |   2 +-
+ .../create-payment-schedule.use-case.ts       |   2 +-
+ .../use-cases/finalize-advance.use-case.ts    |   2 +-
+ .../use-cases/pay-advance.use-case.ts         |   2 +-
+ .../use-cases/refund-advance.use-case.ts      |   2 +-
+ src/modules/promoter/promoter.module.ts       |   2 +-
+ src/modules/venues/venues.module.ts           |   2 +-
+ 29 files changed, 762 insertions(+), 70 deletions(-)
+ create mode 100644 ANALISIS_TECNICO_ARTIME.md
+ rename src/infrastructure/database/repositories/bookings/{SupabaseBookingRepository .ts => SupabaseBookingRepository.ts} (100%)
+ rename src/infrastructure/database/repositories/promoter/{DbPromoterRepository .ts => DbPromoterRepository.ts} (100%)
+
+diff --git a/ANALISIS_TECNICO_ARTIME.md b/ANALISIS_TECNICO_ARTIME.md
+new file mode 100644
+index 0000000..f0e63c0
+--- /dev/null
++++ b/ANALISIS_TECNICO_ARTIME.md
+@@ -0,0 +1,456 @@
++# Análisis Técnico del Backend de ARTIME
++
++**Versión:** 1.0  
++**Fecha:** Enero 2026  
++**Alcance:** Backend NestJS - Plataforma de Contratación Artística
++
++---
++
++## Resumen Ejecutivo
++
++El backend de ARTIME presenta una **arquitectura sólida y bien pensada** con separación de responsabilidades clara, uso correcto de casos de uso, y un modelo de estados explícito para bookings. Sin embargo, se identifican **riesgos críticos en áreas financieras y de consistencia transaccional** que requieren atención prioritaria antes de escalar a producción.
++
++---
++
++## 1. ARQUITECTURA
++
++### ✅ Buenas decisiones
++
++- **Modularidad correcta**: Cada dominio (bookings, payments, artists, venues, etc.) tiene su propio módulo con controladores, servicios, y casos de uso.
++- **Casos de uso explícitos**: Operaciones como `AcceptBookingUseCase`, `CancelBookingUseCase`, `CreatePaymentIntentForMilestoneUseCase` encapsulan lógica de negocio correctamente.
++- **Tokens de inyección**: Uso de tokens (`BOOKING_REPOSITORY`, `PAYMENT_PROVIDER`) para abstraer implementaciones concretas.
++- **Patrón Repository**: Separación limpia entre dominio e infraestructura.
++
++### ⚠️ Riesgos
++
++| Riesgo | Severidad | Fase |
++|--------|-----------|------|
++| **Dependencias circulares con `forwardRef`** | Media | v1 |
++| **Duplicación de guards (`UserContextGuard`)** | Baja | v2 |
++| **Archivo con espacio en nombre** | Media | v1 |
++
++#### Detalle de riesgos:
++
++**1. Dependencias circulares excesivas**
++```typescript
++// bookings.module.ts - Múltiples forwardRef
++imports: [
++  forwardRef(() => ManagersModule),
++  forwardRef(() => PaymentsModule),
++  forwardRef(() => ArtistsModule),
++  forwardRef(() => PromotersModule),
++  forwardRef(() => UserContextModule)
++]
++```
++- **Problema**: Indica acoplamiento excesivo entre módulos.
++- **Impacto**: Dificultad para testear, riesgo de regresiones al modificar dependencias.
++
++**2. Duplicación de `UserContextGuard`**
++- Existen DOS implementaciones:
++  - `src/modules/auth/user-context.guard.ts` (incluye `managerId`)
++  - `src/modules/auth/user-context/user-context.guard.ts` (NO incluye `managerId`)
++- **Riesgo**: Inconsistencia en resolución de contexto según qué guard se use.
++
++**3. Nombre de archivo con espacio**
++```
++/infrastructure/database/repositories/bookings/SupabaseBookingRepository .ts
++/infrastructure/database/repositories/promoter/DbPromoterRepository .ts
++```
++- **Riesgo**: Problemas en imports y CI/CD.
++
++### 🟡 Mejoras recomendadas (v2)
++
++1. Refactorizar dependencias circulares extrayendo interfaces compartidas a un módulo `shared/domain`.
++2. Unificar `UserContextGuard` en una sola implementación.
++3. Considerar un módulo `CoreModule` que agrupe providers comunes.
++
++---
++
++## 2. MODELO DE DOMINIO
++
++### ✅ Buenas decisiones
++
++- **Máquina de estados explícita**: `BookingStateMachine` con transiciones definidas en `booking-transitions.ts`.
++- **Entidades de dominio ricas**: `Booking`, `Contract`, `PaymentMilestone` con comportamiento encapsulado.
++- **Estados de cancelación diferenciados**: `CANCELLED` vs `CANCELLED_PENDING_REVIEW`.
++
++```typescript
++// Transiciones bien definidas
++[BookingStatus.CONTRACT_SIGNED]: [
++  BookingStatus.PAID_PARTIAL,
++  BookingStatus.CANCELLED,
++  BookingStatus.CANCELLED_PENDING_REVIEW,
++],
++```
++
++### ❌ Errores
++
++| Error | Severidad | Fase |
++|-------|-----------|------|
++| **Estado `CANCELLED_PENDING_REVIEW` sin transición de salida** | Crítico | v1 |
++
++```typescript
++[BookingStatus.CANCELLED_PENDING_REVIEW]: [], // ← Muerto
++```
++- **Problema**: Una vez en `CANCELLED_PENDING_REVIEW`, el booking queda "atrapado" sin posibilidad de resolverse.
++- **Solución**: Agregar transiciones a `CANCELLED` o `REFUNDED`.
++
++### ⚠️ Riesgos
++
++| Riesgo | Severidad | Fase |
++|--------|-----------|------|
++| **Setter público en `booking.status`** | Alta | v1 |
++| **Falta de validación en transiciones de pago** | Media | v1 |
++
++```typescript
++// booking.entity.ts línea 63-65
++set status(value: BookingStatus) {
++  this.props.status = value; // ← Bypass de máquina de estados
++}
++```
++- **Problema**: Permite cambios de estado sin validar transiciones permitidas.
++- **Impacto**: Cualquier código puede poner un booking en estado inválido.
++
++### 🟡 Mejoras recomendadas
++
++1. Eliminar setter de status y forzar uso de `changeStatus()`.
++2. Agregar invariantes de dominio en constructores.
++3. Documentar diagrama de estados actualizado.
++
++---
++
++## 3. SEGURIDAD
++
++### ✅ Buenas decisiones
++
++- **JWT con JWKS de Supabase**: Validación correcta con ES256.
++- **Decorator `@Public()` explícito**: Rutas públicas marcadas explícitamente.
++- **Guard global `JwtAuthGuard`**: Protección por defecto.
++- **Validación de representación Manager-Artista**: Verificación activa antes de acciones.
++
++```typescript
++// jwt.strategy.ts - Configuración correcta
++algorithms: ['ES256'],
++issuer: 'https://lqimbxjicvdddaoxgjmm.supabase.co/auth/v1',
++audience: 'authenticated',
++```
++
++### ❌ Errores
++
++| Error | Severidad | Fase |
++|-------|-----------|------|
++| **PaymentsController sin autenticación** | Crítico | v1 |
++| **JWT_SECRET hardcodeado en fallback** | Alta | v1 |
++
++```typescript
++// payments.controller.ts línea 13
++//@UseGuards(JwtAuthGuard) // ← COMENTADO
++@Controller('payments')
++```
++- **Problema**: Endpoints de pagos completamente expuestos.
++- **Impacto**: Cualquiera puede crear PaymentIntents y schedules.
++
++```typescript
++// auth.module.ts línea 10-11
++secret: process.env.JWT_SECRET || 'dev_secret', // ← Fallback peligroso
++```
++- **Problema**: Si `JWT_SECRET` no está definido, usa valor conocido.
++
++### ⚠️ Riesgos
++
++| Riesgo | Severidad | Fase |
++|--------|-----------|------|
++| **CORS permisivo en producción** | Alta | v1 |
++| **Logs con datos sensibles** | Media | v1 |
++| **Sin rate limiting** | Media | v2 |
++
++```typescript
++// main.ts línea 16-19
++app.enableCors({
++  origin: true, // ← Acepta cualquier origen
++  credentials: true,
++});
++```
++
++```typescript
++// Logs que exponen datos
++console.log('Booking creado:', booking); // Puede contener datos financieros
++```
++
++### 🟡 Mejoras recomendadas
++
++1. **CRÍTICO (v1)**: Descomentar `@UseGuards(JwtAuthGuard)` en `PaymentsController`.
++2. **CRÍTICO (v1)**: Eliminar fallback de `JWT_SECRET`.
++3. Configurar CORS con whitelist de dominios.
++4. Implementar rate limiting con `@nestjs/throttler`.
++5. Sanitizar logs, especialmente en módulos de pago.
++
++---
++
++## 4. CONSISTENCIA Y TRANSACCIONES
++
++### ❌ Errores críticos
++
++| Error | Severidad | Fase |
++|-------|-----------|------|
++| **Operaciones multi-tabla sin transacción** | Crítico | v1 |
++| **Race condition en webhook de pagos** | Crítico | v1 |
++| **Sin idempotencia en cancelaciones** | Alta | v1 |
++
++#### 4.1 Operaciones sin atomicidad
++
++```typescript
++// sign-contract.use-case.ts
++contract.sign({...});
++await this.contractRepository.update(contract); // ← Operación 1
++await this.createPaymentScheduleForBookingUseCase.execute({...}); // ← Operación 2
++booking.status = BookingStatus.CONTRACT_SIGNED;
++await this.bookingRepository.save(booking); // ← Operación 3
++```
++- **Problema**: Si falla operación 2 o 3, el contrato queda firmado pero el booking inconsistente.
++- **Escenario**: Contrato firmado, sin schedule de pagos, booking en estado incorrecto.
++
++#### 4.2 Race condition en webhooks
++
++```typescript
++// stripe-webhook.service.ts
++const milestone = await this.milestoneRepository.findById(milestoneId);
++if (milestone.status === PaymentMilestoneStatus.PAID) {
++  return; // Idempotencia básica
++}
++milestone.markAsPaid(new Date());
++await this.milestoneRepository.update(milestone);
++```
++- **Problema**: Entre `findById` y `update`, otro proceso puede actualizar el mismo milestone.
++- **Escenario de doble pago**: Dos webhooks simultáneos procesan el mismo pago.
++
++#### 4.3 Falta de bloqueo en confirm-payment-milestone
++
++```typescript
++// confirm-payment-milestone.usecase.ts
++if (milestone.status === 'PAID') return; // ← Idempotencia insuficiente
++// ... lógica de confirmación sin lock
++await this.milestoneRepository.markAsPaid(milestone.id, new Date());
++```
++
++### ⚠️ Riesgos adicionales
++
++| Riesgo | Severidad | Fase |
++|--------|-----------|------|
++| **Doble aceptación de booking** | Alta | v1 |
++| **Outbox sin reintento inteligente** | Media | v2 |
++
++### 🟡 Mejoras recomendadas
++
++1. **CRÍTICO (v1)**: Implementar transacciones en Supabase usando `rpc` o PostgreSQL functions.
++2. **CRÍTICO (v1)**: Agregar `SELECT FOR UPDATE` en operaciones de pago.
++3. Usar locks optimistas con versioning en entidades críticas.
++4. Implementar saga pattern para operaciones distribuidas.
++
++---
++
++## 5. PAGOS Y FINANZAS
++
++### ✅ Buenas decisiones
++
++- **PaymentIntents centralizados**: Todo pago pasa por Stripe.
++- **Milestones estructurados**: Modelo de hitos de pago escalable.
++- **Split calculator separado**: Lógica de comisiones aislada.
++- **Idempotency key en PaymentIntents**: Protección básica contra duplicados.
++
++```typescript
++const idempotencyKey = `milestone-${milestone.id}`;
++```
++
++### ❌ Errores
++
++| Error | Severidad | Fase |
++|-------|-----------|------|
++| **Stripe key con fallback inseguro** | Crítico | v1 |
++| **Webhook secret sin validación temprana** | Alta | v1 |
++| **Sin validación de montos en refunds** | Crítico | v1 |
++
++```typescript
++// stripe-payment.provider.ts línea 11
++const apiKey = process.env.STRIPE_SECRET_KEY || 'sk_test_dummy';
++```
++- **Problema**: Si no hay key, usa valor inválido que puede causar errores confusos.
++
++```typescript
++// execute-cancellation-refund.usecase.ts
++await this.stripeProvider.refundPaymentIntent({
++  paymentIntentId: params.paymentIntentId,
++  amount: params.refundAmount, // ← Sin validar máximo
++})
++```
++- **Problema**: No valida que `refundAmount` no exceda el monto original del PaymentIntent.
++- **Escenario**: Solicitar refund de €1000 sobre un pago de €100.
++
++### ⚠️ Riesgos
++
++| Riesgo | Severidad | Fase |
++|--------|-----------|------|
++| **Payouts sin verificación de balance** | Alta | v1 |
++| **Sin retry en transferencias fallidas** | Alta | v1 |
++| **Webhooks sin verificación de orden** | Media | v2 |
++| **Timing de payouts no controlado** | Media | v2 |
++
++```typescript
++// stripe-transfer.provider.ts
++await this.stripe.transfers.create({
++  amount: amountCents,
++  currency,
++  destination: artistStripeAccountId,
++  // ← No verifica balance disponible de platform
++});
++```
++
++### 🟡 Mejoras recomendadas
++
++1. **CRÍTICO (v1)**: Validar montos de refund contra PaymentIntent original.
++2. **CRÍTICO (v1)**: Eliminar fallbacks de keys de Stripe.
++3. Verificar balance de plataforma antes de transfers.
++4. Implementar retry con backoff exponencial para transfers.
++5. Agregar tabla de auditoría financiera con todos los movimientos.
++
++---
++
++## 6. OBSERVABILIDAD Y ERRORES
++
++### ✅ Buenas decisiones
++
++- **Logger de NestJS**: Uso consistente de `Logger` en servicios.
++- **Outbox pattern**: Eventos procesados de forma resiliente.
++
++### ⚠️ Riesgos
++
++| Riesgo | Severidad | Fase |
++|--------|-----------|------|
++| **Console.log en producción** | Media | v1 |
++| **Errores genéricos sin contexto** | Media | v1 |
++| **Sin trazabilidad de pagos** | Alta | v1 |
++| **Sin métricas de negocio** | Baja | v2 |
++
++```typescript
++// Múltiples archivos
++console.log('[Webhook] payment_intent.succeeded metadata:', paymentIntent.metadata);
++console.log('Booking creado:', booking);
++```
++- **Problema**: Logs no estructurados, difíciles de buscar y filtrar.
++
++```typescript
++throw new Error('BOOKING_NOT_FOUND'); // Sin booking ID
++throw new Error('Booking not eligible for payout'); // Sin contexto de estado
++```
++
++### 🟡 Mejoras recomendadas
++
++1. Reemplazar `console.log` por `this.logger.log()` con contexto.
++2. Agregar correlation ID en requests para trazabilidad.
++3. Implementar logging estructurado (JSON) para herramientas como DataDog/ELK.
++4. Crear tabla `payment_audit_log` para trazabilidad financiera:
++   ```sql
++   CREATE TABLE payment_audit_log (
++     id UUID PRIMARY KEY,
++     booking_id UUID,
++     action VARCHAR(50),
++     amount_cents INT,
++     currency VARCHAR(3),
++     stripe_id VARCHAR(100),
++     actor_user_id UUID,
++     metadata JSONB,
++     created_at TIMESTAMPTZ DEFAULT NOW()
++   );
++   ```
++
++---
++
++## 7. CÓDIGO Y CALIDAD
++
++### ✅ Buenas decisiones
++
++- **TypeScript estricto**: Tipos explícitos en interfaces y parámetros.
++- **Separation of concerns**: Controllers delgados, lógica en use cases.
++- **Naming consistente**: `UseCase`, `Repository`, `Service` bien diferenciados.
++
++### ⚠️ Riesgos
++
++| Riesgo | Severidad | Fase |
++|--------|-----------|------|
++| **Código duplicado en autorización** | Media | v2 |
++| **Casting excesivo `as any`** | Baja | v2 |
++| **Imports relativos profundos** | Baja | v2 |
++
++```typescript
++// Lógica de autorización repetida en múltiples endpoints
++if (artistId && booking.artistId === artistId) {
++  senderRole = NegotiationSenderRole.ARTIST;
++} else if (managerId) {
++  const represents = await this.representationRepository.existsActiveRepresentation(...);
++  if (!represents) throw new ForbiddenException();
++  senderRole = NegotiationSenderRole.MANAGER;
++} else if (venueId && booking.venueId === venueId) {
++  senderRole = NegotiationSenderRole.VENUE;
++}
++// Esta misma lógica aparece en: sendNegotiationMessage, sendFinalOffer, finalOfferAccept, etc.
++```
++
++```typescript
++// Castings que ocultan errores de tipo
++const paidAmount = milestones
++  .filter((m: any) => m.status === 'PAID')
++  .reduce((sum: number, m: any) => sum + (m.amount ?? 0), 0);
++```
++
++### 🟡 Mejoras recomendadas
++
++1. Extraer lógica de autorización a un servicio `BookingAuthorizationService`.
++2. Reemplazar `as any` con tipos específicos.
++3. Configurar path aliases en `tsconfig.json` para imports más limpios (ya existe `@/`).
++
++---
++
++## RESUMEN DE PRIORIDADES
++
++### 🔴 CRÍTICO - v1 (Bloquea producción)
++
++1. ❌ **PaymentsController sin autenticación** - Expone endpoints financieros.
++2. ❌ **Sin transacciones en operaciones críticas** - Inconsistencia de datos.
++3. ❌ **Race conditions en webhooks de pago** - Doble procesamiento posible.
++4. ❌ **Sin validación de montos en refunds** - Riesgo financiero.
++5. ❌ **Estado `CANCELLED_PENDING_REVIEW` sin salida** - Bookings atrapados.
++6. ❌ **Stripe keys con fallback inseguro** - Comportamiento impredecible.
++7. ⚠️ **CORS permisivo** - Riesgo de CSRF.
++8. ⚠️ **Setter público en `booking.status`** - Bypass de validaciones.
++
++### 🟡 IMPORTANTE - v1.x (Mejorar antes de escalar)
++
++1. Unificar `UserContextGuard` duplicado.
++2. Agregar trazabilidad financiera (audit log).
++3. Verificar balance antes de payouts.
++4. Sanitizar logs de datos sensibles.
++5. Corregir nombres de archivos con espacios.
++
++### 🟢 OPCIONAL - v2 (Mejora continua)
++
++1. Reducir dependencias circulares.
++2. Extraer lógica de autorización repetida.
++3. Implementar rate limiting.
++4. Agregar métricas de negocio.
++5. Refactorizar castings `as any`.
++
++---
++
++## NOTAS FINALES
++
++El proyecto demuestra una **base arquitectónica sólida** con decisiones de diseño acertadas (máquina de estados, casos de uso, repository pattern). Los principales riesgos están concentrados en:
++
++1. **Seguridad de endpoints financieros**
++2. **Consistencia transaccional**
++3. **Manejo de casos límite en pagos**
++
++Corregir los items marcados como **CRÍTICO** antes de exponer el sistema a usuarios reales es imperativo para evitar pérdidas financieras y problemas legales.
++
++---
++
++*Documento generado para revisión técnica. No contiene propuestas de reescritura, solo mejoras incrementales sobre el código existente.*
+diff --git a/package-lock.json b/package-lock.json
+index 55fa02a..aa42220 100644
+--- a/package-lock.json
++++ b/package-lock.json
+@@ -11,6 +11,7 @@
+       "dependencies": {
+         "@nestjs/common": "^11.0.1",
+         "@nestjs/core": "^11.0.1",
++        "@nestjs/jwt": "^11.0.1",
+         "@nestjs/mapped-types": "^2.1.0",
+         "@nestjs/passport": "^11.0.5",
+         "@nestjs/platform-express": "^11.0.1",
+@@ -21,6 +22,7 @@
+         "class-validator": "^0.14.3",
+         "dotenv": "^17.2.3",
+         "jwks-rsa": "^3.2.1",
++        "passport-jwt": "^4.0.1",
+         "reflect-metadata": "^0.2.2",
+         "rxjs": "^7.8.1",
+         "uuid": "^13.0.0"
+@@ -34,6 +36,7 @@
+         "@types/express": "^5.0.0",
+         "@types/jest": "^30.0.0",
+         "@types/node": "^22.10.7",
++        "@types/passport-jwt": "^4.0.1",
+         "@types/stripe": "^8.0.416",
+         "@types/supertest": "^6.0.2",
+         "eslint": "^9.18.0",
+@@ -227,7 +230,6 @@
+       "integrity": "sha512-e7jT4DxYvIDLk1ZHmU/m/mB19rex9sv0c2ftBtjSBv+kVM/902eh0fINUzD7UwLLNR+jU585GxUJ8/EBfAM5fw==",
+       "dev": true,
+       "license": "MIT",
+-      "peer": true,
+       "dependencies": {
+         "@babel/code-frame": "^7.27.1",
+         "@babel/generator": "^7.28.5",
+@@ -2141,7 +2143,6 @@
+       "integrity": "sha512-B/gBuNg5SiMTrPkC+A2+cW0RszwxYmn6VYxB/inlBStS5nx6xHIt/ehKRhIMhqusl7a8LjQoZnjCs5vhwxOQ1g==",
+       "dev": true,
+       "license": "MIT",
+-      "peer": true,
+       "dependencies": {
+         "fast-deep-equal": "^3.1.3",
+         "fast-uri": "^3.0.1",
+@@ -2319,7 +2320,6 @@
+       "resolved": "https://registry.npmjs.org/@nestjs/common/-/common-11.1.11.tgz",
+       "integrity": "sha512-R/+A8XFqLgN8zNs2twhrOaE7dJbRQhdPX3g46am4RT/x8xGLqDphrXkUIno4cGUZHxbczChBAaAPTdPv73wDZA==",
+       "license": "MIT",
+-      "peer": true,
+       "dependencies": {
+         "file-type": "21.2.0",
+         "iterare": "1.2.1",
+@@ -2352,7 +2352,6 @@
+       "integrity": "sha512-H9i+zT3RvHi7tDc+lCmWHJ3ustXveABCr+Vcpl96dNOxgmrx4elQSTC4W93Mlav2opfLV+p0UTHY6L+bpUA4zA==",
+       "hasInstallScript": true,
+       "license": "MIT",
+-      "peer": true,
+       "dependencies": {
+         "@nuxt/opencollective": "0.4.1",
+         "fast-safe-stringify": "2.1.1",
+@@ -2388,6 +2387,19 @@
+         }
+       }
+     },
++    "node_modules/@nestjs/jwt": {
++      "version": "11.0.2",
++      "resolved": "https://registry.npmjs.org/@nestjs/jwt/-/jwt-11.0.2.tgz",
++      "integrity": "sha512-rK8aE/3/Ma45gAWfCksAXUNbOoSOUudU0Kn3rT39htPF7wsYXtKfjALKeKKJbFrIWbLjsbqfXX5bIJNvgBugGA==",
++      "license": "MIT",
++      "dependencies": {
++        "@types/jsonwebtoken": "9.0.10",
++        "jsonwebtoken": "9.0.3"
++      },
++      "peerDependencies": {
++        "@nestjs/common": "^8.0.0 || ^9.0.0 || ^10.0.0 || ^11.0.0"
++      }
++    },
+     "node_modules/@nestjs/mapped-types": {
+       "version": "2.1.0",
+       "resolved": "https://registry.npmjs.org/@nestjs/mapped-types/-/mapped-types-2.1.0.tgz",
+@@ -2423,7 +2435,6 @@
+       "resolved": "https://registry.npmjs.org/@nestjs/platform-express/-/platform-express-11.1.11.tgz",
+       "integrity": "sha512-kyABSskdMRIAMWL0SlbwtDy4yn59RL4HDdwHDz/fxWuv7/53YP8Y2DtV3/sHqY5Er0msMVTZrM38MjqXhYL7gw==",
+       "license": "MIT",
+-      "peer": true,
+       "dependencies": {
+         "cors": "2.8.5",
+         "express": "5.2.1",
+@@ -2675,7 +2686,6 @@
+       "resolved": "https://registry.npmjs.org/@stripe/stripe-js/-/stripe-js-8.6.1.tgz",
+       "integrity": "sha512-UJ05U2062XDgydbUcETH1AoRQLNhigQ2KmDn1BG8sC3xfzu6JKg95Qt6YozdzFpxl1Npii/02m2LEWFt1RYjVA==",
+       "license": "MIT",
+-      "peer": true,
+       "engines": {
+         "node": ">=12.16"
+       }
+@@ -2901,7 +2911,6 @@
+       "integrity": "sha512-FXx2pKgId/WyYo2jXw63kk7/+TY7u7AziEJxJAnSFzHlqTAS3Ync6SvgYAN/k4/PQpnnVuzoMuVnByKK2qp0ag==",
+       "dev": true,
+       "license": "MIT",
+-      "peer": true,
+       "dependencies": {
+         "@types/estree": "*",
+         "@types/json-schema": "*"
+@@ -3030,11 +3039,42 @@
+       "resolved": "https://registry.npmjs.org/@types/node/-/node-22.19.5.tgz",
+       "integrity": "sha512-HfF8+mYcHPcPypui3w3mvzuIErlNOh2OAG+BCeBZCEwyiD5ls2SiCwEyT47OELtf7M3nHxBdu0FsmzdKxkN52Q==",
+       "license": "MIT",
+-      "peer": true,
+       "dependencies": {
+         "undici-types": "~6.21.0"
+       }
+     },
++    "node_modules/@types/passport": {
++      "version": "1.0.17",
++      "resolved": "https://registry.npmjs.org/@types/passport/-/passport-1.0.17.tgz",
++      "integrity": "sha512-aciLyx+wDwT2t2/kJGJR2AEeBz0nJU4WuRX04Wu9Dqc5lSUtwu0WERPHYsLhF9PtseiAMPBGNUOtFjxZ56prsg==",
++      "dev": true,
++      "license": "MIT",
++      "dependencies": {
++        "@types/express": "*"
++      }
++    },
++    "node_modules/@types/passport-jwt": {
++      "version": "4.0.1",
++      "resolved": "https://registry.npmjs.org/@types/passport-jwt/-/passport-jwt-4.0.1.tgz",
++      "integrity": "sha512-Y0Ykz6nWP4jpxgEUYq8NoVZeCQPo1ZndJLfapI249g1jHChvRfZRO/LS3tqu26YgAS/laI1qx98sYGz0IalRXQ==",
++      "dev": true,
++      "license": "MIT",
++      "dependencies": {
++        "@types/jsonwebtoken": "*",
++        "@types/passport-strategy": "*"
++      }
++    },
++    "node_modules/@types/passport-strategy": {
++      "version": "0.2.38",
++      "resolved": "https://registry.npmjs.org/@types/passport-strategy/-/passport-strategy-0.2.38.tgz",
++      "integrity": "sha512-GC6eMqqojOooq993Tmnmp7AUTbbQSgilyvpCYQjT+H6JfG/g6RGc7nXEniZlp0zyKJ0WUdOiZWLBZft9Yug1uA==",
++      "dev": true,
++      "license": "MIT",
++      "dependencies": {
++        "@types/express": "*",
++        "@types/passport": "*"
++      }
++    },
+     "node_modules/@types/phoenix": {
+       "version": "1.6.7",
+       "resolved": "https://registry.npmjs.org/@types/phoenix/-/phoenix-1.6.7.tgz",
+@@ -3194,7 +3234,6 @@
+       "integrity": "sha512-iIACsx8pxRnguSYhHiMn2PvhvfpopO9FXHyn1mG5txZIsAaB6F0KwbFnUQN3KCiG3Jcuad/Cao2FAs1Wp7vAyg==",
+       "dev": true,
+       "license": "MIT",
+-      "peer": true,
+       "dependencies": {
+         "@typescript-eslint/scope-manager": "8.52.0",
+         "@typescript-eslint/types": "8.52.0",
+@@ -3876,7 +3915,6 @@
+       "integrity": "sha512-NZyJarBfL7nWwIq+FDL6Zp/yHEhePMNnnJ0y3qfieCrmNvYct8uvtiV41UvlSe6apAfk0fY1FbWx+NwfmpvtTg==",
+       "dev": true,
+       "license": "MIT",
+-      "peer": true,
+       "bin": {
+         "acorn": "bin/acorn"
+       },
+@@ -3926,7 +3964,6 @@
+       "integrity": "sha512-j3fVLgvTo527anyYyJOGTYJbG+vnnQYvE0m5mmkc1TK+nxAppkCLMIL0aZ4dblVCNoGShhm+kzE4ZUykBoMg4g==",
+       "dev": true,
+       "license": "MIT",
+-      "peer": true,
+       "dependencies": {
+         "fast-deep-equal": "^3.1.1",
+         "fast-json-stable-stringify": "^2.0.0",
+@@ -4337,7 +4374,6 @@
+         }
+       ],
+       "license": "MIT",
+-      "peer": true,
+       "dependencies": {
+         "baseline-browser-mapping": "^2.9.0",
+         "caniuse-lite": "^1.0.30001759",
+@@ -4400,6 +4436,12 @@
+         "ieee754": "^1.1.13"
+       }
+     },
++    "node_modules/buffer-equal-constant-time": {
++      "version": "1.0.1",
++      "resolved": "https://registry.npmjs.org/buffer-equal-constant-time/-/buffer-equal-constant-time-1.0.1.tgz",
++      "integrity": "sha512-zRpUiDwd/xk6ADqPMATG8vc9VPrkck7T07OIx0gnjmJAnHnTVXNQG3vfvWNuiZIkwu9KrKdA1iJKfsfTVxE6NA==",
++      "license": "BSD-3-Clause"
++    },
+     "node_modules/buffer-from": {
+       "version": "1.1.2",
+       "resolved": "https://registry.npmjs.org/buffer-from/-/buffer-from-1.1.2.tgz",
+@@ -4536,7 +4578,6 @@
+       "integrity": "sha512-Qgzu8kfBvo+cA4962jnP1KkS6Dop5NS6g7R5LFYJr4b8Ub94PPQXUksCw9PvXoeXPRRddRNC5C1JQUR2SMGtnA==",
+       "dev": true,
+       "license": "MIT",
+-      "peer": true,
+       "dependencies": {
+         "readdirp": "^4.0.1"
+       },
+@@ -4584,15 +4625,13 @@
+       "version": "0.5.1",
+       "resolved": "https://registry.npmjs.org/class-transformer/-/class-transformer-0.5.1.tgz",
+       "integrity": "sha512-SQa1Ws6hUbfC98vKGxZH3KFY0Y1lm5Zm0SY8XX9zbK7FJCyVEac3ATW0RIpwzW+oOfmHE5PMPufDG9hCfoEOMw==",
+-      "license": "MIT",
+-      "peer": true
++      "license": "MIT"
+     },
+     "node_modules/class-validator": {
+       "version": "0.14.3",
+       "resolved": "https://registry.npmjs.org/class-validator/-/class-validator-0.14.3.tgz",
+       "integrity": "sha512-rXXekcjofVN1LTOSw+u4u9WXVEUvNBVjORW154q/IdmYWy1nMbOU9aNtZB0t8m+FJQ9q91jlr2f9CwwUFdFMRA==",
+       "license": "MIT",
+-      "peer": true,
+       "dependencies": {
+         "@types/validator": "^13.15.3",
+         "libphonenumber-js": "^1.11.1",
+@@ -5079,6 +5118,15 @@
+       "dev": true,
+       "license": "MIT"
+     },
++    "node_modules/ecdsa-sig-formatter": {
++      "version": "1.0.11",
++      "resolved": "https://registry.npmjs.org/ecdsa-sig-formatter/-/ecdsa-sig-formatter-1.0.11.tgz",
++      "integrity": "sha512-nagl3RYrbNv6kQkeJIpt6NJZy8twLB/2vtz6yN9Z4vRKHN4/QZJIEbqohALSgwKdnksuY3k5Addp5lg8sVoVcQ==",
++      "license": "Apache-2.0",
++      "dependencies": {
++        "safe-buffer": "^5.0.1"
++      }
++    },
+     "node_modules/ee-first": {
+       "version": "1.1.1",
+       "resolved": "https://registry.npmjs.org/ee-first/-/ee-first-1.1.1.tgz",
+@@ -5168,7 +5216,8 @@
+       "resolved": "https://registry.npmjs.org/es-module-lexer/-/es-module-lexer-2.0.0.tgz",
+       "integrity": "sha512-5POEcUuZybH7IdmGsD8wlf0AI55wMecM9rVBTI/qEAy2c1kTOm3DjFYjrBdI2K3BaJjJYfYFeRtM0t9ssnRuxw==",
+       "dev": true,
+-      "license": "MIT"
++      "license": "MIT",
++      "peer": true
+     },
+     "node_modules/es-object-atoms": {
+       "version": "1.1.1",
+@@ -5233,7 +5282,6 @@
+       "integrity": "sha512-LEyamqS7W5HB3ujJyvi0HQK/dtVINZvd5mAAp9eT5S/ujByGjiZLCzPcHVzuXbpJDJF/cxwHlfceVUDZ2lnSTw==",
+       "dev": true,
+       "license": "MIT",
+-      "peer": true,
+       "dependencies": {
+         "@eslint-community/eslint-utils": "^4.8.0",
+         "@eslint-community/regexpp": "^4.12.1",
+@@ -5294,7 +5342,6 @@
+       "integrity": "sha512-82GZUjRS0p/jganf6q1rEO25VSoHH0hKPCTrgillPjdI/3bgBhAE1QzHrHTizjpRvy6pGAvKjDJtk2pF9NDq8w==",
+       "dev": true,
+       "license": "MIT",
+-      "peer": true,
+       "bin": {
+         "eslint-config-prettier": "bin/cli.js"
+       },
+@@ -6546,7 +6593,6 @@
+       "integrity": "sha512-F26gjC0yWN8uAA5m5Ss8ZQf5nDHWGlN/xWZIh8S5SRbsEKBovwZhxGd6LJlbZYxBgCYOtreSUyb8hpXyGC5O4A==",
+       "dev": true,
+       "license": "MIT",
+-      "peer": true,
+       "dependencies": {
+         "@jest/core": "30.2.0",
+         "@jest/types": "30.2.0",
+@@ -7386,6 +7432,39 @@
+         "graceful-fs": "^4.1.6"
+       }
+     },
++    "node_modules/jsonwebtoken": {
++      "version": "9.0.3",
++      "resolved": "https://registry.npmjs.org/jsonwebtoken/-/jsonwebtoken-9.0.3.tgz",
++      "integrity": "sha512-MT/xP0CrubFRNLNKvxJ2BYfy53Zkm++5bX9dtuPbqAeQpTVe0MQTFhao8+Cp//EmJp244xt6Drw/GVEGCUj40g==",
++      "license": "MIT",
++      "dependencies": {
++        "jws": "^4.0.1",
++        "lodash.includes": "^4.3.0",
++        "lodash.isboolean": "^3.0.3",
++        "lodash.isinteger": "^4.0.4",
++        "lodash.isnumber": "^3.0.3",
++        "lodash.isplainobject": "^4.0.6",
++        "lodash.isstring": "^4.0.1",
++        "lodash.once": "^4.0.0",
++        "ms": "^2.1.1",
++        "semver": "^7.5.4"
++      },
++      "engines": {
++        "node": ">=12",
++        "npm": ">=6"
++      }
++    },
++    "node_modules/jwa": {
++      "version": "2.0.1",
++      "resolved": "https://registry.npmjs.org/jwa/-/jwa-2.0.1.tgz",
++      "integrity": "sha512-hRF04fqJIP8Abbkq5NKGN0Bbr3JxlQ+qhZufXVr0DvujKy93ZCbXZMHDL4EOtodSbCWxOqR8MS1tXA5hwqCXDg==",
++      "license": "MIT",
++      "dependencies": {
++        "buffer-equal-constant-time": "^1.0.1",
++        "ecdsa-sig-formatter": "1.0.11",
++        "safe-buffer": "^5.0.1"
++      }
++    },
+     "node_modules/jwks-rsa": {
+       "version": "3.2.1",
+       "resolved": "https://registry.npmjs.org/jwks-rsa/-/jwks-rsa-3.2.1.tgz",
+@@ -7402,6 +7481,16 @@
+         "node": ">=14"
+       }
+     },
++    "node_modules/jws": {
++      "version": "4.0.1",
++      "resolved": "https://registry.npmjs.org/jws/-/jws-4.0.1.tgz",
++      "integrity": "sha512-EKI/M/yqPncGUUh44xz0PxSidXFr/+r0pA70+gIYhjv+et7yxM+s29Y+VGDkovRofQem0fs7Uvf4+YmAdyRduA==",
++      "license": "MIT",
++      "dependencies": {
++        "jwa": "^2.0.1",
++        "safe-buffer": "^5.0.1"
++      }
++    },
+     "node_modules/keyv": {
+       "version": "4.5.4",
+       "resolved": "https://registry.npmjs.org/keyv/-/keyv-4.5.4.tgz",
+@@ -7516,6 +7605,42 @@
+       "integrity": "sha512-H5ZhCF25riFd9uB5UCkVKo61m3S/xZk1x4wA6yp/L3RFP6Z/eHH1ymQcGLo7J3GMPfm0V/7m1tryHuGVxpqEBQ==",
+       "license": "MIT"
+     },
++    "node_modules/lodash.includes": {
++      "version": "4.3.0",
++      "resolved": "https://registry.npmjs.org/lodash.includes/-/lodash.includes-4.3.0.tgz",
++      "integrity": "sha512-W3Bx6mdkRTGtlJISOvVD/lbqjTlPPUDTMnlXZFnVwi9NKJ6tiAk6LVdlhZMm17VZisqhKcgzpO5Wz91PCt5b0w==",
++      "license": "MIT"
++    },
++    "node_modules/lodash.isboolean": {
++      "version": "3.0.3",
++      "resolved": "https://registry.npmjs.org/lodash.isboolean/-/lodash.isboolean-3.0.3.tgz",
++      "integrity": "sha512-Bz5mupy2SVbPHURB98VAcw+aHh4vRV5IPNhILUCsOzRmsTmSQ17jIuqopAentWoehktxGd9e/hbIXq980/1QJg==",
++      "license": "MIT"
++    },
++    "node_modules/lodash.isinteger": {
++      "version": "4.0.4",
++      "resolved": "https://registry.npmjs.org/lodash.isinteger/-/lodash.isinteger-4.0.4.tgz",
++      "integrity": "sha512-DBwtEWN2caHQ9/imiNeEA5ys1JoRtRfY3d7V9wkqtbycnAmTvRRmbHKDV4a0EYc678/dia0jrte4tjYwVBaZUA==",
++      "license": "MIT"
++    },
++    "node_modules/lodash.isnumber": {
++      "version": "3.0.3",
++      "resolved": "https://registry.npmjs.org/lodash.isnumber/-/lodash.isnumber-3.0.3.tgz",
++      "integrity": "sha512-QYqzpfwO3/CWf3XP+Z+tkQsfaLL/EnUlXWVkIk5FUPc4sBdTehEqZONuyRt2P67PXAk+NXmTBcc97zw9t1FQrw==",
++      "license": "MIT"
++    },
++    "node_modules/lodash.isplainobject": {
++      "version": "4.0.6",
++      "resolved": "https://registry.npmjs.org/lodash.isplainobject/-/lodash.isplainobject-4.0.6.tgz",
++      "integrity": "sha512-oSXzaWypCMHkPC3NvBEaPHf0KsA5mvPrOPgQWDsbg8n7orZ290M0BmC/jgRZ4vcJ6DTAhjrsSYgdsW/F+MFOBA==",
++      "license": "MIT"
++    },
++    "node_modules/lodash.isstring": {
++      "version": "4.0.1",
++      "resolved": "https://registry.npmjs.org/lodash.isstring/-/lodash.isstring-4.0.1.tgz",
++      "integrity": "sha512-0wJxfxH1wgO3GrbuP+dTTk7op+6L41QCXbGINEmD+ny/G/eCqGzxyCsh7159S+mgDDcoarnBw6PC1PS5+wUGgw==",
++      "license": "MIT"
++    },
+     "node_modules/lodash.memoize": {
+       "version": "4.1.2",
+       "resolved": "https://registry.npmjs.org/lodash.memoize/-/lodash.memoize-4.1.2.tgz",
+@@ -7530,6 +7655,12 @@
+       "dev": true,
+       "license": "MIT"
+     },
++    "node_modules/lodash.once": {
++      "version": "4.1.1",
++      "resolved": "https://registry.npmjs.org/lodash.once/-/lodash.once-4.1.1.tgz",
++      "integrity": "sha512-Sb487aTOCr9drQVL8pIxOzVhafOjZN9UU54hiN8PU3uAiSV7lx1yYNpbNmex2PK6dSJoNTSJUUswT651yww3Mg==",
++      "license": "MIT"
++    },
+     "node_modules/log-symbols": {
+       "version": "4.1.0",
+       "resolved": "https://registry.npmjs.org/log-symbols/-/log-symbols-4.1.0.tgz",
+@@ -8198,6 +8329,16 @@
+         "url": "https://github.com/sponsors/jaredhanson"
+       }
+     },
++    "node_modules/passport-jwt": {
++      "version": "4.0.1",
++      "resolved": "https://registry.npmjs.org/passport-jwt/-/passport-jwt-4.0.1.tgz",
++      "integrity": "sha512-UCKMDYhNuGOBE9/9Ycuoyh7vP6jpeTp/+sfMJl7nLff/t6dps+iaeE0hhNkKN8/HZHcJ7lCdOyDxHdDoxoSvdQ==",
++      "license": "MIT",
++      "dependencies": {
++        "jsonwebtoken": "^9.0.0",
++        "passport-strategy": "^1.0.0"
++      }
++    },
+     "node_modules/passport-strategy": {
+       "version": "1.0.0",
+       "resolved": "https://registry.npmjs.org/passport-strategy/-/passport-strategy-1.0.0.tgz",
+@@ -8286,7 +8427,8 @@
+     "node_modules/pause": {
+       "version": "0.0.1",
+       "resolved": "https://registry.npmjs.org/pause/-/pause-0.0.1.tgz",
+-      "integrity": "sha512-KG8UEiEVkR3wGEb4m5yZkVCzigAD+cVEJck2CzYZO37ZGJfctvVptVO192MwrtPhzONn6go8ylnOdMhKqi4nfg=="
++      "integrity": "sha512-KG8UEiEVkR3wGEb4m5yZkVCzigAD+cVEJck2CzYZO37ZGJfctvVptVO192MwrtPhzONn6go8ylnOdMhKqi4nfg==",
++      "peer": true
+     },
+     "node_modules/picocolors": {
+       "version": "1.1.1",
+@@ -8413,7 +8555,6 @@
+       "integrity": "sha512-v6UNi1+3hSlVvv8fSaoUbggEM5VErKmmpGA7Pl3HF8V6uKY7rvClBOJlH6yNwQtfTueNkGVpOv/mtWL9L4bgRA==",
+       "dev": true,
+       "license": "MIT",
+-      "peer": true,
+       "bin": {
+         "prettier": "bin/prettier.cjs"
+       },
+@@ -8633,8 +8774,7 @@
+       "version": "0.2.2",
+       "resolved": "https://registry.npmjs.org/reflect-metadata/-/reflect-metadata-0.2.2.tgz",
+       "integrity": "sha512-urBwgfrvVP/eAyXx4hluJivBKzuEbSQs9rKWCrCkbSxNv8mxPcUZKeuoF3Uy4mJl3Lwprp6yy5/39VWigZ4K6Q==",
+-      "license": "Apache-2.0",
+-      "peer": true
++      "license": "Apache-2.0"
+     },
+     "node_modules/require-directory": {
+       "version": "2.1.1",
+@@ -8731,7 +8871,6 @@
+       "resolved": "https://registry.npmjs.org/rxjs/-/rxjs-7.8.2.tgz",
+       "integrity": "sha512-dhKf903U/PQZY6boNNtAGdWbG85WAbjT/1xYoZIC7FAY0yWapOBQVsVrDl58W86//e1VpMNBtRV4MaXfdMySFA==",
+       "license": "Apache-2.0",
+-      "peer": true,
+       "dependencies": {
+         "tslib": "^2.1.0"
+       }
+@@ -8766,7 +8905,8 @@
+       "version": "0.27.0",
+       "resolved": "https://registry.npmjs.org/scheduler/-/scheduler-0.27.0.tgz",
+       "integrity": "sha512-eNv+WrVbKu1f3vbYJT/xtiF5syA5HPIMtf9IgY/nKg0sWqzAUEvqY/xm7OcZc/qafLx/iO9FgOmeSAp4v5ti/Q==",
+-      "license": "MIT"
++      "license": "MIT",
++      "peer": true
+     },
+     "node_modules/schema-utils": {
+       "version": "3.3.0",
+@@ -8791,7 +8931,6 @@
+       "version": "7.7.3",
+       "resolved": "https://registry.npmjs.org/semver/-/semver-7.7.3.tgz",
+       "integrity": "sha512-SdsKMrI9TdgjdweUSR9MweHA4EJ8YxHn8DFaDisvhVlUOe4BF1tLD7GAj0lIqWVl+dPb/rExr0Btby5loQm20Q==",
+-      "dev": true,
+       "license": "ISC",
+       "bin": {
+         "semver": "bin/semver.js"
+@@ -9357,7 +9496,6 @@
+       "integrity": "sha512-B/gBuNg5SiMTrPkC+A2+cW0RszwxYmn6VYxB/inlBStS5nx6xHIt/ehKRhIMhqusl7a8LjQoZnjCs5vhwxOQ1g==",
+       "dev": true,
+       "license": "MIT",
+-      "peer": true,
+       "dependencies": {
+         "fast-deep-equal": "^3.1.3",
+         "fast-uri": "^3.0.1",
+@@ -9685,7 +9823,6 @@
+       "integrity": "sha512-f0FFpIdcHgn8zcPSbf1dRevwt047YMnaiJM3u2w2RewrB+fob/zePZcrOyQoLMMO7aBIddLcQIEK5dYjkLnGrQ==",
+       "dev": true,
+       "license": "MIT",
+-      "peer": true,
+       "dependencies": {
+         "@cspotcode/source-map-support": "^0.8.0",
+         "@tsconfig/node10": "^1.0.7",
+@@ -9833,7 +9970,6 @@
+       "integrity": "sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw==",
+       "dev": true,
+       "license": "Apache-2.0",
+-      "peer": true,
+       "bin": {
+         "tsc": "bin/tsc",
+         "tsserver": "bin/tsserver"
+@@ -10016,6 +10152,7 @@
+       "resolved": "https://registry.npmjs.org/utils-merge/-/utils-merge-1.0.1.tgz",
+       "integrity": "sha512-pMZTvIkT1d+TFGvDOqodOclx0QWkkgi6Tdoa8gC8ffGAAqz9pzPTZWAybbsHHoED/ztMtkv/VoYTYyShUn81hA==",
+       "license": "MIT",
++      "peer": true,
+       "engines": {
+         "node": ">= 0.4.0"
+       }
+@@ -10201,6 +10338,7 @@
+       "integrity": "sha512-Wx0Kx52hxE7C18hkMEggYlEifqWZtYaRgouJor+WMdPnQyEK13vgEWyVNup7SoeeoLMsr4kf5h6dOW11I15MUA==",
+       "dev": true,
+       "license": "MIT",
++      "peer": true,
+       "dependencies": {
+         "ajv": "^8.0.0"
+       },
+@@ -10219,6 +10357,7 @@
+       "integrity": "sha512-YCS/JNFAUyr5vAuhk1DWm1CBxRHW9LbJ2ozWeemrIqpbsqKjHVxYPyi5GC0rjZIT5JxJ3virVTS8wk4i/Z+krw==",
+       "dev": true,
+       "license": "MIT",
++      "peer": true,
+       "dependencies": {
+         "fast-deep-equal": "^3.1.3"
+       },
+@@ -10232,6 +10371,7 @@
+       "integrity": "sha512-2NxwbF/hZ0KpepYN0cNbo+FN6XoK7GaHlQhgx/hIZl6Va0bF45RQOOwhLIy8lQDbuCiadSLCBnH2CFYquit5bw==",
+       "dev": true,
+       "license": "BSD-2-Clause",
++      "peer": true,
+       "dependencies": {
+         "esrecurse": "^4.3.0",
+         "estraverse": "^4.1.1"
+@@ -10246,6 +10386,7 @@
+       "integrity": "sha512-39nnKffWz8xN1BU/2c79n9nB9HDzo0niYUqx6xyqUnyoAnQyyWpOTdZEeiCch8BBu515t4wp9ZmgVfVhn9EBpw==",
+       "dev": true,
+       "license": "BSD-2-Clause",
++      "peer": true,
+       "engines": {
+         "node": ">=4.0"
+       }
+@@ -10255,7 +10396,8 @@
+       "resolved": "https://registry.npmjs.org/json-schema-traverse/-/json-schema-traverse-1.0.0.tgz",
+       "integrity": "sha512-NM8/P9n3XjXhIZn1lLhkFaACTOURQXjWhV4BA/RnOv8xvgqtqpAX9IO4mRQxSx1Rlo4tqzeqb0sOlruaOy3dug==",
+       "dev": true,
+-      "license": "MIT"
++      "license": "MIT",
++      "peer": true
+     },
+     "node_modules/webpack/node_modules/mime-db": {
+       "version": "1.52.0",
+@@ -10263,6 +10405,7 @@
+       "integrity": "sha512-sPU4uV7dYlvtWJxwwxHD0PuihVNiE7TyAbQ5SWxDCB9mUYvOgroQOwYQQOKPJ8CIbE+1ETVlOoK1UC2nU3gYvg==",
+       "dev": true,
+       "license": "MIT",
++      "peer": true,
+       "engines": {
+         "node": ">= 0.6"
+       }
+@@ -10273,6 +10416,7 @@
+       "integrity": "sha512-ZDY+bPm5zTTF+YpCrAU9nK0UgICYPT0QtT1NZWFv4s++TNkcgVaT0g6+4R2uI4MjQjzysHB1zxuWL50hzaeXiw==",
+       "dev": true,
+       "license": "MIT",
++      "peer": true,
+       "dependencies": {
+         "mime-db": "1.52.0"
+       },
+@@ -10286,6 +10430,7 @@
+       "integrity": "sha512-eflK8wEtyOE6+hsaRVPxvUKYCpRgzLqDTb8krvAsRIwOGlHoSgYLgBXoubGgLd2fT41/OUYdb48v4k4WWHQurA==",
+       "dev": true,
+       "license": "MIT",
++      "peer": true,
+       "dependencies": {
+         "@types/json-schema": "^7.0.9",
+         "ajv": "^8.9.0",
+diff --git a/src/infrastructure/database/repositories/bookings/SupabaseBookingRepository .ts b/src/infrastructure/database/repositories/bookings/SupabaseBookingRepository.ts
+similarity index 100%
+rename from src/infrastructure/database/repositories/bookings/SupabaseBookingRepository .ts
+rename to src/infrastructure/database/repositories/bookings/SupabaseBookingRepository.ts
+diff --git a/src/infrastructure/database/repositories/db-payment-milestone.repository.ts b/src/infrastructure/database/repositories/db-payment-milestone.repository.ts
+index 487bf17..3fc6628 100644
+--- a/src/infrastructure/database/repositories/db-payment-milestone.repository.ts
++++ b/src/infrastructure/database/repositories/db-payment-milestone.repository.ts
+@@ -90,6 +90,30 @@ export class DbPaymentMilestoneRepository implements PaymentMilestoneRepository
+   }
+ }
+ 
++/**
++ * Actualización atómica con condición WHERE status = 'PENDING'.
++ * Previene race conditions cuando múltiples webhooks intentan actualizar el mismo milestone.
++ */
++async markAsPaidIfPending(id: string, providerPaymentId: string, paidAt: Date): Promise<boolean> {
++  const { data, error } = await supabase
++    .from('payment_milestones')
++    .update({
++      status: 'PAID',
++      paid_at: paidAt.toISOString(),
++      provider_payment_id: providerPaymentId,
++    })
++    .eq('id', id)
++    .eq('status', 'PENDING') // Condición atómica: solo actualiza si sigue PENDING
++    .select('id');
++
++  if (error) {
++    throw new Error(`Failed to mark milestone as paid: ${error.message}`);
++  }
++
++  // Si data tiene elementos, la actualización tuvo éxito
++  return (data?.length ?? 0) > 0;
++}
++
+ async countUnpaidForBooking(bookingId: string): Promise<number> {
+   const { count, error } = await supabase
+     .from('payment_milestones')
+diff --git a/src/infrastructure/database/repositories/promoter/DbPromoterRepository .ts b/src/infrastructure/database/repositories/promoter/DbPromoterRepository.ts
+similarity index 100%
+rename from src/infrastructure/database/repositories/promoter/DbPromoterRepository .ts
+rename to src/infrastructure/database/repositories/promoter/DbPromoterRepository.ts
+diff --git a/src/infrastructure/payments/stripe-payment.provider.ts b/src/infrastructure/payments/stripe-payment.provider.ts
+index f10ef5d..d2553cf 100644
+--- a/src/infrastructure/payments/stripe-payment.provider.ts
++++ b/src/infrastructure/payments/stripe-payment.provider.ts
+@@ -8,7 +8,10 @@ export class StripePaymentProvider implements PaymentProvider {
+ 
+   private getStripe(): Stripe {
+     if (!this.stripe) {
+-      const apiKey = process.env.STRIPE_SECRET_KEY || 'sk_test_dummy';
++      const apiKey = process.env.STRIPE_SECRET_KEY;
++      if (!apiKey) {
++        throw new Error('STRIPE_SECRET_KEY environment variable is required');
++      }
+       this.stripe = new Stripe(apiKey, {
+         apiVersion: '2025-12-15.clover',
+       });
+diff --git a/src/infrastructure/payments/stripe-webhook.service.ts b/src/infrastructure/payments/stripe-webhook.service.ts
+index 218f644..0e56f0b 100644
+--- a/src/infrastructure/payments/stripe-webhook.service.ts
++++ b/src/infrastructure/payments/stripe-webhook.service.ts
+@@ -12,7 +12,7 @@ import { PaymentMilestoneStatus } from '../../modules/payments/payment-milestone
+ import { PAYMENT_MILESTONE_REPOSITORY } from '../../modules/payments/payment-milestone-repository.token';
+ import type { PaymentMilestoneRepository } from '../../modules/payments/payment-milestone.repository.interface';
+ import { BOOKING_REPOSITORY } from '../../modules/bookings/repositories/booking-repository.token';
+-import type { SupabaseBookingRepository } from '../database/repositories/bookings/SupabaseBookingRepository ';
++import type { SupabaseBookingRepository } from '../database/repositories/bookings/SupabaseBookingRepository';
+ import { BookingStatus } from '../../modules/bookings/booking-status.enum';
+ import { PAYMENT_INTENT_REPOSITORY } from '../../modules/payments/repositories/payment-intent.repository.token';
+ import type { PaymentIntentRepository } from '../../modules/payments/repositories/payment-intent.repository.interface';
+@@ -108,10 +108,16 @@ export class StripeWebhookService {
+     paymentIntent: Stripe.PaymentIntent,
+   ): Promise<void> {
+     const { milestoneId, bookingId } = paymentIntent.metadata ?? {};
+-    console.log('[Webhook] payment_intent.succeeded metadata:', paymentIntent.metadata);
++    const logger = console; // TODO: Replace with structured logger
++
++    logger.log('[Webhook] payment_intent.succeeded', { 
++      paymentIntentId: paymentIntent.id, 
++      milestoneId, 
++      bookingId 
++    });
+ 
+     if (!milestoneId || !bookingId) {
+-      console.warn('[Webhook] Falta milestoneId o bookingId en metadata');
++      logger.warn('[Webhook] Falta milestoneId o bookingId en metadata');
+       return;
+     }
+ 
+@@ -119,52 +125,69 @@ export class StripeWebhookService {
+ 
+     // 1️ Load milestone
+     const milestone = await this.milestoneRepository.findById(milestoneId);
+-    console.log('[Webhook] milestone:', milestone);
+ 
+     if (!milestone) {
+-      console.warn('[Webhook] No se encontró milestone con id', milestoneId);
++      logger.warn('[Webhook] No se encontró milestone con id', milestoneId);
+       return;
+     }
+ 
++    // Idempotencia: ya procesado
+     if (milestone.status === PaymentMilestoneStatus.PAID) {
+-      console.log('[Webhook] Milestone ya está pagado');
++      logger.log('[Webhook] Milestone ya está pagado - idempotente');
++      return;
++    }
++
++    // Protección contra race condition: verificar que el providerPaymentId coincide
++    // Si otro proceso ya actualizó con un PaymentIntent diferente, abortar
++    if (milestone.providerPaymentId && milestone.providerPaymentId !== paymentIntent.id) {
++      logger.warn('[Webhook] Milestone ya tiene otro PaymentIntent asociado', {
++        existing: milestone.providerPaymentId,
++        incoming: paymentIntent.id,
++      });
+       return;
+     }
+ 
+-    // 2️ Mark milestone as paid
+-    milestone.markAsPaid(new Date());
+-    console.log('[Webhook] milestone tras markAsPaid:', milestone);
++    // 2️ Mark milestone as paid con verificación atómica
++    // El update solo tendrá éxito si el status sigue siendo el esperado
++    const updateSuccess = await this.milestoneRepository.markAsPaidIfPending(
++      milestoneId, 
++      paymentIntent.id,
++      new Date()
++    );
++
++    if (!updateSuccess) {
++      logger.log('[Webhook] Milestone ya fue procesado por otro proceso - race condition evitada');
++      return;
++    }
+ 
+-    await this.milestoneRepository.update(milestone);
+-    console.log('[Webhook] milestone actualizado en BD');
++    logger.log('[Webhook] milestone marcado como PAID');
+ 
+     // 3️ Recalculate booking status
+     const booking = await this.supabaseBookingRepository.findById(bookingId);
+-    console.log('[Webhook] booking:', booking);
+ 
+     if (!booking) {
+-      console.warn('[Webhook] No se encontró booking con id', bookingId);
++      logger.warn('[Webhook] No se encontró booking con id', bookingId);
+       return;
+     }
+ 
+     const milestones = await this.milestoneRepository.findByBookingId(booking.id);
+-    console.log('[Webhook] milestones del booking:', milestones);
+ 
+     const paidCount = milestones.filter(
+       (m) => m.status === PaymentMilestoneStatus.PAID,
+     ).length;
+-    console.log('[Webhook] paidCount:', paidCount, 'de', milestones.length);
++
++    logger.log('[Webhook] paidCount:', paidCount, 'de', milestones.length);
+ 
+     if (paidCount === milestones.length) {
+       booking.markAsPaidFull();
+-      console.log('[Webhook] booking marcado como PAID_FULL');
++      logger.log('[Webhook] booking marcado como PAID_FULL');
+     } else {
+       booking.markAsPaidPartial();
+-      console.log('[Webhook] booking marcado como PAID_PARTIAL');
++      logger.log('[Webhook] booking marcado como PAID_PARTIAL');
+     }
+ 
+     await this.supabaseBookingRepository.update(booking);
+-    console.log('[Webhook] booking actualizado en BD');
++    logger.log('[Webhook] booking actualizado en BD');
+   }
+ 
+   private async handlePaymentIntentFailed(
+diff --git a/src/main.ts b/src/main.ts
+index 7ef8035..d053f4c 100644
+--- a/src/main.ts
++++ b/src/main.ts
+@@ -14,7 +14,7 @@ async function bootstrap() {
+   credentials: true,
+ }); */
+ app.enableCors({
+-  origin: true,
++  origin: process.env.ALLOWED_ORIGINS?.split(',') || ['https://artime.dev'],
+   credentials: true,
+ });
+   app.use(
+diff --git a/src/modules/auth/auth.module.ts b/src/modules/auth/auth.module.ts
+index b3a2767..3d61f40 100644
+--- a/src/modules/auth/auth.module.ts
++++ b/src/modules/auth/auth.module.ts
+@@ -8,7 +8,7 @@ import { JwtAuthGuard } from './jwt-auth.guard';
+   imports: [
+     PassportModule,
+     JwtModule.register({
+-      secret: process.env.JWT_SECRET || 'dev_secret',
++      secret: process.env.JWT_SECRET,
+       signOptions: { expiresIn: '1d' },
+     }),
+   ],
+diff --git a/src/modules/bookings/booking-transitions.ts b/src/modules/bookings/booking-transitions.ts
+index 50d8d21..21d8301 100644
+--- a/src/modules/bookings/booking-transitions.ts
++++ b/src/modules/bookings/booking-transitions.ts
+@@ -55,5 +55,7 @@ export const BOOKING_TRANSITIONS: Record<
+   [BookingStatus.COMPLETED]: [],
+   [BookingStatus.REJECTED]: [],
+   [BookingStatus.CANCELLED]: [],
+-  [BookingStatus.CANCELLED_PENDING_REVIEW]: [],
++  [BookingStatus.CANCELLED_PENDING_REVIEW]: [
++    BookingStatus.CANCELLED, // Resolución sin refund
++  ],
+ };
+diff --git a/src/modules/bookings/booking.entity.ts b/src/modules/bookings/booking.entity.ts
+index 1b4c5e3..a42a13d 100644
+--- a/src/modules/bookings/booking.entity.ts
++++ b/src/modules/bookings/booking.entity.ts
+@@ -60,7 +60,19 @@ export class Booking {
+   get status(): BookingStatus {
+     return this.props.status;
+   }
++
++  /**
++   * @deprecated Use changeStatus() para validar transiciones.
++   * Este setter se mantiene temporalmente por compatibilidad.
++   * TODO: Migrar todos los usos a changeStatus() y eliminar.
++   */
+   set status(value: BookingStatus) {
++    // Validar transición antes de asignar
++    const allowed = this.props.status === value || 
++      require('./booking-transition.guard').canTransition(this.props.status, value);
++    if (!allowed) {
++      throw new Error(`Invalid booking state transition: ${this.props.status} → ${value}`);
++    }
+     this.props.status = value;
+   }
+   get artistId(): string {
+diff --git a/src/modules/bookings/bookings.module.ts b/src/modules/bookings/bookings.module.ts
+index a03910f..900ce02 100644
+--- a/src/modules/bookings/bookings.module.ts
++++ b/src/modules/bookings/bookings.module.ts
+@@ -9,7 +9,7 @@ import { DbPaymentRepository } from '../../infrastructure/database/repositories/
+ 
+ import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
+ import { BookingsController } from './controllers/bookings.controller';
+-import { SupabaseBookingRepository } from '../../infrastructure/database/repositories/bookings/SupabaseBookingRepository ';
++import { SupabaseBookingRepository } from '../../infrastructure/database/repositories/bookings/SupabaseBookingRepository';
+ import { BOOKING_REPOSITORY } from './repositories/booking-repository.token';
+ import { BookingService } from './service/booking.service';
+ import { CancelBookingUseCase } from './cancellations/use-cases/cancel-booking.use-case';
+diff --git a/src/modules/bookings/use-cases/cancellations/reject-cancellation.use-case.ts b/src/modules/bookings/use-cases/cancellations/reject-cancellation.use-case.ts
+index a0c84c8..6fa605d 100644
+--- a/src/modules/bookings/use-cases/cancellations/reject-cancellation.use-case.ts
++++ b/src/modules/bookings/use-cases/cancellations/reject-cancellation.use-case.ts
+@@ -1,4 +1,4 @@
+-import { SupabaseBookingRepository } from '../../../../infrastructure/database/repositories/bookings/SupabaseBookingRepository ';
++import { SupabaseBookingRepository } from '../../../../infrastructure/database/repositories/bookings/SupabaseBookingRepository';
+ import { CancellationRepository } from '../../../../infrastructure/database/repositories/cancellation.repository';
+ import { BookingStatus } from '../../booking-status.enum';
+ import { CancellationReviewStatus } from '../../cancellations/enums/cancellation-review-status.enum';
+diff --git a/src/modules/contracts/contracts.module.ts b/src/modules/contracts/contracts.module.ts
+index 64258c4..1e99089 100644
+--- a/src/modules/contracts/contracts.module.ts
++++ b/src/modules/contracts/contracts.module.ts
+@@ -5,7 +5,7 @@ import { SignContractUseCase } from './use-cases/sign-contract.use-case';
+ import { BookingsModule } from '../bookings/bookings.module';
+ import { GenerateContractUseCase } from './use-cases/generate-contract.use-case';
+ import { BOOKING_REPOSITORY } from '../bookings/repositories/booking-repository.token';
+-import { SupabaseBookingRepository } from '../../infrastructure/database/repositories/bookings/SupabaseBookingRepository ';
++import { SupabaseBookingRepository } from '../../infrastructure/database/repositories/bookings/SupabaseBookingRepository';
+ import { GetContractByBookingUseCase } from './use-cases/get-contract-by-booking.use-case';
+ 
+ import { ContractsController } from './controllers/contracts.controller';
+diff --git a/src/modules/outbox/outbox.module.ts b/src/modules/outbox/outbox.module.ts
+index 424bd71..658f430 100644
+--- a/src/modules/outbox/outbox.module.ts
++++ b/src/modules/outbox/outbox.module.ts
+@@ -6,7 +6,7 @@ import { OutboxWorkerService } from './outbox.worker';
+ import { EVENT_REPOSITORY } from '@/src/modules/events/repositories/event.repository.token';
+ import { SupabaseEventRepository } from '@/src/infrastructure/database/repositories/event/event.supabase.repository';
+ import { BOOKING_REPOSITORY } from '@/src/modules/bookings/repositories/booking-repository.token';
+-import { SupabaseBookingRepository } from '@/src/infrastructure/database/repositories/bookings/SupabaseBookingRepository ';
++import { SupabaseBookingRepository } from '@/src/infrastructure/database/repositories/bookings/SupabaseBookingRepository';
+ import { SupabaseClient } from '@supabase/supabase-js';
+ import { supabase } from '@/src/infrastructure/database/supabase.client';
+ import { ARTIST_MANAGER_REPRESENTATION_REPOSITORY } from '@/src/modules/managers/repositories/artist-manager-representation.repository.token';
+diff --git a/src/modules/payments/controllers/payments.controller.ts b/src/modules/payments/controllers/payments.controller.ts
+index 47b0912..72c11fb 100644
+--- a/src/modules/payments/controllers/payments.controller.ts
++++ b/src/modules/payments/controllers/payments.controller.ts
+@@ -10,7 +10,7 @@ import { CreatePaymentScheduleForBookingUseCase } from '../use-cases/create-paym
+ import { GetPaymentMilestonesForBookingQuery } from '../queries/get-payment-milestones-for-booking.query';
+ import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
+ 
+-//@UseGuards(JwtAuthGuard)
++@UseGuards(JwtAuthGuard)
+ @Controller('payments')
+ export class PaymentsController {
+   constructor(
+diff --git a/src/modules/payments/payment-milestone.repository.interface.ts b/src/modules/payments/payment-milestone.repository.interface.ts
+index dff434e..e171df1 100644
+--- a/src/modules/payments/payment-milestone.repository.interface.ts
++++ b/src/modules/payments/payment-milestone.repository.interface.ts
+@@ -7,5 +7,11 @@ export interface PaymentMilestoneRepository {
+   update(milestone: PaymentMilestone): Promise<void>;
+   delete(id: string): Promise<void>;
+   markAsPaid(id: string, paidAt: Date): Promise<void>;
++  /**
++   * Actualización atómica: marca como PAID solo si el status actual es PENDING.
++   * Previene race conditions en webhooks concurrentes.
++   * @returns true si se actualizó, false si ya estaba en otro estado
++   */
++  markAsPaidIfPending(id: string, providerPaymentId: string, paidAt: Date): Promise<boolean>;
+   countUnpaidForBooking(bookingId: string): Promise<number>;
+ }
+diff --git a/src/modules/payments/payments.module.ts b/src/modules/payments/payments.module.ts
+index e5ab500..d081e0e 100644
+--- a/src/modules/payments/payments.module.ts
++++ b/src/modules/payments/payments.module.ts
+@@ -28,7 +28,7 @@ import { BOOKING_REPOSITORY } from '../bookings/repositories/booking-repository.
+ import { PAYOUT_REPOSITORY } from './repositories/payout.repository.token';
+ 
+ // Implementations (infra)
+-import { SupabaseBookingRepository } from '../../infrastructure/database/repositories/bookings/SupabaseBookingRepository ';
++import { SupabaseBookingRepository } from '../../infrastructure/database/repositories/bookings/SupabaseBookingRepository';
+ import { DbSplitSummaryRepository } from '../../infrastructure/database/repositories/split-summary.repository';
+ import { StripePaymentProvider } from '../../infrastructure/payments/stripe-payment.provider';
+ import { DbPayoutRepository } from '../../infrastructure/database/db-payout-repository';
+diff --git a/src/modules/payments/use-cases/cancellation-refund/execute-cancellation-refund.usecase.ts b/src/modules/payments/use-cases/cancellation-refund/execute-cancellation-refund.usecase.ts
+index 5f04fc8..bf82f11 100644
+--- a/src/modules/payments/use-cases/cancellation-refund/execute-cancellation-refund.usecase.ts
++++ b/src/modules/payments/use-cases/cancellation-refund/execute-cancellation-refund.usecase.ts
+@@ -1,4 +1,4 @@
+-import { ConflictException, Inject, Injectable } from "@nestjs/common";
++import { ConflictException, Inject, Injectable, BadRequestException } from "@nestjs/common";
+ import type { CancellationEconomicExecutionRepository } from "@/src/modules/bookings/cancellations/economic-executions/repositories/cancellation-economic-execution.repository.interface";
+ import { SystemRole } from "@/src/shared/system-role.enum"
+ import { StripePaymentProvider } from '../../../../infrastructure/payments/stripe-payment.provider'
+@@ -27,6 +27,27 @@ export class ExecuteCancellationRefundUseCase {
+       throw new ConflictException('REFUND_ALREADY_EXECUTED');
+     }
+ 
++    // Validar que el monto de refund no exceda el monto del PaymentIntent
++    const paymentIntent = await this.stripeProvider.retrievePaymentIntent(params.paymentIntentId);
++    
++    if (!paymentIntent) {
++      throw new BadRequestException('PAYMENT_INTENT_NOT_FOUND');
++    }
++
++    // amount_refunded puede no existir en algunos tipos de Stripe, usamos cast seguro
++    const amountRefunded = (paymentIntent as any).amount_refunded ?? 0;
++    const maxRefundable = paymentIntent.amount - amountRefunded;
++    
++    if (params.refundAmount > maxRefundable) {
++      throw new BadRequestException(
++        `REFUND_AMOUNT_EXCEEDS_AVAILABLE: requested ${params.refundAmount}, available ${maxRefundable}`
++      );
++    }
++
++    if (params.refundAmount <= 0) {
++      throw new BadRequestException('REFUND_AMOUNT_MUST_BE_POSITIVE');
++    }
++
+     // 1. Ejecutar refund en Stripe
+     const refund = await this.stripeProvider.refundPaymentIntent({
+       paymentIntentId: params.paymentIntentId,
+diff --git a/src/modules/payments/use-cases/confirm-advance-payment.use-case.ts b/src/modules/payments/use-cases/confirm-advance-payment.use-case.ts
+index f546e3b..cefd074 100644
+--- a/src/modules/payments/use-cases/confirm-advance-payment.use-case.ts
++++ b/src/modules/payments/use-cases/confirm-advance-payment.use-case.ts
+@@ -1,4 +1,4 @@
+-import { SupabaseBookingRepository } from '../../../infrastructure/database/repositories/bookings/SupabaseBookingRepository ';
++import { SupabaseBookingRepository } from '../../../infrastructure/database/repositories/bookings/SupabaseBookingRepository';
+ import { DbPaymentRepository } from '../../../infrastructure/database/repositories/payment.repository';
+ import { BookingStatus } from '../../bookings/booking-status.enum';
+ import { PaymentMilestoneType } from '../payment-milestone.entity';
+diff --git a/src/modules/payments/use-cases/confirm-final-payment.use-case.ts b/src/modules/payments/use-cases/confirm-final-payment.use-case.ts
+index f39cdbf..5c32734 100644
+--- a/src/modules/payments/use-cases/confirm-final-payment.use-case.ts
++++ b/src/modules/payments/use-cases/confirm-final-payment.use-case.ts
+@@ -1,4 +1,4 @@
+-import { SupabaseBookingRepository } from '../../../infrastructure/database/repositories/bookings/SupabaseBookingRepository ';
++import { SupabaseBookingRepository } from '../../../infrastructure/database/repositories/bookings/SupabaseBookingRepository';
+ import { DbPaymentRepository } from '../../../infrastructure/database/repositories/payment.repository';
+ import { BookingStatus } from '../../bookings/booking-status.enum';
+ import { PaymentMilestoneType } from '../payment-milestone.entity';
+diff --git a/src/modules/payments/use-cases/create-advance-payment-intent.use-case.ts b/src/modules/payments/use-cases/create-advance-payment-intent.use-case.ts
+index e3a83c3..b53dd0b 100644
+--- a/src/modules/payments/use-cases/create-advance-payment-intent.use-case.ts
++++ b/src/modules/payments/use-cases/create-advance-payment-intent.use-case.ts
+@@ -1,4 +1,4 @@
+-import { SupabaseBookingRepository } from '../../../infrastructure/database/repositories/bookings/SupabaseBookingRepository ';
++import { SupabaseBookingRepository } from '../../../infrastructure/database/repositories/bookings/SupabaseBookingRepository';
+ import { DbPaymentRepository } from '../../../infrastructure/database/repositories/payment.repository';
+ import type { PaymentIntentRepository } from '../repositories/payment-intent.repository.interface';
+ import { PaymentProvider } from '../providers/payment-provider.interface';
+diff --git a/src/modules/payments/use-cases/create-final-payment-intent.use-case.ts b/src/modules/payments/use-cases/create-final-payment-intent.use-case.ts
+index f259a50..805ad87 100644
+--- a/src/modules/payments/use-cases/create-final-payment-intent.use-case.ts
++++ b/src/modules/payments/use-cases/create-final-payment-intent.use-case.ts
+@@ -1,4 +1,4 @@
+-import { SupabaseBookingRepository } from '../../../infrastructure/database/repositories/bookings/SupabaseBookingRepository ';
++import { SupabaseBookingRepository } from '../../../infrastructure/database/repositories/bookings/SupabaseBookingRepository';
+ import { DbPaymentRepository } from '../../../infrastructure/database/repositories/payment.repository';
+ import type { PaymentIntentRepository } from '../repositories/payment-intent.repository.interface';
+ import { PaymentProvider } from '../providers/payment-provider.interface';
+diff --git a/src/modules/payments/use-cases/create-payment-schedule.use-case.ts b/src/modules/payments/use-cases/create-payment-schedule.use-case.ts
+index d6f4f67..27a290e 100644
+--- a/src/modules/payments/use-cases/create-payment-schedule.use-case.ts
++++ b/src/modules/payments/use-cases/create-payment-schedule.use-case.ts
+@@ -2,7 +2,7 @@
+ 
+ 
+ import { BookingStatus } from '../../bookings/booking-status.enum';
+-import { SupabaseBookingRepository } from '../../../infrastructure/database/repositories/bookings/SupabaseBookingRepository ';
++import { SupabaseBookingRepository } from '../../../infrastructure/database/repositories/bookings/SupabaseBookingRepository';
+ import { DbPaymentRepository } from '../../../infrastructure/database/repositories/payment.repository';
+ import { PaymentSchedule } from '../payment-schedule.entity';
+ import {
+diff --git a/src/modules/payments/use-cases/finalize-advance.use-case.ts b/src/modules/payments/use-cases/finalize-advance.use-case.ts
+index 2585bd2..5c42312 100644
+--- a/src/modules/payments/use-cases/finalize-advance.use-case.ts
++++ b/src/modules/payments/use-cases/finalize-advance.use-case.ts
+@@ -1,4 +1,4 @@
+-import { SupabaseBookingRepository } from '../../../infrastructure/database/repositories/bookings/SupabaseBookingRepository ';
++import { SupabaseBookingRepository } from '../../../infrastructure/database/repositories/bookings/SupabaseBookingRepository';
+ import { DbPaymentRepository } from '../../../infrastructure/database/repositories/payment.repository';
+ import { BookingStatus } from '../../bookings/booking-status.enum';
+ import { PaymentMilestoneType } from '../payment-milestone.entity';
+diff --git a/src/modules/payments/use-cases/pay-advance.use-case.ts b/src/modules/payments/use-cases/pay-advance.use-case.ts
+index d9f9e7a..2951be9 100644
+--- a/src/modules/payments/use-cases/pay-advance.use-case.ts
++++ b/src/modules/payments/use-cases/pay-advance.use-case.ts
+@@ -3,7 +3,7 @@
+ 
+ import { BookingStatus } from '../../bookings/booking-status.enum';
+ import { PaymentMilestoneType } from '../payment-milestone.entity';
+-import { SupabaseBookingRepository } from '../../../infrastructure/database/repositories/bookings/SupabaseBookingRepository ';
++import { SupabaseBookingRepository } from '../../../infrastructure/database/repositories/bookings/SupabaseBookingRepository';
+ import { DbPaymentRepository } from '../../../infrastructure/database/repositories/payment.repository';
+ 
+ export class PayAdvanceUseCase {
+diff --git a/src/modules/payments/use-cases/refund-advance.use-case.ts b/src/modules/payments/use-cases/refund-advance.use-case.ts
+index 7801f0b..a467096 100644
+--- a/src/modules/payments/use-cases/refund-advance.use-case.ts
++++ b/src/modules/payments/use-cases/refund-advance.use-case.ts
+@@ -1,4 +1,4 @@
+-import { SupabaseBookingRepository } from '../../../infrastructure/database/repositories/bookings/SupabaseBookingRepository ';
++import { SupabaseBookingRepository } from '../../../infrastructure/database/repositories/bookings/SupabaseBookingRepository';
+ import { DbPaymentRepository } from '../../../infrastructure/database/repositories/payment.repository';
+ import { PaymentProvider } from '../providers/payment-provider.interface';
+ import { BookingStatus } from '../../bookings/booking-status.enum';
+diff --git a/src/modules/promoter/promoter.module.ts b/src/modules/promoter/promoter.module.ts
+index cc8addd..4ba7a63 100644
+--- a/src/modules/promoter/promoter.module.ts
++++ b/src/modules/promoter/promoter.module.ts
+@@ -15,7 +15,7 @@ import { EventsModule } from '../events/events.module';
+ import { ArtistsModule } from '../artists/artists.module';
+ import { VenuesModule } from '../venues/venues.module';
+ import { BookingsModule } from '../bookings/bookings.module';
+-import { DbPromoterRepository } from '@/src/infrastructure/database/repositories/promoter/DbPromoterRepository ';
++import { DbPromoterRepository } from '@/src/infrastructure/database/repositories/promoter/DbPromoterRepository';
+ import { ManagersModule } from '../managers/managers.module';
+ import { UserContextModule } from '../auth/user-context/user-context.module';
+ 
+diff --git a/src/modules/venues/venues.module.ts b/src/modules/venues/venues.module.ts
+index b1767e1..d0cc91d 100644
+--- a/src/modules/venues/venues.module.ts
++++ b/src/modules/venues/venues.module.ts
+@@ -5,7 +5,7 @@ import { VenueDiscoverService } from './services/venue-discover.service'
+ import { ARTIST_REPOSITORY } from '../artists/repositories/artist-repository.token';
+ import { DbArtistRepository } from '../../infrastructure/database/repositories/artist/artist.repository';
+ import { BOOKING_REPOSITORY } from '../bookings/repositories/booking-repository.token';
+-import { SupabaseBookingRepository } from '../../infrastructure/database/repositories/bookings/SupabaseBookingRepository '; 
++import { SupabaseBookingRepository } from '../../infrastructure/database/repositories/bookings/SupabaseBookingRepository'; 
+ import { PAYMENT_MILESTONE_REPOSITORY } from '../payments/payment-milestone-repository.token';
+ import { DbPaymentMilestoneRepository } from '../../infrastructure/database/repositories/db-payment-milestone.repository';
+ import { ArtistsModule } from '../artists/artists.module';
+-- 
+2.39.5
+
