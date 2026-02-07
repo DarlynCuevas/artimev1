@@ -22,10 +22,18 @@ import { SignContractUseCase } from '../../contracts/use-cases/sign-contract.use
 import { AcceptBookingUseCase } from '../use-cases/confirm/confirm-booking.use-case';
 import { ConfirmPaymentMilestoneUseCase } from '../use-cases/confirm/confirm-payment-milestone.usecase';
 import { UserContextGuard } from '../../auth/user-context.guard';
-import { VenuesService } from '../../venues/services/venues.service';
 import { GetPaymentMilestonesForBookingQuery } from '../../payments/queries/get-payment-milestones-for-booking.query';
 import { ARTIST_MANAGER_REPRESENTATION_REPOSITORY } from '../../managers/repositories/artist-manager-representation.repository.token';
 import type { ArtistManagerRepresentationRepository } from '../../managers/repositories/artist-manager-representation.repository.interface';
+import { ArtistNotificationRepository } from '@/src/infrastructure/database/repositories/notifications/artist-notification.repository';
+import { PROMOTER_REPOSITORY } from '../../promoter/repositories/promoter-repository.token';
+import type { PromoterRepository } from '../../promoter/repositories/promoter.repository.interface';
+import { VENUE_REPOSITORY } from '../../venues/repositories/venue-repository.token';
+import type { VenueRepository } from '../../venues/repositories/venue.repository.interface';
+import { ARTIST_REPOSITORY } from '../../artists/repositories/artist-repository.token';
+import type { ArtistRepository } from '../../artists/repositories/artist.repository.interface';
+import { MANAGER_REPOSITORY } from '../../managers/repositories/manager-repository.token';
+import type { ManagerRepository } from '../../managers/repositories/manager.repository.interface';
 
 
 
@@ -48,6 +56,15 @@ export class BookingsController {
     private readonly getPaymentMilestonesForBookingQuery: GetPaymentMilestonesForBookingQuery,
     @Inject(ARTIST_MANAGER_REPRESENTATION_REPOSITORY)
     private readonly representationRepository: ArtistManagerRepresentationRepository,
+    private readonly notificationRepository: ArtistNotificationRepository,
+    @Inject(PROMOTER_REPOSITORY)
+    private readonly promoterRepository: PromoterRepository,
+    @Inject(VENUE_REPOSITORY)
+    private readonly venueRepository: VenueRepository,
+    @Inject(ARTIST_REPOSITORY)
+    private readonly artistRepository: ArtistRepository,
+    @Inject(MANAGER_REPOSITORY)
+    private readonly managerRepository: ManagerRepository,
   ) { }
 
   @UseGuards(JwtAuthGuard, UserContextGuard)
@@ -89,9 +106,17 @@ export class BookingsController {
       throw new ForbiddenException('You are not allowed to view this booking');
     }
 
-    // Obtener cantidad de mensajes de negociación
     const messages = await this.getNegotiationMessagesQuery.execute(id);
     const lastMessage = messages.length > 0 ? messages[messages.length - 1] : null;
+    const firstArtistSideMessage = messages.find(
+      (m) => m.senderRole === NegotiationSenderRole.ARTIST || m.senderRole === NegotiationSenderRole.MANAGER,
+    ) ?? null;
+
+    const artistSideOwnerUserId = firstArtistSideMessage?.senderUserId ?? booking.actorUserId ?? null;
+    const artistSideOwnerRole = firstArtistSideMessage?.senderRole ?? null;
+    const artistSideOwnedByMe = artistSideOwnerUserId
+      ? artistSideOwnerUserId === req.userContext.userId
+      : false;
     const milestones = await this.getPaymentMilestonesForBookingQuery.execute({
       bookingId: booking.id,
     });
@@ -123,6 +148,10 @@ export class BookingsController {
       handledAt: booking.handledAt ? booking.handledAt.toISOString() : null,
       createdAt: booking.createdAt.toISOString(),
       updatedAt: (booking as any).updatedAt ? (booking as any).updatedAt.toISOString() : null,
+      actorUserId: booking.actorUserId ?? null,
+      artistSideOwnerUserId,
+      artistSideOwnerRole,
+      artistSideOwnedByMe,
       messagesCount: messages.length,
       lastMessage: lastMessage
         ? {
@@ -133,14 +162,13 @@ export class BookingsController {
     };
   }
 
-  @UseGuards(JwtAuthGuard,UserContextGuard)
+  @UseGuards(JwtAuthGuard, UserContextGuard)
   @Get()
   async getMyBookings(
     @Req() req: AuthenticatedRequest,
-  ): Promise<BookingResponseDto[]> {    
+  ): Promise<BookingResponseDto[]> {
     const bookings = await this.bookingService.getForUser(req.userContext);
 
-    // Para mínimo viable, devolvemos messagesCount: 0 (sin consulta extra)
     const rows = await Promise.all(
       bookings.map(async (booking) => {
         const milestones = await this.getPaymentMilestonesForBookingQuery.execute({
@@ -155,27 +183,31 @@ export class BookingsController {
             : null;
 
         return {
-      id: booking.id,
-      artistId: booking.artistId,
-      artistName: (booking as any).artistName ?? null,
-      artistCity: (booking as any).artistCity ?? null,
-      venueId: booking.venueId ?? '',
-      venueName: (booking as any).venueName ?? null,
-      venueCity: (booking as any).venueCity ?? null,
-      managerId: booking.managerId ?? null,
-      promoterId: booking.promoterId ?? null,
-      eventId: booking.eventId ?? null,
-      eventName: (booking as any).eventName ?? null,
-      status: booking.status,
+          id: booking.id,
+          artistId: booking.artistId,
+          artistName: (booking as any).artistName ?? null,
+          artistCity: (booking as any).artistCity ?? null,
+          venueId: booking.venueId ?? '',
+          venueName: (booking as any).venueName ?? null,
+          venueCity: (booking as any).venueCity ?? null,
+          managerId: booking.managerId ?? null,
+          promoterId: booking.promoterId ?? null,
+          eventId: booking.eventId ?? null,
+          eventName: (booking as any).eventName ?? null,
+          status: booking.status,
           currency: booking.currency,
           totalAmount: booking.totalAmount,
           paidPercent,
           start_date: booking.start_date,
-      handledAt: booking.handledAt ? booking.handledAt.toISOString() : null,
-      createdAt: booking.createdAt.toISOString(),
-      updatedAt: (booking as any).updatedAt ? (booking as any).updatedAt.toISOString() : null,
-      messagesCount: 0,
-      lastMessage: null,
+          handledAt: booking.handledAt ? booking.handledAt.toISOString() : null,
+          createdAt: booking.createdAt.toISOString(),
+          updatedAt: (booking as any).updatedAt ? (booking as any).updatedAt.toISOString() : null,
+          actorUserId: booking.actorUserId ?? null,
+          artistSideOwnerUserId: null,
+          artistSideOwnerRole: null,
+          artistSideOwnedByMe: false,
+          messagesCount: 0,
+          lastMessage: null,
         };
       }),
     );
@@ -239,6 +271,10 @@ async create(
     currency: booking.currency,
     totalAmount: booking.totalAmount,
     start_date: booking.start_date,
+      actorUserId: booking.actorUserId ?? null,
+      artistSideOwnerUserId: null,
+      artistSideOwnerRole: null,
+      artistSideOwnedByMe: false,
     messagesCount: 0,
     lastMessage: null,
   };
@@ -254,7 +290,7 @@ async create(
     @Body() body: CancelBookingDto,
     @Req() req: AuthenticatedRequest,
   ) {
-    const { venueId, artistId, managerId } = req.userContext;
+    const { venueId, artistId, managerId, promoterId } = req.userContext;
 
     const booking = await this.bookingRepository.findById(bookingId);
     if (!booking) throw new NotFoundException('Booking not found');
@@ -272,16 +308,42 @@ async create(
       initiator = CancellationInitiator.MANAGER;
     } else if (venueId) {
       initiator = CancellationInitiator.VENUE;
+    } else if (promoterId) {
+      initiator = CancellationInitiator.PROMOTER;
     } else {
       initiator = CancellationInitiator.SYSTEM;
     }
 
-    return this.cancelBookingUseCase.execute({
+    const result = await this.cancelBookingUseCase.execute({
       bookingId,
       initiator,
       reason: body.reason,
       description: body.description,
     });
+
+    let senderRole: NegotiationSenderRole | null = null;
+    switch (initiator) {
+      case CancellationInitiator.ARTIST:
+        senderRole = NegotiationSenderRole.ARTIST;
+        break;
+      case CancellationInitiator.MANAGER:
+        senderRole = NegotiationSenderRole.MANAGER;
+        break;
+      case CancellationInitiator.VENUE:
+        senderRole = NegotiationSenderRole.VENUE;
+        break;
+      case CancellationInitiator.PROMOTER:
+        senderRole = NegotiationSenderRole.PROMOTER;
+        break;
+      default:
+        senderRole = null;
+    }
+
+    if (senderRole) {
+      await this.notifyCounterparty({ booking, senderRole, action: 'BOOKING_CANCELLED' });
+    }
+
+    return result;
   }
 
   // NEGOTIATIONS
@@ -325,6 +387,8 @@ async create(
       proposedFee: body.proposedFee,
     });
 
+    await this.notifyCounterparty({ booking, senderRole, action: 'NEGOTIATION_MESSAGE' });
+
     return { ok: true };
   }
 
@@ -352,10 +416,37 @@ async create(
     @Param('id') bookingId: string,
     @Req() req: AuthenticatedRequest,
   ) {
+    const { userId, venueId, artistId, managerId, promoterId } = req.userContext;
+
+    const booking = await this.bookingRepository.findById(bookingId);
+    if (!booking) throw new NotFoundException('Booking not found');
+
+    let senderRole: NegotiationSenderRole;
+
+    if (venueId && booking.venueId === venueId) {
+      senderRole = NegotiationSenderRole.VENUE;
+    } else if (promoterId && booking.promoterId === promoterId) {
+      senderRole = NegotiationSenderRole.PROMOTER;
+    } else if (artistId && booking.artistId === artistId) {
+      senderRole = NegotiationSenderRole.ARTIST;
+    } else if (managerId) {
+      const represents = await this.representationRepository.existsActiveRepresentation({
+        artistId: booking.artistId,
+        managerId,
+      });
+      if (!represents) throw new ForbiddenException();
+      senderRole = NegotiationSenderRole.MANAGER;
+    } else {
+      throw new ForbiddenException();
+    }
+
     await this.rejectBookingUseCase.execute({
       bookingId,
-      senderUserId: req.user.sub,
+      senderUserId: userId,
+      senderRole,
     });
+
+    await this.notifyCounterparty({ booking, senderRole, action: 'BOOKING_REJECTED' });
   }
 
   @UseGuards(JwtAuthGuard, UserContextGuard)
@@ -401,6 +492,8 @@ async create(
       message: body.message,
     });
 
+    await this.notifyCounterparty({ booking, senderRole, action: 'FINAL_OFFER_SENT' });
+
     return { ok: true };
   }
 
@@ -441,6 +534,8 @@ async create(
       senderManagerId: managerId,
     });
 
+    await this.notifyCounterparty({ booking, senderRole, action: 'FINAL_OFFER_ACCEPTED' });
+
     return { success: true };
   }
 
@@ -480,6 +575,8 @@ async create(
       senderUserId: userId,
       senderManagerId: managerId,
     });
+
+    await this.notifyCounterparty({ booking, senderRole, action: 'FINAL_OFFER_REJECTED' });
 
     return { success: true };
   }
@@ -569,6 +666,8 @@ async create(
       senderRole,
     });
 
+    await this.notifyCounterparty({ booking, senderRole, action: 'BOOKING_ACCEPTED' });
+
     return { success: true };
   }
 
@@ -603,6 +702,154 @@ async create(
     });
 
     return { success: true };
+  }
+
+  private async notifyCounterparty(params: { booking: any; senderRole: NegotiationSenderRole; action: string }) {
+    const { booking, senderRole, action } = params;
+    if (!booking) return;
+
+    const message = this.buildNotificationMessage({ action, senderRole, booking });
+
+    const payload = {
+      bookingId: booking.id,
+      action,
+      fromRole: senderRole,
+      eventId: booking.eventId ?? null,
+      eventName: (booking as any).eventName ?? null,
+      venueName: (booking as any).venueName ?? null,
+      message,
+    };
+
+    const isArtistSide =
+      senderRole === NegotiationSenderRole.ARTIST || senderRole === NegotiationSenderRole.MANAGER;
+
+    if (isArtistSide) {
+      const targetUser = await this.resolveOrganizerUser(booking);
+      if (targetUser) {
+        await this.notificationRepository.createManyByUser([
+          {
+            userId: targetUser.userId,
+            role: targetUser.role,
+            type: 'BOOKING_EVENT',
+            payload,
+          },
+        ]);
+      }
+      return;
+    }
+
+    const artistRecipients = await this.resolveArtistRecipients(booking, payload);
+    if (artistRecipients.artistEntry) {
+      await this.notificationRepository.createMany([artistRecipients.artistEntry]);
+    }
+
+    if (artistRecipients.managerEntry) {
+      await this.notificationRepository.createManyByUser([artistRecipients.managerEntry]);
+    }
+  }
+
+  private async resolveOrganizerUser(booking: any): Promise<{ userId: string; role: string } | null> {
+    if (booking.promoterId) {
+      const promoter = await this.promoterRepository.findById(booking.promoterId);
+      if (promoter?.user_id) {
+        return { userId: promoter.user_id, role: 'PROMOTER' };
+      }
+    }
+
+    if (booking.venueId) {
+      const venue = await this.venueRepository.findById(booking.venueId);
+      if (venue?.userId) {
+        return { userId: venue.userId, role: 'VENUE' };
+      }
+    }
+
+    if (booking.handledByUserId && booking.handledByRole) {
+      return { userId: booking.handledByUserId, role: booking.handledByRole };
+    }
+
+    return null;
+  }
+
+  private async resolveArtistRecipients(booking: any, payload: Record<string, any>): Promise<{
+    artistEntry: { artistId: string; userId?: string; role?: string; type: string; payload: Record<string, any> } | null;
+    managerEntry: { userId: string; role: string; type: string; payload: Record<string, any> } | null;
+  }> {
+    let artistEntry: { artistId: string; userId?: string; role?: string; type: string; payload: Record<string, any> } | null = null;
+    let managerEntry: { userId: string; role: string; type: string; payload: Record<string, any> } | null = null;
+
+    if (booking.artistId) {
+      const artist = await this.artistRepository.findById(booking.artistId);
+      artistEntry = {
+        artistId: booking.artistId,
+        userId: (artist as any)?.user_id ?? (artist as any)?.userId ?? undefined,
+        role: 'ARTIST',
+        type: 'BOOKING_EVENT',
+        payload,
+      } as any;
+    }
+
+    if (booking.managerId) {
+      const manager = await this.managerRepository.findById(booking.managerId);
+      if (manager?.userId) {
+        managerEntry = {
+          userId: manager.userId,
+          role: 'MANAGER',
+          type: 'BOOKING_EVENT',
+          payload,
+        };
+      }
+    }
+
+    return { artistEntry, managerEntry };
+  }
+
+  private buildNotificationMessage(params: { action: string; senderRole: NegotiationSenderRole; booking: any }) {
+    const { action, senderRole, booking } = params;
+    const artistName = (booking as any).artistName ?? 'El artista';
+
+    const isArtistSide = senderRole === NegotiationSenderRole.ARTIST || senderRole === NegotiationSenderRole.MANAGER;
+
+    const organizerLabel = senderRole === NegotiationSenderRole.VENUE
+      ? 'El venue'
+      : senderRole === NegotiationSenderRole.PROMOTER
+        ? 'El promotor'
+        : 'El organizador';
+
+    if (isArtistSide) {
+      switch (action) {
+        case 'BOOKING_CANCELLED':
+          return `${artistName} ha cancelado la contratación`;
+        case 'BOOKING_ACCEPTED':
+          return `${artistName} ha aceptado la contratación`;
+        case 'NEGOTIATION_MESSAGE':
+          return `${artistName} ha enviado una contraoferta`;
+        case 'FINAL_OFFER_SENT':
+          return `${artistName} ha enviado una oferta final`;
+        case 'FINAL_OFFER_ACCEPTED':
+          return `${artistName} ha aceptado la oferta final`;
+        case 'FINAL_OFFER_REJECTED':
+          return `${artistName} ha rechazado la oferta final`;
+        default:
+          return `${artistName} ha actualizado la contratación`;
+      }
+    }
+
+    switch (action) {
+      case 'BOOKING_CANCELLED':
+        return `${organizerLabel} ha cancelado la contratación`;
+      case 'BOOKING_ACCEPTED':
+        return `${organizerLabel} ha aceptado la contratación`;
+      case 'NEGOTIATION_MESSAGE':
+        return `${organizerLabel} ha enviado una contraoferta`;
+      case 'FINAL_OFFER_SENT':
+        return `${organizerLabel} ha enviado una oferta final`;
+      case 'FINAL_OFFER_ACCEPTED':
+        return `${organizerLabel} ha aceptado la oferta final`;
+      case 'FINAL_OFFER_REJECTED':
+        return `${organizerLabel} ha rechazado la oferta final`;
+      default:
+        return `${organizerLabel} ha actualizado la contratación`;
+    }
   }
 
 }

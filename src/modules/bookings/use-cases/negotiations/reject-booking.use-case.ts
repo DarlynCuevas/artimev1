@@ -4,6 +4,7 @@ import { NegotiationMessageRepository } from '@/src/infrastructure/database/repo
 import { BOOKING_REPOSITORY } from '../../repositories/booking-repository.token';
 import type { BookingRepository } from '../../repositories/booking.repository.interface';
 import { BookingStatus } from '../../booking-status.enum';
+import { NegotiationSenderRole } from '../../negotiations/negotiation-message.entity';
 
 @Injectable()
 export class RejectBookingUseCase {
@@ -16,10 +17,25 @@ export class RejectBookingUseCase {
   async execute(input: {
     bookingId: string;
     senderUserId: string;
+    senderRole: NegotiationSenderRole;
   }): Promise<void> {
-    const booking = await this.bookingRepository.findById(input.bookingId);
+    let booking = await this.bookingRepository.findById(input.bookingId);
     if (!booking) {
       throw new ForbiddenException('Booking not found');
+    }
+
+    const isArtistSide =
+      input.senderRole === NegotiationSenderRole.ARTIST ||
+      input.senderRole === NegotiationSenderRole.MANAGER;
+
+    if (isArtistSide) {
+      if (!booking.actorUserId) {
+        booking = booking.setActor(input.senderUserId);
+      } else if (booking.actorUserId !== input.senderUserId) {
+        throw new ForbiddenException(
+          'Otro representante del artista está gestionando esta negociación',
+        );
+      }
     }
 
     if (

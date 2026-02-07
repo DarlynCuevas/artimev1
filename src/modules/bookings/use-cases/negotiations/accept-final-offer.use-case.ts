@@ -6,9 +6,8 @@ import {
 import { BOOKING_REPOSITORY } from '../../repositories/booking-repository.token';
 import type { BookingRepository } from '../../repositories/booking.repository.interface';
 import { BookingStatus } from '../../booking-status.enum';
-import { NegotiationMessage, NegotiationSenderRole } from '../../negotiations/negotiation-message.entity';
+import { NegotiationSenderRole } from '../../negotiations/negotiation-message.entity';
 import { NegotiationMessageRepository } from '@/src/infrastructure/database/repositories/negotiation-message.repository';
-import { mapSenderToHandlerRole } from '../../domain/booking-handler.mapper';
 import { ARTIST_MANAGER_REPRESENTATION_REPOSITORY } from '../../../managers/repositories/artist-manager-representation.repository.token';
 import type { ArtistManagerRepresentationRepository } from '../../../managers/repositories/artist-manager-representation.repository.interface';
 import { GenerateContractUseCase } from '@/src/modules/contracts/use-cases/generate-contract.use-case';
@@ -77,19 +76,17 @@ export class AcceptFinalOfferUseCase {
       );
     }
 
-    // Validar handler
-    const handlerRole = mapSenderToHandlerRole(input.senderRole);
+    const isArtistSide =
+      input.senderRole === 'ARTIST' || input.senderRole === 'MANAGER';
 
-    if (!booking.handledByRole) {
-      booking = booking.assignHandler({
-        role: handlerRole,
-        userId: input.senderUserId,
-        at: new Date(),
-      });
-    } else if (booking.handledByRole !== handlerRole) {
-      throw new ForbiddenException(
-        'Este booking está siendo gestionado por la otra parte',
-      );
+    if (isArtistSide) {
+      if (!booking.actorUserId) {
+        booking = booking.setActor(input.senderUserId);
+      } else if (booking.actorUserId !== input.senderUserId) {
+        throw new ForbiddenException(
+          'Otro representante del artista está gestionando esta negociación',
+        );
+      }
     }
 
     // ACEPTACIÓN REAL

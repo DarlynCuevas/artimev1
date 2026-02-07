@@ -3,7 +3,6 @@ import { BOOKING_REPOSITORY } from "../../repositories/booking-repository.token"
 import type { BookingRepository } from "../../repositories/booking.repository.interface";
 import { GenerateContractUseCase } from "@/src/modules/contracts/use-cases/generate-contract.use-case";
 import { BookingStatus } from "../../booking-status.enum";
-import { mapSenderToHandlerRole } from "../../domain/booking-handler.mapper";
 import { NegotiationSenderRole } from "../../negotiations/negotiation-message.entity";
 import type { ArtistManagerRepresentationRepository } from "@/src/modules/managers/repositories/artist-manager-representation.repository.interface";
 import { ARTIST_MANAGER_REPRESENTATION_REPOSITORY } from "@/src/modules/managers/repositories/artist-manager-representation.repository.token";
@@ -32,7 +31,8 @@ export class AcceptBookingUseCase {
     // Validar estado: se puede aceptar sin negociación previa
     if (
       booking.status !== BookingStatus.PENDING &&
-      booking.status !== BookingStatus.FINAL_OFFER_SENT
+      booking.status !== BookingStatus.FINAL_OFFER_SENT &&
+      booking.status !== BookingStatus.NEGOTIATING
     ) {
       throw new ForbiddenException(
         'La contratación no puede aceptarse en el estado actual',
@@ -54,19 +54,12 @@ export class AcceptBookingUseCase {
       }
     }
 
-    // Validar handler
-    const handlerRole = mapSenderToHandlerRole(input.senderRole);
+    // Bloqueo por actor para lado artista/manager: solo quien fijó actor_user_id puede aceptar
+    const isArtistSide =
+      input.senderRole === 'ARTIST' || input.senderRole === 'MANAGER';
 
-    if (!booking.handledByRole) {
-      booking = booking.assignHandler({
-        role: handlerRole,
-        userId: input.senderUserId,
-        at: new Date(),
-      });
-    } else if (booking.handledByRole !== handlerRole) {
-      throw new ForbiddenException(
-        'Este booking está siendo gestionado por la otra parte',
-      );
+    if (isArtistSide && !booking.actorUserId) {
+      booking = booking.setActor(input.senderUserId);
     }
 
     // Cierre contractual

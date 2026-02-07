@@ -80,6 +80,7 @@ export class SupabaseBookingRepository {
 
       handledByRole: data.handled_by_role ?? null,
       handledByUserId: data.handled_by_user_id ?? null,
+      actorUserId: (data as any).actor_user_id ?? null,
       handledAt: data.handled_at ? new Date(data.handled_at) : null,
       updatedAt: data.updated_at ? new Date(data.updated_at) : null,
       venueName,
@@ -111,6 +112,7 @@ export class SupabaseBookingRepository {
 
       handled_by_role: booking.handledByRole,
       handled_by_user_id: booking.handledByUserId,
+      actor_user_id: booking.actorUserId ?? booking.handledByUserId ?? null,
       handled_at: booking.handledAt,
 
       created_at: booking.createdAt,
@@ -127,7 +129,15 @@ export class SupabaseBookingRepository {
   }
 
   async update(booking: Booking): Promise<void> {
-    await supabase
+    console.log('[SupabaseBookingRepository] updating', {
+      id: booking.id,
+      handledByRole: booking.handledByRole,
+      handledByUserId: booking.handledByUserId,
+      actorUserId: booking.actorUserId ?? booking.handledByUserId,
+      handledAt: booking.handledAt,
+      status: booking.status,
+    });
+    const { error } = await supabase
       .from('bookings')
       .update({
         status: booking.status,
@@ -136,11 +146,16 @@ export class SupabaseBookingRepository {
 
         handled_by_role: booking.handledByRole,
         handled_by_user_id: booking.handledByUserId,
+        actor_user_id: booking.actorUserId ?? booking.handledByUserId ?? null,
         handled_at: booking.handledAt,
 
         updated_at: new Date(),
       })
       .eq('id', booking.id);
+
+    if (error) {
+      throw new Error(`Error updating booking ${booking.id}: ${error.message}`);
+    }
   }
 
   async findByArtistId(artistId: string): Promise<Booking[]> {
@@ -201,6 +216,7 @@ export class SupabaseBookingRepository {
         totalAmount: row.total_amount,
         handledByRole: row.handled_by_role ?? null,
         handledByUserId: row.handled_by_user_id ?? null,
+        actorUserId: (row as any).actor_user_id ?? null,
         handledAt: row.handled_at ? new Date(row.handled_at) : null,
         updatedAt: row.updated_at ? new Date(row.updated_at) : null,
         venueName: venueInfo?.name ?? null,
@@ -345,7 +361,9 @@ export class SupabaseBookingRepository {
 
         handledByRole: row.handled_by_role ?? null,
         handledByUserId: row.handled_by_user_id ?? null,
+        actorUserId: (row as any).actor_user_id ?? null,
         handledAt: row.handled_at ? new Date(row.handled_at) : null,
+        updatedAt: row.updated_at ? new Date(row.updated_at) : null,
         venueName: venueInfo?.name ?? null,
         venueCity: venueInfo?.city ?? null,
         eventName: eventName ?? null,
@@ -398,7 +416,9 @@ export class SupabaseBookingRepository {
 
         handledByRole: row.handled_by_role ?? null,
         handledByUserId: row.handled_by_user_id ?? null,
+        actorUserId: (row as any).actor_user_id ?? null,
         handledAt: row.handled_at ? new Date(row.handled_at) : null,
+        updatedAt: row.updated_at ? new Date(row.updated_at) : null,
 
         artistStripeAccountId: row.artist_stripe_account_id ?? null,
         managerStripeAccountId: row.manager_stripe_account_id ?? null,
@@ -468,7 +488,9 @@ export class SupabaseBookingRepository {
 
         handledByRole: row.handled_by_role ?? null,
         handledByUserId: row.handled_by_user_id ?? null,
+        actorUserId: (row as any).actor_user_id ?? null,
         handledAt: row.handled_at ? new Date(row.handled_at) : null,
+        updatedAt: row.updated_at ? new Date(row.updated_at) : null,
 
         artistStripeAccountId: row.artist_stripe_account_id ?? null,
         managerStripeAccountId: row.manager_stripe_account_id ?? null,

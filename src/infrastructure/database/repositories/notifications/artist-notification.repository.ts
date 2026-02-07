@@ -19,12 +19,13 @@ export type NotificationStatus = 'UNREAD' | 'READ';
 export class ArtistNotificationRepository {
   constructor(@Inject(SUPABASE_CLIENT) private readonly supabase: SupabaseClient) {}
 
-  async createMany(params: Array<{ artistId: string; type: string; payload: Record<string, any> }>) {
+  async createMany(params: Array<{ artistId: string; userId?: string; role?: string; type: string; payload: Record<string, any> }>) {
     if (!params.length) return [] as ArtistNotification[];
 
     const rows = params.map((item) => ({
       artist_id: item.artistId,
-      role: 'ARTIST',
+      user_id: item.userId ?? null,
+      role: item.role ?? 'ARTIST',
       type: item.type,
       payload: item.payload,
       status: 'UNREAD',
@@ -97,8 +98,8 @@ export class ArtistNotificationRepository {
     return data as ArtistNotification;
   }
 
-  async findByUser(params: { userId: string; role?: string; limit?: number }) {
-    const { userId, role, limit = 50 } = params;
+  async findByUser(params: { userId: string; role?: string; limit?: number; status?: NotificationStatus }) {
+    const { userId, role, limit = 50, status } = params;
 
     let query = this.supabase
       .from('artist_notifications')
@@ -106,6 +107,10 @@ export class ArtistNotificationRepository {
       .eq('user_id', userId)
       .order('created_at', { ascending: false })
       .limit(limit);
+
+    if (status) {
+      query = query.eq('status', status);
+    }
 
     if (role) {
       query = query.eq('role', role);

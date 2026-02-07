@@ -15,6 +15,8 @@ export class GetEventBookingsQuery {
       .select(`
         id,
         status,
+        total_amount,
+        currency,
         start_date,
         artist:artists (
           id,

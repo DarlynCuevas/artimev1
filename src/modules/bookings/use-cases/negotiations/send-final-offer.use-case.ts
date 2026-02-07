@@ -9,7 +9,6 @@ import {
 import { NegotiationMessageRepository } from '@/src/infrastructure/database/repositories/negotiation-message.repository';
 import { ARTIST_MANAGER_REPRESENTATION_REPOSITORY } from '../../../managers/repositories/artist-manager-representation.repository.token';
 import type { ArtistManagerRepresentationRepository } from '../../../managers/repositories/artist-manager-representation.repository.interface';
-import { mapSenderToHandlerRole } from '../../domain/booking-handler.mapper';
 
 @Injectable()
 export class SendFinalOfferUseCase {
@@ -38,6 +37,8 @@ export class SendFinalOfferUseCase {
 
     const isArtistSide =
       input.senderRole === 'ARTIST' || input.senderRole === 'MANAGER';
+
+    let shouldPersistBooking = false;
 
     // Venue / Promoter solo durante negociación
     if (
@@ -70,19 +71,13 @@ export class SendFinalOfferUseCase {
       throw new ForbiddenException('Ya existe una oferta final');
     }
 
-    // Handler solo para lado artista
     if (isArtistSide) {
-      const handlerRole = mapSenderToHandlerRole(input.senderRole);
-
-      if (!booking.handledByRole) {
-        booking = booking.assignHandler({
-          role: handlerRole,
-          userId: input.senderUserId,
-          at: new Date(),
-        });
-      } else if (booking.handledByRole !== handlerRole) {
+      if (!booking.actorUserId) {
+        booking = booking.setActor(input.senderUserId);
+        shouldPersistBooking = true;
+      } else if (booking.actorUserId !== input.senderUserId) {
         throw new ForbiddenException(
-          'Este booking está siendo gestionado por la otra parte',
+          'Otro representante del artista está gestionando esta negociación',
         );
       }
     }
@@ -101,6 +96,10 @@ export class SendFinalOfferUseCase {
     await this.negotiationMessageRepository.save(finalOffer);
 
     booking.changeStatus(BookingStatus.FINAL_OFFER_SENT);
-    await this.bookingRepository.update(booking);
+    shouldPersistBooking = true;
+
+    if (shouldPersistBooking) {
+      await this.bookingRepository.update(booking);
+    }
   }
 }

@@ -12,7 +12,6 @@ import {
   NegotiationSenderRole,
 } from '../../negotiations/negotiation-message.entity';
 import { NegotiationMessageRepository } from '../../../../infrastructure/database/repositories/negotiation-message.repository';
-import { mapSenderToHandlerRole } from '../../domain/booking-handler.mapper';
 
 @Injectable()
 export class SendNegotiationMessageUseCase {
@@ -31,7 +30,7 @@ export class SendNegotiationMessageUseCase {
     proposedFee?: number;
     isFinalOffer?: boolean;
   }): Promise<void> {
-    const booking = await this.bookingRepository.findById(input.bookingId);
+    let booking = await this.bookingRepository.findById(input.bookingId);
     if (!booking) {
       throw new Error('Booking not found');
     }
@@ -97,34 +96,33 @@ export class SendNegotiationMessageUseCase {
       );
     }
 
+    let shouldPersistBooking = false;
+
     /**
-     * 🎤 SOLO ARTISTA / MANAGER gestionan el booking
+     * 🎤 El primer actor ARTISTA/MANAGER toma posesión de actor_user_id.
+     * A partir de ahí, solo ese usuario puede seguir negociando en su lado.
      */
     if (isArtistSide) {
-      const handlerRole = mapSenderToHandlerRole(input.senderRole);
-
-      if (!booking.handledByRole) {
-        const updatedBooking = booking.assignHandler({
-          role: handlerRole,
-          userId: input.senderUserId,
-        });
-        await this.bookingRepository.update(updatedBooking);
-      } else if (
-        booking.handledByRole !== handlerRole ||
-        booking.handledByUserId !== input.senderUserId
-      ) {
+      if (!booking.actorUserId) {
+        booking = booking.setActor(input.senderUserId);
+        shouldPersistBooking = true;
+      } else if (booking.actorUserId !== input.senderUserId) {
         throw new ForbiddenException(
-          'Este booking está siendo gestionado por la otra parte',
+          'Otro representante del artista está gestionando esta negociación',
         );
       }
+    }
 
-      /**
-       * ⏩ ARTISTA responde → pasa a NEGOTIATING
-       */
-      if (booking.status === BookingStatus.PENDING) {
-        booking.changeStatus(BookingStatus.NEGOTIATING);
-        await this.bookingRepository.update(booking);
-      }
+    /**
+     * ⏩ ARTISTA responde → pasa a NEGOTIATING
+     */
+    if (isArtistSide && booking.status === BookingStatus.PENDING) {
+      booking.changeStatus(BookingStatus.NEGOTIATING);
+      shouldPersistBooking = true;
+    }
+
+    if (shouldPersistBooking) {
+      await this.bookingRepository.update(booking);
     }
 
     /**

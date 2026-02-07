@@ -69,8 +69,9 @@ export class OnboardingService {
     city: string;
     capacity?: number | null;
     address?: string | null;
+    description?: string | null;
   }) {
-    const { userId, name, city, capacity, address } = params;
+    const { userId, name, city, capacity, address, description } = params;
     if (!name || !city) {
       throw new BadRequestException('MISSING_FIELDS');
     }
@@ -89,6 +90,7 @@ export class OnboardingService {
           city,
           capacity: capacity ?? null,
           address: address ?? null,
+          description: description ?? '',
           updated_at: new Date(),
         })
         .eq('id', existing.id);
@@ -105,6 +107,7 @@ export class OnboardingService {
         city,
         capacity: capacity ?? null,
         address: address ?? null,
+        description: description ?? '',
       })
       .select('id')
       .single();

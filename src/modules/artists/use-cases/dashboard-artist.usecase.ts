@@ -69,15 +69,61 @@ export class GetArtistDashboardUseCase {
 
     const forecastIncome = confirmedIncome + expectedIncome;
 
+    const actionableStatuses = ['PENDING', 'NEGOTIATING', 'FINAL_OFFER_SENT'];
+
+    const actionableRows = rows.filter((row) => actionableStatuses.includes(row.booking.status));
+
+    const pendingActions = actionableRows
+      .map((row) => {
+        const booking = row.booking;
+        const startDate = booking.start_date ? new Date(booking.start_date) : null;
+        const message =
+          booking.status === 'FINAL_OFFER_SENT'
+            ? 'Oferta final pendiente de decisión'
+            : booking.status === 'NEGOTIATING'
+              ? 'Responde a la última propuesta enviada'
+              : 'Confirma disponibilidad y responde la solicitud';
+
+        const isSoon = startDate
+          ? (startDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24) <= 14
+          : false;
+
+        const priority: 'high' | 'medium' | 'low' =
+          booking.status === 'FINAL_OFFER_SENT' || isSoon
+            ? 'high'
+            : booking.status === 'NEGOTIATING'
+              ? 'medium'
+              : 'low';
+
+        return {
+          bookingId: booking.id,
+          venueName: row.venueName,
+          status: booking.status,
+          startDate: startDate ? startDate.toISOString() : null,
+          message,
+          priority,
+        };
+      })
+      .sort((a, b) => {
+        const weight = { high: 0, medium: 1, low: 2 } as const;
+        if (weight[a.priority] !== weight[b.priority]) {
+          return weight[a.priority] - weight[b.priority];
+        }
+        const dateA = a.startDate ? new Date(a.startDate).getTime() : Number.POSITIVE_INFINITY;
+        const dateB = b.startDate ? new Date(b.startDate).getTime() : Number.POSITIVE_INFINITY;
+        return dateA - dateB;
+      })
+      .slice(0, 3);
+
+    const pendingActionsCount = actionableRows.length;
+
     return {
       metrics: {
         activeBookingsCount: bookings.length,
         upcomingBookingsCount: bookings.length,
         expectedIncome,
         confirmedIncome,
-        pendingActionsCount: bookings.filter((b) =>
-          ['PENDING', 'NEGOTIATING', 'FINAL_OFFER_SENT'].includes(b.status),
-        ).length,
+        pendingActionsCount,
         forecastIncome,
         occupancyRate,
         reservedDaysCount: reservedDays.size,
@@ -93,6 +139,7 @@ export class GetArtistDashboardUseCase {
         totalAmount: r.booking.totalAmount ?? 0,
         currency: r.booking.currency ?? 'EUR',
       })),
+      pendingActions,
     };
   }
 }

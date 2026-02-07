@@ -26,6 +26,7 @@ interface BookingProps {
   artistStripeAccountId?: string | null;
   managerStripeAccountId?: string | null;
   artimeCommissionPercentage?: number;
+  actorUserId?: string | null;
   start_date: string;
   message?: string;
   handledByRole: BookingHandlerRole | null;
@@ -130,6 +131,10 @@ export class Booking {
     return this.props.handledAt;
   }
 
+  get actorUserId(): string | null | undefined {
+    return this.props.actorUserId ?? null;
+  }
+
   get updatedAt(): Date | null | undefined {
     return this.props.updatedAt;
   }
@@ -178,6 +183,13 @@ export class Booking {
     });
   }
 
+  setActor(userId: string): Booking {
+    return new Booking({
+      ...this.toPrimitives(),
+      actorUserId: userId,
+    });
+  }
+
   toPrimitives(): BookingProps {
     return {
       id: this.id,
@@ -196,6 +208,7 @@ export class Booking {
       start_date: this.start_date,
       artistStripeAccountId: this.artistStripeAccountId,
       managerStripeAccountId: this.managerStripeAccountId,
+      actorUserId: this.actorUserId ?? null,
       artimeCommissionPercentage: this.artimeCommissionPercentage,
       managerCommissionPercentage: this.managerCommissionPercentage,
       managerId: this.managerId,

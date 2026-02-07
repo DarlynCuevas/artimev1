@@ -18,6 +18,10 @@ export class BookingResponseDto {
   handledAt?: string | null;
   createdAt?: string;
   updatedAt?: string | null;
+  actorUserId?: string | null;
+  artistSideOwnerUserId?: string | null;
+  artistSideOwnerRole?: string | null;
+  artistSideOwnedByMe?: boolean;
   messagesCount: number;
   lastMessage: {
     senderRole: string;

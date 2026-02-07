@@ -6,7 +6,6 @@ import {
   NegotiationSenderRole,
 } from '../../negotiations/negotiation-message.entity';
 import { NegotiationMessageRepository } from '@/src/infrastructure/database/repositories/negotiation-message.repository';
-import { mapSenderToHandlerRole } from '../../domain/booking-handler.mapper';
 
 @Injectable()
 export class RejectFinalOfferUseCase {
@@ -54,13 +53,17 @@ export class RejectFinalOfferUseCase {
       );
     }
 
-    // Asignar handler si aún no existe
-    if (!booking.handledByRole) {
-      booking = booking.assignHandler({
-        role: mapSenderToHandlerRole(input.senderRole),
-        userId: input.senderUserId,
-        at: new Date(),
-      });
+    const isArtistSide =
+      input.senderRole === 'ARTIST' || input.senderRole === 'MANAGER';
+
+    if (isArtistSide) {
+      if (!booking.actorUserId) {
+        booking = booking.setActor(input.senderUserId);
+      } else if (booking.actorUserId !== input.senderUserId) {
+        throw new ForbiddenException(
+          'Otro representante del artista está gestionando esta negociación',
+        );
+      }
     }
 
     // Rechazo definitivo

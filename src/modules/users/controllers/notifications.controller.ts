@@ -14,14 +14,17 @@ export class NotificationsController {
     @Req() req: AuthenticatedRequest,
     @Query('limit') limit?: string,
     @Query('role') role?: string,
+    @Query('status') status?: string,
   ) {
     const { userId } = req.userContext;
     const parsedLimit = limit ? Number(limit) : undefined;
+    const statusFilter = (status as any) || 'UNREAD';
 
     return this.notificationsRepo.findByUser({
       userId,
       role: role || undefined,
       limit: parsedLimit,
+      status: statusFilter,
     });
   }
 

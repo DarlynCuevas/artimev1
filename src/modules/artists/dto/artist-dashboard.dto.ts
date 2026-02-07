@@ -18,4 +18,12 @@ export type ArtistDashboardDto = {
     totalAmount: number;
     currency: string;
   }>;
+  pendingActions: Array<{
+    bookingId: string;
+    venueName: string;
+    status: string;
+    startDate: string | null;
+    message: string;
+    priority: 'high' | 'medium' | 'low';
+  }>;
 };

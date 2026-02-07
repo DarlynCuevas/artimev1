@@ -1,5 +1,6 @@
 export class VenueEntity {
   id: string;
+  userId?: string;
   name: string;
   city: string;
   description: string;

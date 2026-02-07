@@ -296,6 +296,29 @@ export class BookingService {
   }
 
   async getById(id: string): Promise<Booking | null> {
-    return this.bookingRepository.findById(id);
+    const booking = await this.bookingRepository.findById(id);
+    if (!booking) return null;
+
+    // Backfill manager info if missing by checking current representation
+    if (!booking.managerId) {
+      const representation = await this.getRepresentationForArtist(booking.artistId);
+      if (representation?.managerId) {
+        const enriched = new Booking({
+          ...booking.toPrimitives(),
+          managerId: representation.managerId,
+          managerCommissionPercentage: representation.commissionPercentage ?? booking.managerCommissionPercentage,
+        });
+        try {
+          await this.bookingRepository.update(enriched);
+        } catch (err) {
+          this.logger.warn(
+            `Could not persist managerId for booking ${booking.id}: ${(err as Error).message}`,
+          );
+        }
+        return enriched;
+      }
+    }
+
+    return booking;
   }
 }
