@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import type { Request } from 'express';
 import { StripeWebhookService } from '../../../infrastructure/payments/stripe-webhook.service';
+import { Public } from '@/src/shared/public.decorator';
 
 @Controller('payments/stripe/webhook')
 export class StripeWebhookController {
@@ -15,6 +16,7 @@ export class StripeWebhookController {
   ) {}
 
   @Post()
+  @Public()
   @HttpCode(200)
   async handle(
     @Req() req: Request,

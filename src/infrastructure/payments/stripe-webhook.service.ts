@@ -108,7 +108,6 @@ export class StripeWebhookService {
     paymentIntent: Stripe.PaymentIntent,
   ): Promise<void> {
     const { milestoneId, bookingId } = paymentIntent.metadata ?? {};
-    console.log('[Webhook] payment_intent.succeeded metadata:', paymentIntent.metadata);
 
     if (!milestoneId || !bookingId) {
       console.warn('[Webhook] Falta milestoneId o bookingId en metadata');
@@ -119,7 +118,6 @@ export class StripeWebhookService {
 
     // 1️ Load milestone
     const milestone = await this.milestoneRepository.findById(milestoneId);
-    console.log('[Webhook] milestone:', milestone);
 
     if (!milestone) {
       console.warn('[Webhook] No se encontró milestone con id', milestoneId);
@@ -133,14 +131,10 @@ export class StripeWebhookService {
 
     // 2️ Mark milestone as paid
     milestone.markAsPaid(new Date());
-    console.log('[Webhook] milestone tras markAsPaid:', milestone);
-
     await this.milestoneRepository.update(milestone);
-    console.log('[Webhook] milestone actualizado en BD');
 
     // 3️ Recalculate booking status
     const booking = await this.supabaseBookingRepository.findById(bookingId);
-    console.log('[Webhook] booking:', booking);
 
     if (!booking) {
       console.warn('[Webhook] No se encontró booking con id', bookingId);
@@ -148,23 +142,18 @@ export class StripeWebhookService {
     }
 
     const milestones = await this.milestoneRepository.findByBookingId(booking.id);
-    console.log('[Webhook] milestones del booking:', milestones);
 
     const paidCount = milestones.filter(
       (m) => m.status === PaymentMilestoneStatus.PAID,
     ).length;
-    console.log('[Webhook] paidCount:', paidCount, 'de', milestones.length);
 
     if (paidCount === milestones.length) {
       booking.markAsPaidFull();
-      console.log('[Webhook] booking marcado como PAID_FULL');
     } else {
       booking.markAsPaidPartial();
-      console.log('[Webhook] booking marcado como PAID_PARTIAL');
     }
 
     await this.supabaseBookingRepository.update(booking);
-    console.log('[Webhook] booking actualizado en BD');
   }
 
   private async handlePaymentIntentFailed(
