@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Contrato ARTIME</title>
+    <style>
+      :root {
+        --ink: #0f172a;
+        --muted: #475569;
+        --line: #e2e8f0;
+        --paper: #ffffff;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        padding: 48px 56px;
+        font-family: "Inter", "SF Pro Text", "Segoe UI", Arial, sans-serif;
+        color: var(--ink);
+        background: var(--paper);
+        line-height: 1.6;
+        font-size: 13.5px;
+      }
+      header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        border-bottom: 1px solid var(--line);
+        padding-bottom: 16px;
+        margin-bottom: 28px;
+      }
+      .brand {
+        font-weight: 600;
+        letter-spacing: 0.26em;
+        text-transform: uppercase;
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .doc-title {
+        font-size: 18px;
+        font-weight: 600;
+        margin: 0;
+        text-align: right;
+      }
+      h2 {
+        font-size: 14px;
+        margin: 28px 0 10px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      h3 {
+        font-size: 13.5px;
+        margin: 20px 0 6px;
+      }
+      .section {
+        margin-top: 18px;
+      }
+      .muted {
+        color: var(--muted);
+      }
+      ul {
+        margin: 6px 0 0 18px;
+        padding: 0;
+      }
+      li {
+        margin: 4px 0;
+      }
+      .divider {
+        height: 1px;
+        background: var(--line);
+        margin: 20px 0;
+      }
+      .signature {
+        margin-top: 28px;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 32px;
+      }
+      .signature-line {
+        border-top: 1px solid var(--line);
+        padding-top: 8px;
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .field {
+        font-weight: 600;
+      }
+      .value {
+        font-weight: 500;
+      }
+      .small {
+        font-size: 12px;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px 28px;
+      }
+      .block {
+        margin-bottom: 10px;
+      }
+      .note {
+        background: #f8fafc;
+        border: 1px solid var(--line);
+        padding: 12px 14px;
+        border-radius: 10px;
+        font-size: 12.5px;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="brand">ARTIME</div>
+      <p class="doc-title">Contrato privado de prestación de servicios artísticos</p>
+    </header>
+
+    <h2>Reunidos</h2>
+    <div class="block">
+      <span class="field">Contratante:</span>
+      <span class="value">{{contracting_party_name}}</span>,
+      <span class="muted">domicilio</span>
+      <span class="value">{{contracting_party_address}}</span>,
+      <span class="muted">NIF/CIF</span>
+      <span class="value">{{contracting_party_tax_id}}</span>,
+      <span class="muted">representado por</span>
+      <span class="value">{{contracting_party_representative_name}}</span>,
+      <span class="muted">DNI/NIE</span>
+      <span class="value">{{contracting_party_representative_id}}</span>.
+    </div>
+    <div class="block">
+      <span class="field">Artista/Manager:</span>
+      <span class="value">{{artist_party_name}}</span>,
+      <span class="muted">DNI/NIE</span>
+      <span class="value">{{artist_party_id}}</span>,
+      <span class="muted">domicilio</span>
+      <span class="value">{{artist_party_address}}</span>,
+      <span class="muted">en representación del artista</span>
+      <span class="value">{{artist_name}}</span>.
+    </div>
+
+    <div class="note">
+      ARTIME actúa como plataforma tecnológica e intermediario de pagos, sin ser parte artística del presente contrato.
+      Sus condiciones de uso han sido aceptadas por las partes al registrarse en la plataforma.
+    </div>
+
+    <h2>Manifiestan</h2>
+    <ul>
+      <li>Que EL CONTRATANTE está interesado en la contratación de EL ARTISTA para una actuación artística en las condiciones que se detallan.</li>
+      <li>Que ambas partes desean formalizar el presente contrato de prestación de servicios artísticos.</li>
+      <li>Que los pagos se gestionan exclusivamente a través de la plataforma ARTIME.</li>
+    </ul>
+
+    <h2>Cláusulas</h2>
+    <h3>1. Objeto del contrato</h3>
+    <div class="grid">
+      <div><span class="muted">Artista:</span> <span class="value">{{artist_name}}</span></div>
+      <div><span class="muted">Fecha:</span> <span class="value">{{event_date}}</span></div>
+      <div><span class="muted">Localidad:</span> <span class="value">{{event_city}}</span></div>
+      <div><span class="muted">Recinto/Dirección:</span> <span class="value">{{event_venue_address}}</span></div>
+      <div><span class="muted">Hora de actuación:</span> <span class="value">{{event_time}}</span></div>
+      <div><span class="muted">Duración:</span> <span class="value">{{performance_duration}}</span></div>
+      <div><span class="muted">Caché pactado:</span> <span class="value">{{fee_amount}} + IVA</span></div>
+      <div><span class="muted">Extras/Dietas:</span> <span class="value">{{extras_summary}}</span></div>
+    </div>
+
+    <h3>2. Pagos y custodia (ARTIME)</h3>
+    <ul>
+      <li>EL CONTRATANTE abonará la cantidad pactada mediante la pasarela de pago de ARTIME (Stripe).</li>
+      <li>Los fondos serán retenidos por ARTIME hasta el cumplimiento de las condiciones pactadas.</li>
+      <li>ARTIME liberará los pagos a EL ARTISTA conforme a los hitos acordados en el booking.</li>
+      <li>No se admiten pagos directos fuera de ARTIME.</li>
+    </ul>
+
+    <h3>3. Hitos de pago (si aplica)</h3>
+    <ul>
+      <li>Hito 1: <span class="value">{{milestone_1_amount}}</span> — <span class="value">{{milestone_1_condition}}</span></li>
+      <li>Hito 2: <span class="value">{{milestone_2_amount}}</span> — <span class="value">{{milestone_2_condition}}</span></li>
+      <li>Pago final: <span class="value">{{final_payment_amount}}</span> — Tras la actuación</li>
+    </ul>
+
+    <h3>4. Logística y condiciones adicionales</h3>
+    <ul>
+      <li>Transporte (ida y vuelta) según coordinación con EL ARTISTA.</li>
+      <li>Alojamiento, si aplica: <span class="value">{{lodging_details}}</span></li>
+      <li>Dietas según horario y necesidades.</li>
+      <li>Número de invitaciones: <span class="value">{{guest_pass_count}}</span></li>
+      <li>Cena / hospitality según anexo.</li>
+    </ul>
+
+    <h3>5. Rider técnico</h3>
+    <p>{{technical_rider_summary}}</p>
+
+    <h3>6. Cancelación del evento</h3>
+    <ul>
+      <li>Cancelación con 15 días o menos: 100% del caché.</li>
+      <li>Cancelación con 30 días o menos: 50% del caché.</li>
+      <li>La cancelación deberá notificarse por escrito con prueba de emisión y recepción.</li>
+      <li>Si existe dinero retenido, la cancelación se gestionará exclusivamente dentro de ARTIME, aplicando los porcentajes pactados y efectuando devoluciones a través de la plataforma.</li>
+    </ul>
+
+    <h3>7. Grabaciones y material gráfico</h3>
+    <ul>
+      <li>Queda prohibida la grabación del evento sin autorización expresa de EL ARTISTA.</li>
+      <li>Todo material gráfico o publicitario deberá ser aprobado previamente por EL ARTISTA.</li>
+    </ul>
+
+    <h3>8. Confidencialidad</h3>
+    <p>Las partes acuerdan mantener la confidencialidad sobre los términos del presente contrato y cualquier información relacionada, salvo obligación legal.</p>
+
+    <h3>9. Cesión y subrogación</h3>
+    <p>Queda prohibida la cesión total o parcial de derechos u obligaciones derivados de este contrato sin consentimiento expreso y por escrito de EL ARTISTA.</p>
+
+    <div class="divider"></div>
+
+    <p class="small">En prueba de conformidad, ambas partes firman el presente contrato en <span class="value">{{contract_location}}</span>, a <span class="value">{{contract_date}}</span>.</p>
+
+    <div class="signature">
+      <div class="signature-line">EL ARTISTA / MANAGER</div>
+      <div class="signature-line">EL CONTRATANTE</div>
+    </div>
+
+    <h2>Anexo: Hospitality</h2>
+    <p>{{hospitality_items}}</p>
+  </body>
+</html>

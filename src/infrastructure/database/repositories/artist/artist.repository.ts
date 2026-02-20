@@ -174,11 +174,25 @@ export class DbArtistRepository implements ArtistRepository {
   }
 
 
-  async findPublicProfileById(id: string) {
+  async findPublicProfileById(id: string): Promise<{
+    id: string;
+    userId: string | null;
+    name: string;
+    city: string;
+    genres: string[];
+    basePrice: number;
+    currency: string;
+    isNegotiable: boolean;
+    rating?: number;
+    bio?: string;
+    format?: string;
+    managerId?: string;
+  } | null> {
     const { data, error } = await supabase
       .from('artists')
       .select(`
             id,
+            user_id,
             name,
             city,
             genres,
@@ -199,6 +213,7 @@ export class DbArtistRepository implements ArtistRepository {
     }
     return {
       id: artist.id,
+      userId: artist.user_id ?? null,
       name: artist.name,
       city: artist.city,
       genres: artist.genres ?? [],

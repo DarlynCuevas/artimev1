@@ -1,8 +1,12 @@
-import { Body, Controller, Post, Req, UseGuards, BadRequestException } from '@nestjs/common';
+import { Body, Controller, Post, Req, UseGuards, BadRequestException, Get, UploadedFile, UseInterceptors, Inject } from '@nestjs/common';
 import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 import type { AuthenticatedRequest } from '@/src/shared/authenticated-request';
 import { UsersService } from '../services/users.service';
 import { OnboardingService } from '../services/onboarding.service';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { SUPABASE_CLIENT } from '@/src/infrastructure/database/supabase.module';
+import type { SupabaseClient } from '@supabase/supabase-js';
+import { memoryStorage } from 'multer';
 
 type RegisterPayload = {
   role: 'ARTIST' | 'VENUE' | 'PROMOTER' | 'MANAGER';
@@ -14,6 +18,7 @@ export class UsersController {
   constructor(
     private readonly usersService: UsersService,
     private readonly onboardingService: OnboardingService,
+    @Inject(SUPABASE_CLIENT) private readonly supabase: SupabaseClient,
   ) {}
 
   @UseGuards(JwtAuthGuard)
@@ -113,5 +118,81 @@ export class UsersController {
       email: (req.user as any)?.email ?? null,
       name: body.name,
     });
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('profile-image')
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: memoryStorage(),
+      limits: { fileSize: 5 * 1024 * 1024 },
+      fileFilter: (_, file, cb) => {
+        if (file.mimetype.startsWith('image/')) {
+          cb(null, true);
+        } else {
+          cb(new BadRequestException('INVALID_FILE_TYPE'), false);
+        }
+      },
+    }),
+  )
+  async uploadProfileImage(
+    @Req() req: AuthenticatedRequest,
+    @UploadedFile() file?: any,
+  ) {
+    if (!file) {
+      throw new BadRequestException('FILE_REQUIRED');
+    }
+
+    const userId = req.user.sub;
+    const extension = file.originalname.split('.').pop()?.toLowerCase() ?? 'jpg';
+    const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${extension}`;
+    const storagePath = `users/${userId}/${fileName}`;
+
+    const previousPath = await this.usersService.getProfileImagePath(userId);
+
+    const { error: uploadError } = await this.supabase.storage
+      .from('profile-images')
+      .upload(storagePath, file.buffer, {
+        contentType: file.mimetype,
+        upsert: true,
+      });
+
+    if (uploadError) {
+      throw new BadRequestException(uploadError.message);
+    }
+
+    await this.usersService.updateProfileImage({
+      userId,
+      imagePath: storagePath,
+    });
+
+    if (previousPath && previousPath !== storagePath) {
+      await this.supabase.storage.from('profile-images').remove([previousPath]);
+    }
+
+    return { ok: true, path: storagePath };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('profile-image')
+  async getProfileImage(
+    @Req() req: AuthenticatedRequest,
+  ) {
+    const userId = req.user.sub;
+    const imagePath = await this.usersService.getProfileImagePath(userId);
+
+    if (!imagePath) {
+      return { url: null };
+    }
+
+    const { data, error } = await this.supabase.storage
+      .from('profile-images')
+      .createSignedUrl(imagePath, 60 * 60);
+
+    if (error) {
+      throw new BadRequestException(error.message);
+    }
+
+    return { url: data.signedUrl };
   }
 }

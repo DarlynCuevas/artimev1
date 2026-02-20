@@ -2,6 +2,7 @@ import { Inject, Injectable, NotFoundException } from '@nestjs/common'
 import type { VenueRepository } from '../repositories/venue.repository.interface'
 import { VENUE_REPOSITORY } from '../repositories/venue-repository.token'
 import { mapVenueToPublicDto } from '../mappers/venue-public.mapper';
+import { UsersService } from '../../users/services/users.service';
 import { GetVenueDashboardUseCase } from '../use-cases/dashboard-venue.usecase';
 import type { UpdateVenueDto } from '../dto/update-venue.dto';
 import type { UserContext } from '../../auth/user-context.guard';
@@ -12,6 +13,7 @@ export class VenuesService {
     @Inject(VENUE_REPOSITORY)
     private readonly venueRepository: VenueRepository,
     private readonly getVenueDashboardUseCase: GetVenueDashboardUseCase,
+    private readonly usersService: UsersService,
   ) { }
   async getVenueDashboard(venueId: string) {
     return this.getVenueDashboardUseCase.execute(venueId);
@@ -57,8 +59,11 @@ export class VenuesService {
       throw new NotFoundException('VENUE_NOT_FOUND');
     }
 
-    return mapVenueToPublicDto(venue);
+    const profileImageUrl = venue.userId
+      ? await this.usersService.getSignedProfileImageUrlByUserId(venue.userId)
+      : null;
+
+    return { ...mapVenueToPublicDto(venue), profileImageUrl };
   }
 
 }
-

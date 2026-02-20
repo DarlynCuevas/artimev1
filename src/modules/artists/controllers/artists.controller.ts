@@ -1,11 +1,13 @@
-import { Controller, Get, Param, Query, Req, UseGuards, ForbiddenException, Patch, Body } from '@nestjs/common';
+import { Controller, Get, Param, Query, Req, UseGuards, ForbiddenException, Patch, Body, Post, UploadedFile, UseInterceptors, BadRequestException, Delete } from '@nestjs/common';
 import { ArtistsService } from '../services/artists.service';
 import { JwtAuthGuard } from 'src/modules/auth/jwt-auth.guard';
 import type { AuthenticatedRequest } from 'src/shared/authenticated-request';
-import { Public } from '@/src/shared/public.decorator';
 import { UserContextGuard } from '../../auth/user-context.guard';
 import { UpdateArtistDto } from '../dto/update-artist.dto';
 import { GetArtistEventInvitationsQuery } from '../queries/get-artist-event-invitations.query';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { memoryStorage } from 'multer';
+import { Public } from '@/src/shared/public.decorator';
 
 
 @Controller('artists')
@@ -84,6 +86,108 @@ export class ArtistsController {
   async getArtistById(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
     const viewerManagerId = req.userContext.managerId ?? null;
     return this.artistsService.getPublicArtistProfile(id, viewerManagerId);
+  }
+
+  @Public()
+  @Get(':id/gallery')
+  async getArtistGallery(@Param('id') id: string) {
+    return this.artistsService.getArtistGallery(id);
+  }
+
+  @Public()
+  @Get(':id/videos')
+  async getArtistVideos(@Param('id') id: string) {
+    return this.artistsService.getArtistVideos(id);
+  }
+
+  @UseGuards(JwtAuthGuard, UserContextGuard)
+  @Post('gallery')
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: memoryStorage(),
+      limits: { fileSize: 5 * 1024 * 1024 },
+      fileFilter: (_, file, cb) => {
+        if (file.mimetype.startsWith('image/')) {
+          cb(null, true);
+        } else {
+          cb(new BadRequestException('INVALID_FILE_TYPE'), false);
+        }
+      },
+    }),
+  )
+  async uploadGalleryImage(
+    @Req() req: AuthenticatedRequest,
+    @UploadedFile() file?: any,
+  ) {
+    const { artistId, userId } = req.userContext;
+    if (!artistId) {
+      throw new ForbiddenException('ONLY_ARTIST');
+    }
+    if (!file) {
+      throw new BadRequestException('FILE_REQUIRED');
+    }
+
+    return this.artistsService.addArtistGalleryItem({
+      artistId,
+      userId,
+      file,
+    });
+  }
+
+  @UseGuards(JwtAuthGuard, UserContextGuard)
+  @Delete('gallery/:id')
+  async deleteGalleryImage(
+    @Req() req: AuthenticatedRequest,
+    @Param('id') itemId: string,
+  ) {
+    const { artistId } = req.userContext;
+    if (!artistId) {
+      throw new ForbiddenException('ONLY_ARTIST');
+    }
+
+    return this.artistsService.removeArtistGalleryItem({
+      artistId,
+      itemId,
+    });
+  }
+
+  @UseGuards(JwtAuthGuard, UserContextGuard)
+  @Post('videos')
+  async addArtistVideo(
+    @Req() req: AuthenticatedRequest,
+    @Body() body: { url?: string; title?: string },
+  ) {
+    const { artistId, userId } = req.userContext;
+    if (!artistId) {
+      throw new ForbiddenException('ONLY_ARTIST');
+    }
+    if (!body?.url) {
+      throw new BadRequestException('URL_REQUIRED');
+    }
+
+    return this.artistsService.addArtistVideo({
+      artistId,
+      userId,
+      url: body.url,
+      title: body.title ?? null,
+    });
+  }
+
+  @UseGuards(JwtAuthGuard, UserContextGuard)
+  @Delete('videos/:id')
+  async deleteArtistVideo(
+    @Req() req: AuthenticatedRequest,
+    @Param('id') itemId: string,
+  ) {
+    const { artistId } = req.userContext;
+    if (!artistId) {
+      throw new ForbiddenException('ONLY_ARTIST');
+    }
+
+    return this.artistsService.removeArtistVideo({
+      artistId,
+      itemId,
+    });
   }
 
 

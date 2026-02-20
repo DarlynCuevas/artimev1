@@ -26,6 +26,7 @@ export interface ArtistRepository {
 
   findPublicProfileById(id: string): Promise<{
     id: string;
+    userId: string | null;
     name: string;
     city: string;
     genres: string[];

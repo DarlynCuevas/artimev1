@@ -1,11 +1,13 @@
 import { Inject } from '@nestjs/common';
 import type { PromoterRepository } from '../repositories/promoter.repository.interface';
 import { PROMOTER_REPOSITORY } from '../repositories/promoter-repository.token';
+import { UsersService } from '../../users/services/users.service';
 
 export class GetPromoterProfileQuery {
   constructor(
     @Inject(PROMOTER_REPOSITORY)
     private readonly promoterRepository: PromoterRepository,
+    private readonly usersService: UsersService,
   ) {}
 
   async execute(promoterId: string) {
@@ -25,6 +27,10 @@ export class GetPromoterProfileQuery {
       };
     }
 
+    const profileImageUrl = promoter.user_id
+      ? await this.usersService.getSignedProfileImageUrlByUserId(promoter.user_id)
+      : null;
+
     return {
       id: promoter.id,
       name: promoter.name,
@@ -35,6 +41,7 @@ export class GetPromoterProfileQuery {
       isPublic: promoter.is_public ?? null,
       showPastEvents: promoter.show_past_events ?? null,
       createdAt: promoter.created_at,
+      profileImageUrl,
     };
   }
 }

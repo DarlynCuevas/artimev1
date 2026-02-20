@@ -18,6 +18,7 @@ import { BookingsModule } from '../bookings/bookings.module';
 import { DbPromoterRepository } from '@/src/infrastructure/database/repositories/promoter/DbPromoterRepository ';
 import { ManagersModule } from '../managers/managers.module';
 import { UserContextModule } from '../auth/user-context/user-context.module';
+import { UsersModule } from '../users/users.module';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { UserContextModule } from '../auth/user-context/user-context.module';
     forwardRef(() => BookingsModule),
     forwardRef(() => ManagersModule),
     forwardRef(() => UserContextModule),
+    forwardRef(() => UsersModule),
   ],
   controllers: [PromotersController],
   providers: [

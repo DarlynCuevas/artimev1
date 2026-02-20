@@ -15,6 +15,8 @@ import { VenuesModule } from '../venues/venues.module';
 import { UserContextModule } from '../auth/user-context/user-context.module';
 import { PromotersModule } from '../promoter/promoter.module';
 import { ManagersModule } from '../managers/managers.module';
+import { ContractTemplateMapper } from './mappers/contract-template.mapper';
+import { ContractPdfService } from './services/contract-pdf.service';
 
 @Module({
   imports: [
@@ -29,6 +31,8 @@ import { ManagersModule } from '../managers/managers.module';
   controllers: [ContractsController],
   providers: [
     ContractRepository,
+    ContractTemplateMapper,
+    ContractPdfService,
     GenerateContractOnAcceptedUseCase,
     SignContractUseCase,
     GenerateContractUseCase,
@@ -43,6 +47,7 @@ import { ManagersModule } from '../managers/managers.module';
     GenerateContractOnAcceptedUseCase,
     SignContractUseCase,
     GenerateContractUseCase,
+    ContractPdfService,
     BOOKING_REPOSITORY,
     CreatePaymentScheduleForBookingUseCase,
   ],

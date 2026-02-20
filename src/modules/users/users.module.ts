@@ -29,6 +29,7 @@ import { ManagersModule } from '../managers/managers.module';
   ],
   exports: [
     MeService,
+    UsersService,
   ],
 })
 export class UsersModule {}

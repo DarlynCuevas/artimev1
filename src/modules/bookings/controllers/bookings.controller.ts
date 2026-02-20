@@ -1,4 +1,5 @@
-import { Controller, Get, Param, NotFoundException, Post, Req, Body, UseGuards, ForbiddenException, Inject, BadRequestException } from '@nestjs/common';
+import { Controller, Get, Param, NotFoundException, Post, Req, Body, UseGuards, ForbiddenException, Inject, BadRequestException, Res } from '@nestjs/common';
+import type { Response } from 'express';
 import { BookingResponseDto } from '../dto/booking-response.dto';
 import { BookingService } from '../service/booking.service';
 import type { AuthenticatedRequest } from 'src/shared/authenticated-request';
@@ -16,6 +17,7 @@ import { RejectFinalOfferUseCase } from '../use-cases/negotiations/reject-final-
 import { RejectBookingUseCase } from '../use-cases/negotiations/reject-booking.use-case';
 import { ContractRepository } from '@/src/infrastructure/database/repositories/contract.repository';
 import { ContractResponseDto } from '../../contracts/dto/contract-response.dto';
+import { ContractPdfService } from '../../contracts/services/contract-pdf.service';
 import { BOOKING_REPOSITORY } from '../repositories/booking-repository.token';
 import type { BookingRepository } from '../repositories/booking.repository.interface';
 import { SignContractUseCase } from '../../contracts/use-cases/sign-contract.use-case';
@@ -44,6 +46,7 @@ export class BookingsController {
     private readonly confirmPaymentMilestoneUseCase: ConfirmPaymentMilestoneUseCase,
     @Inject(BOOKING_REPOSITORY) private readonly bookingRepository: BookingRepository,
     private readonly contractRepository: ContractRepository,
+    private readonly contractPdfService: ContractPdfService,
     @Inject(SignContractUseCase) private readonly signContractUseCase: SignContractUseCase,
     private readonly getPaymentMilestonesForBookingQuery: GetPaymentMilestonesForBookingQuery,
     @Inject(ARTIST_MANAGER_REPRESENTATION_REPOSITORY)
@@ -546,6 +549,51 @@ async create(
       snapshotData: contract.snapshotData,
       createdAt: contract.createdAt,
     };
+  }
+
+  @UseGuards(JwtAuthGuard, UserContextGuard)
+  @Get(':id/contract/pdf')
+  async getContractPdf(
+    @Param('id') bookingId: string,
+    @Req() req: AuthenticatedRequest,
+    @Res() res: Response,
+  ): Promise<void> {
+    const booking = await this.bookingRepository.findById(bookingId);
+    if (!booking) {
+      throw new NotFoundException('Booking not found');
+    }
+
+    const { venueId, artistId, managerId } = req.userContext;
+
+    const isAllowed =
+      (artistId && booking.artistId === artistId) ||
+      (managerId && booking.managerId === managerId) ||
+      (venueId && booking.venueId === venueId);
+
+    if (!isAllowed) {
+      throw new ForbiddenException(
+        'You are not allowed to view this contract',
+      );
+    }
+
+    const contract =
+      await this.contractRepository.findByBookingId(bookingId);
+
+    if (!contract) {
+      throw new NotFoundException('Contract not found');
+    }
+
+    const pdfBuffer = await this.contractPdfService.generatePdfBuffer(
+      (contract.snapshotData ?? {}) as Record<string, string>,
+    );
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="contract-${bookingId}.pdf"`,
+    );
+
+    res.end(pdfBuffer);
   }
 
   @UseGuards(JwtAuthGuard, UserContextGuard)

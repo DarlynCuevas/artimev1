@@ -36,10 +36,13 @@ import { SupabaseRepresentationRequestRepository } from '@/src/infrastructure/da
 import { SupabaseRepresentationContractRepository } from '@/src/infrastructure/database/repositories/representation/supabase-representation-contract.repository';
 import { MANAGER_REPOSITORY } from '../managers/repositories/manager-repository.token';
 import { DbManagerRepository } from '@/src/infrastructure/database/repositories/manager/db-manager.repository';
+import { UsersModule } from '../users/users.module';
+import { ArtistGalleryRepository } from '@/src/infrastructure/database/repositories/artist/artist-gallery.repository';
+import { ArtistVideoRepository } from '@/src/infrastructure/database/repositories/artist/artist-video.repository';
 
 
 @Module({
-  imports: [SupabaseModule, forwardRef(() => VenuesModule), forwardRef(() => BookingsModule), forwardRef(() => PromotersModule), forwardRef(() => ManagersModule), forwardRef(() => UserContextModule)],
+  imports: [SupabaseModule, forwardRef(() => VenuesModule), forwardRef(() => BookingsModule), forwardRef(() => PromotersModule), forwardRef(() => ManagersModule), forwardRef(() => UserContextModule), forwardRef(() => UsersModule)],
   controllers: [ArtistsController, ArtistCalendarController, ArtistCallController, ArtistNotificationsController],
   providers: [
     ArtistsService,
@@ -82,6 +85,8 @@ import { DbManagerRepository } from '@/src/infrastructure/database/repositories/
       provide: ARTIST_REPOSITORY,
       useClass: DbArtistRepository,
     },
+    ArtistGalleryRepository,
+    ArtistVideoRepository,
   ],
   exports: [ArtistsService, ARTIST_REPOSITORY],
 })

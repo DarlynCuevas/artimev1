@@ -23,9 +23,10 @@ import { OutboxModule } from '../outbox/outbox.module';
 import { GetInterestedArtistCallsUseCase } from './use-cases/get-interested-artist-calls.usecase';
 import { ManagersModule } from '../managers/managers.module';
 import { UserContextModule } from '../auth/user-context/user-context.module';
+import { UsersModule } from '../users/users.module';
 
 @Module({
-  imports: [SupabaseModule, OutboxModule, forwardRef(() => ArtistsModule), forwardRef(() => BookingsModule), forwardRef(() => PromotersModule), forwardRef(() => ManagersModule), forwardRef(() => UserContextModule)],
+  imports: [SupabaseModule, OutboxModule, forwardRef(() => ArtistsModule), forwardRef(() => BookingsModule), forwardRef(() => PromotersModule), forwardRef(() => ManagersModule), forwardRef(() => UserContextModule), forwardRef(() => UsersModule)],
   controllers: [VenueDiscoverController,VenueController],
   providers: [
     VenueDiscoverService,

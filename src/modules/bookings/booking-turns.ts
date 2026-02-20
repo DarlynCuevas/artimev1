@@ -1,6 +1,7 @@
 import { NegotiationSenderRole } from './negotiations/negotiation-message.entity';
+import type { BookingHandlerRole } from './domain/booking-handler.mapper';
 
-type AnyRole = NegotiationSenderRole | null | undefined;
+type AnyRole = NegotiationSenderRole | BookingHandlerRole | null | undefined;
 
 export function isArtistSide(role: AnyRole): boolean {
   return role === 'ARTIST' || role === 'MANAGER';

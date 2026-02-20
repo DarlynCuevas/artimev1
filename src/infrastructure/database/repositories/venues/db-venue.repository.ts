@@ -10,6 +10,7 @@ export class DbVenueRepository implements VenueRepository {
   private mapRowToEntity(row: any): VenueEntity {
     return {
       id: row.id,
+      userId: row.user_id ?? undefined,
       name: row.name,
       city: row.city,
       description: row.description ?? '',

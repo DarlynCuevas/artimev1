@@ -5,6 +5,7 @@ import { BookingStatus } from '../../bookings/booking-status.enum';
 import { ContractRepository } from '../../../infrastructure/database/repositories/contract.repository';
 import { Contract } from '../contract.entity';
 import { ContractStatus } from '../enum/contractStatus.enum';
+import { ContractTemplateMapper } from '../mappers/contract-template.mapper';
 
 @Injectable()
 export class GenerateContractOnAcceptedUseCase {
@@ -12,6 +13,7 @@ export class GenerateContractOnAcceptedUseCase {
     @Inject(BOOKING_REPOSITORY)
     private readonly bookingRepository: BookingRepository,
     private readonly contractRepository: ContractRepository,
+    private readonly contractTemplateMapper: ContractTemplateMapper,
   ) {}
 
   async execute(bookingId: string): Promise<void> {
@@ -36,6 +38,8 @@ export class GenerateContractOnAcceptedUseCase {
 
 
     // 4. Crear contrato (consolidación del acuerdo)
+    const snapshotData = await this.contractTemplateMapper.mapFromBooking(booking);
+
     const contract = new Contract({
       id: crypto.randomUUID(),
       bookingId: booking.id,
@@ -47,7 +51,7 @@ export class GenerateContractOnAcceptedUseCase {
       finalOfferId: null,
       signedAt: undefined,
       signedByRole: undefined,
-      snapshotData: {},
+      snapshotData,
       createdAt: new Date(),
       conditionsAccepted: false,
       conditionsAcceptedAt: null,

@@ -14,6 +14,9 @@ import type { RepresentationContractRepository } from '@/src/modules/representat
 import type { RepresentationRequestRepository } from '@/src/modules/representations/repositories/representation-request.repository.interface';
 import { MANAGER_REPOSITORY } from '@/src/modules/managers/repositories/manager-repository.token';
 import type { ManagerRepository } from '@/src/modules/managers/repositories/manager.repository.interface';
+import { UsersService } from '../../users/services/users.service';
+import { ArtistGalleryRepository } from '@/src/infrastructure/database/repositories/artist/artist-gallery.repository';
+import { ArtistVideoRepository } from '@/src/infrastructure/database/repositories/artist/artist-video.repository';
 
 
 @Injectable()
@@ -28,6 +31,9 @@ export class ArtistsService {
     private readonly requestRepo: RepresentationRequestRepository,
     @Inject(MANAGER_REPOSITORY)
     private readonly managerRepo: ManagerRepository,
+    private readonly usersService: UsersService,
+    private readonly artistGalleryRepository: ArtistGalleryRepository,
+    private readonly artistVideoRepository: ArtistVideoRepository,
   ) { }
 
   async findAll() {
@@ -54,6 +60,7 @@ export class ArtistsService {
     representationRequestId: string | null;
     representationCommission: number | null;
     managerName?: string;
+    profileImageUrl?: string | null;
   }> {
     const artist = await this.artistRepository.findPublicProfileById(artistId);
 
@@ -89,6 +96,10 @@ export class ArtistsService {
       }
     }
 
+    const profileImageUrl = artist.userId
+      ? await this.usersService.getSignedProfileImageUrlByUserId(artist.userId)
+      : null;
+
     return {
       id: artist.id,
       name: artist.name,
@@ -106,6 +117,7 @@ export class ArtistsService {
       representationRequestId,
       representationCommission,
       managerName,
+      profileImageUrl,
     };
   }
 
@@ -113,6 +125,111 @@ export class ArtistsService {
   async discover() {
 
     return this.artistRepository.findForDiscover();
+  }
+
+  async getArtistGallery(artistId: string) {
+    const items = await this.artistGalleryRepository.listByArtistId(artistId);
+    const withUrls = await Promise.all(
+      items.map(async (item) => {
+        const { data, error } = await supabase.storage
+          .from('artist-gallery')
+          .createSignedUrl(item.path, 60 * 60);
+
+        return {
+          id: item.id,
+          createdAt: item.created_at,
+          url: error ? null : data?.signedUrl ?? null,
+        };
+      }),
+    );
+
+    return withUrls.filter((item) => item.url);
+  }
+
+  async addArtistGalleryItem(params: { artistId: string; userId: string; file: { buffer: Buffer; mimetype: string; originalname: string } }) {
+    const { artistId, userId, file } = params;
+
+    const existing = await this.artistGalleryRepository.countByArtistId(artistId);
+    if (existing >= 6) {
+      throw new BadRequestException('MAX_GALLERY_IMAGES_REACHED');
+    }
+
+    const extension = file.originalname.split('.').pop()?.toLowerCase() ?? 'jpg';
+    const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${extension}`;
+    const storagePath = `artists/${artistId}/${fileName}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from('artist-gallery')
+      .upload(storagePath, file.buffer, {
+        contentType: file.mimetype,
+        upsert: false,
+      });
+
+    if (uploadError) {
+      throw new BadRequestException(uploadError.message);
+    }
+
+    await this.artistGalleryRepository.insert({
+      artist_id: artistId,
+      user_id: userId,
+      path: storagePath,
+    });
+
+    return { ok: true };
+  }
+
+  async removeArtistGalleryItem(params: { artistId: string; itemId: string }) {
+    const item = await this.artistGalleryRepository.findById(params.itemId);
+    if (!item || item.artist_id !== params.artistId) {
+      throw new NotFoundException('GALLERY_ITEM_NOT_FOUND');
+    }
+
+    await this.artistGalleryRepository.deleteById(item.id);
+    await supabase.storage.from('artist-gallery').remove([item.path]);
+
+    return { ok: true };
+  }
+
+  async getArtistVideos(artistId: string) {
+    const items = await this.artistVideoRepository.listByArtistId(artistId);
+    return items.map((item) => ({
+      id: item.id,
+      youtubeId: item.youtube_id,
+      title: item.title ?? null,
+      createdAt: item.created_at,
+    }));
+  }
+
+  async addArtistVideo(params: { artistId: string; userId: string; url: string; title?: string | null }) {
+    const { artistId, userId, url, title } = params;
+
+    const existing = await this.artistVideoRepository.countByArtistId(artistId);
+    if (existing >= 4) {
+      throw new BadRequestException('MAX_VIDEOS_REACHED');
+    }
+
+    const youtubeId = extractYouTubeId(url);
+    if (!youtubeId) {
+      throw new BadRequestException('INVALID_YOUTUBE_URL');
+    }
+
+    await this.artistVideoRepository.insert({
+      artist_id: artistId,
+      user_id: userId,
+      youtube_id: youtubeId,
+      title: title ?? null,
+    });
+
+    return { ok: true };
+  }
+
+  async removeArtistVideo(params: { artistId: string; itemId: string }) {
+    const item = await this.artistVideoRepository.findById(params.itemId);
+    if (!item || item.artist_id !== params.artistId) {
+      throw new NotFoundException('VIDEO_NOT_FOUND');
+    }
+    await this.artistVideoRepository.deleteById(item.id);
+    return { ok: true };
   }
 
   async updateArtistProfile(artistId: string, dto: UpdateArtistDto) {
@@ -184,4 +301,20 @@ export class ArtistsService {
     };
   }
 
+}
+
+function extractYouTubeId(input: string): string | null {
+  const trimmed = input.trim();
+  const patterns = [
+    /(?:youtube\.com\/watch\?v=)([a-zA-Z0-9_-]{6,})/,
+    /(?:youtube\.com\/embed\/)([a-zA-Z0-9_-]{6,})/,
+    /(?:youtu\.be\/)([a-zA-Z0-9_-]{6,})/,
+  ];
+
+  for (const pattern of patterns) {
+    const match = trimmed.match(pattern);
+    if (match?.[1]) return match[1];
+  }
+
+  return null;
 }
