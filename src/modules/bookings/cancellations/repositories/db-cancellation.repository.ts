@@ -32,7 +32,7 @@ export class DbCancellationRepository implements CancellationRepository {
         `Error saving cancellation record: ${error.message}`,
       );
     } else {
-      console.log('Cancellation record saved:', cancellation);
+      // ...existing code...
     }
   }
 

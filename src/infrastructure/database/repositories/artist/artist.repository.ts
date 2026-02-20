@@ -106,6 +106,7 @@ export class DbArtistRepository implements ArtistRepository {
       .from('artists')
       .select(`
       id,
+      user_id,
       name,
       city,
       genres,
@@ -163,6 +164,7 @@ export class DbArtistRepository implements ArtistRepository {
 
     return data.map((a) => ({
       artistId: a.id,
+      userId: a.user_id ?? null,
       name: a.name,
       city: a.city,
       genres: a.genres,
@@ -234,6 +236,7 @@ export class DbArtistRepository implements ArtistRepository {
       .from('artists')
       .select(`
       id,
+      user_id,
       name,
       city,
       genres,
@@ -248,7 +251,16 @@ export class DbArtistRepository implements ArtistRepository {
 
 
     if (error) throw error;
-    return data;
+    return data?.map((artist) => ({
+      id: artist.id,
+      userId: artist.user_id ?? null,
+      name: artist.name,
+      city: artist.city,
+      genres: artist.genres ?? [],
+      basePrice: artist.base_price,
+      currency: artist.currency,
+      rating: artist.rating ?? undefined,
+    })) ?? [];
   }
 
   async findBookedDates(

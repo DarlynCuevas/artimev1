@@ -8,6 +8,15 @@ import { CancellationReviewStatus } from '../../cancellations/enums/cancellation
 import { CancellationRecord } from '../../cancellations/entities/cancellation-record.entity';
 import type { CancellationRepository } from '../../cancellations/repositories/cancellation.repository.interface';
 import { CANCELLATION_REPOSITORY } from '../repositories/cancellation.repository.token';
+import { ArtistNotificationRepository } from '@/src/infrastructure/database/repositories/notifications/artist-notification.repository';
+import { VENUE_REPOSITORY } from '@/src/modules/venues/repositories/venue-repository.token';
+import type { VenueRepository } from '@/src/modules/venues/repositories/venue.repository.interface';
+import { PROMOTER_REPOSITORY } from '@/src/modules/promoter/repositories/promoter-repository.token';
+import type { PromoterRepository } from '@/src/modules/promoter/repositories/promoter.repository.interface';
+import { MANAGER_REPOSITORY } from '@/src/modules/managers/repositories/manager-repository.token';
+import type { ManagerRepository } from '@/src/modules/managers/repositories/manager.repository.interface';
+import { notifyBookingCounterpart } from '../../notifications/booking-notifications';
+import { NegotiationSenderRole } from '../../negotiations/negotiation-message.entity';
 
 @Injectable()
 export class CancelBookingUseCase {
@@ -16,6 +25,13 @@ export class CancelBookingUseCase {
     private readonly bookingRepository: BookingRepository,
     @Inject(CANCELLATION_REPOSITORY)
     private readonly cancellationRepository: CancellationRepository,
+    private readonly notificationsRepo: ArtistNotificationRepository,
+    @Inject(VENUE_REPOSITORY)
+    private readonly venueRepository: VenueRepository,
+    @Inject(PROMOTER_REPOSITORY)
+    private readonly promoterRepository: PromoterRepository,
+    @Inject(MANAGER_REPOSITORY)
+    private readonly managerRepository: ManagerRepository,
   ) {}
 
   async execute(input: {
@@ -84,6 +100,25 @@ export class CancelBookingUseCase {
 
     booking.changeStatus(resultingStatus);
     await this.bookingRepository.update(booking);
+
+    const senderRole: NegotiationSenderRole =
+      input.initiator === CancellationInitiator.ARTIST
+        ? NegotiationSenderRole.ARTIST
+        : input.initiator === CancellationInitiator.MANAGER
+          ? NegotiationSenderRole.MANAGER
+          : input.initiator === CancellationInitiator.PROMOTER
+            ? NegotiationSenderRole.PROMOTER
+            : NegotiationSenderRole.VENUE;
+
+    await notifyBookingCounterpart({
+      booking,
+      senderRole,
+      type: 'BOOKING_CANCELLED',
+      notificationsRepo: this.notificationsRepo,
+      venueRepository: this.venueRepository,
+      promoterRepository: this.promoterRepository,
+      managerRepository: this.managerRepository,
+    });
 
     return {
       bookingStatus: resultingStatus,

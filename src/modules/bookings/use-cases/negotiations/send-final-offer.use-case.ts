@@ -11,6 +11,14 @@ import { ARTIST_MANAGER_REPRESENTATION_REPOSITORY } from '../../../managers/repo
 import type { ArtistManagerRepresentationRepository } from '../../../managers/repositories/artist-manager-representation.repository.interface';
 import { mapSenderToHandlerRole } from '../../domain/booking-handler.mapper';
 import { isArtistSide, isSameSide, isArtistSideOwnerLocked } from '../../booking-turns';
+import { ArtistNotificationRepository } from '@/src/infrastructure/database/repositories/notifications/artist-notification.repository';
+import { VENUE_REPOSITORY } from '@/src/modules/venues/repositories/venue-repository.token';
+import type { VenueRepository } from '@/src/modules/venues/repositories/venue.repository.interface';
+import { PROMOTER_REPOSITORY } from '@/src/modules/promoter/repositories/promoter-repository.token';
+import type { PromoterRepository } from '@/src/modules/promoter/repositories/promoter.repository.interface';
+import { MANAGER_REPOSITORY } from '@/src/modules/managers/repositories/manager-repository.token';
+import type { ManagerRepository } from '@/src/modules/managers/repositories/manager.repository.interface';
+import { notifyBookingCounterpart } from '../../notifications/booking-notifications';
 
 @Injectable()
 export class SendFinalOfferUseCase {
@@ -20,6 +28,13 @@ export class SendFinalOfferUseCase {
     private readonly negotiationMessageRepository: NegotiationMessageRepository,
     @Inject(ARTIST_MANAGER_REPRESENTATION_REPOSITORY)
     private readonly artistManagerRepository: ArtistManagerRepresentationRepository,
+    private readonly notificationsRepo: ArtistNotificationRepository,
+    @Inject(VENUE_REPOSITORY)
+    private readonly venueRepository: VenueRepository,
+    @Inject(PROMOTER_REPOSITORY)
+    private readonly promoterRepository: PromoterRepository,
+    @Inject(MANAGER_REPOSITORY)
+    private readonly managerRepository: ManagerRepository,
   ) {}
 
   async execute(input: {
@@ -131,5 +146,15 @@ export class SendFinalOfferUseCase {
 
     booking.changeStatus(BookingStatus.FINAL_OFFER_SENT);
     await this.bookingRepository.update(booking);
+
+    await notifyBookingCounterpart({
+      booking,
+      senderRole: input.senderRole,
+      type: 'FINAL_OFFER_SENT',
+      notificationsRepo: this.notificationsRepo,
+      venueRepository: this.venueRepository,
+      promoterRepository: this.promoterRepository,
+      managerRepository: this.managerRepository,
+    });
   }
 }

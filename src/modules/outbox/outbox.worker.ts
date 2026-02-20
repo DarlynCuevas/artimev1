@@ -108,7 +108,7 @@ export class OutboxWorkerService implements OnModuleInit, OnModuleDestroy {
     } = event.payload ?? {};
 
     if (!Array.isArray(eligibleArtistIds) || eligibleArtistIds.length === 0) {
-      this.logger.log(`Event ${event.id} has no eligible artists; skipping fan-out.`);
+      // ...existing code...
       return;
     }
 

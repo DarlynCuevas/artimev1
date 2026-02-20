@@ -123,8 +123,23 @@ export class ArtistsService {
 
 
   async discover() {
+    const artists = await this.artistRepository.findForDiscover();
+    if (!artists?.length) return [];
 
-    return this.artistRepository.findForDiscover();
+    const withImages = await Promise.all(
+      artists.map(async (artist) => {
+        const profileImageUrl = artist.userId
+          ? await this.usersService.getSignedProfileImageUrlByUserId(artist.userId)
+          : null;
+
+        return {
+          ...artist,
+          profileImageUrl,
+        };
+      }),
+    );
+
+    return withImages;
   }
 
   async getArtistGallery(artistId: string) {

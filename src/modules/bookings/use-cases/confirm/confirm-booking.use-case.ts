@@ -10,6 +10,14 @@ import { NegotiationMessageRepository } from "@/src/infrastructure/database/repo
 import type { ArtistManagerRepresentationRepository } from "@/src/modules/managers/repositories/artist-manager-representation.repository.interface";
 import { ARTIST_MANAGER_REPRESENTATION_REPOSITORY } from "@/src/modules/managers/repositories/artist-manager-representation.repository.token";
 import { isArtistSide, isSameSide, isArtistSideOwnerLocked } from "../../booking-turns";
+import { ArtistNotificationRepository } from "@/src/infrastructure/database/repositories/notifications/artist-notification.repository";
+import { VENUE_REPOSITORY } from "@/src/modules/venues/repositories/venue-repository.token";
+import type { VenueRepository } from "@/src/modules/venues/repositories/venue.repository.interface";
+import { PROMOTER_REPOSITORY } from "@/src/modules/promoter/repositories/promoter-repository.token";
+import type { PromoterRepository } from "@/src/modules/promoter/repositories/promoter.repository.interface";
+import { MANAGER_REPOSITORY } from "@/src/modules/managers/repositories/manager-repository.token";
+import type { ManagerRepository } from "@/src/modules/managers/repositories/manager.repository.interface";
+import { notifyBookingCounterpart } from "../../notifications/booking-notifications";
 
 @Injectable()
 export class AcceptBookingUseCase {
@@ -20,6 +28,13 @@ export class AcceptBookingUseCase {
     private readonly artistManagerRepository: ArtistManagerRepresentationRepository,
     private readonly negotiationMessageRepository: NegotiationMessageRepository,
     private readonly generateContractUseCase: GenerateContractUseCase,
+    private readonly notificationsRepo: ArtistNotificationRepository,
+    @Inject(VENUE_REPOSITORY)
+    private readonly venueRepository: VenueRepository,
+    @Inject(PROMOTER_REPOSITORY)
+    private readonly promoterRepository: PromoterRepository,
+    @Inject(MANAGER_REPOSITORY)
+    private readonly managerRepository: ManagerRepository,
   ) {}
 
   async execute(input: {
@@ -156,5 +171,15 @@ export class AcceptBookingUseCase {
 
     // Generar contrato
     await this.generateContractUseCase.execute(booking.id);
+
+    await notifyBookingCounterpart({
+      booking,
+      senderRole: input.senderRole,
+      type: 'BOOKING_ACCEPTED',
+      notificationsRepo: this.notificationsRepo,
+      venueRepository: this.venueRepository,
+      promoterRepository: this.promoterRepository,
+      managerRepository: this.managerRepository,
+    });
   }
 }

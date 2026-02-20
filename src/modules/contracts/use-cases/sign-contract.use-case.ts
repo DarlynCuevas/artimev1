@@ -11,6 +11,15 @@ import type { BookingRepository } from '../../bookings/repositories/booking.repo
 import { ContractStatus } from '../enum/contractStatus.enum';
 import { BookingStatus } from '../../bookings/booking-status.enum';
 import { CreatePaymentScheduleForBookingUseCase } from '../../payments/use-cases/create-payment-schedule-for-booking.usecase';
+import { ArtistNotificationRepository } from '@/src/infrastructure/database/repositories/notifications/artist-notification.repository';
+import { VENUE_REPOSITORY } from '@/src/modules/venues/repositories/venue-repository.token';
+import type { VenueRepository } from '@/src/modules/venues/repositories/venue.repository.interface';
+import { PROMOTER_REPOSITORY } from '@/src/modules/promoter/repositories/promoter-repository.token';
+import type { PromoterRepository } from '@/src/modules/promoter/repositories/promoter.repository.interface';
+import { MANAGER_REPOSITORY } from '@/src/modules/managers/repositories/manager-repository.token';
+import type { ManagerRepository } from '@/src/modules/managers/repositories/manager.repository.interface';
+import { notifyBookingCounterpart } from '../../bookings/notifications/booking-notifications';
+import { NegotiationSenderRole } from '../../bookings/negotiations/negotiation-message.entity';
 
 @Injectable()
 export class SignContractUseCase {
@@ -19,6 +28,13 @@ export class SignContractUseCase {
     @Inject(BOOKING_REPOSITORY)
     private readonly bookingRepository: BookingRepository,
     private readonly createPaymentScheduleForBookingUseCase: CreatePaymentScheduleForBookingUseCase,
+    private readonly notificationsRepo: ArtistNotificationRepository,
+    @Inject(VENUE_REPOSITORY)
+    private readonly venueRepository: VenueRepository,
+    @Inject(PROMOTER_REPOSITORY)
+    private readonly promoterRepository: PromoterRepository,
+    @Inject(MANAGER_REPOSITORY)
+    private readonly managerRepository: ManagerRepository,
   ) { }
 
   async execute(input: {
@@ -92,5 +108,18 @@ export class SignContractUseCase {
     // 7. Actualizar booking
     booking.status = BookingStatus.CONTRACT_SIGNED;
     await this.bookingRepository.save(booking);
+
+    const senderRole: NegotiationSenderRole = input.managerId
+      ? NegotiationSenderRole.MANAGER
+      : NegotiationSenderRole.ARTIST;
+    await notifyBookingCounterpart({
+      booking,
+      senderRole,
+      type: 'CONTRACT_SIGNED',
+      notificationsRepo: this.notificationsRepo,
+      venueRepository: this.venueRepository,
+      promoterRepository: this.promoterRepository,
+      managerRepository: this.managerRepository,
+    });
   }
 }

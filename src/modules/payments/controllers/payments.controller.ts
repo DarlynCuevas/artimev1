@@ -24,11 +24,11 @@ export class PaymentsController {
   async createPaymentIntentForTest(
     @Param('milestoneId') milestoneId: string,
   ): Promise<any> {
-    console.log('[PaymentsController] POST /payments/create-payment-intent/' + milestoneId);
+    // ...existing code...
     const secret = await this.createPaymentIntentForMilestoneUseCase.execute({
       paymentMilestoneId: milestoneId,
     });
-    console.log('[PaymentsController] Respuesta createPaymentIntentForTest:', secret);
+    // ...existing code...
     return secret;
   }
 
@@ -37,11 +37,11 @@ export class PaymentsController {
   async createScheduleForBooking(
     @Param('bookingId') bookingId: string,
   ) {
-    console.log('[PaymentsController] POST /payments/bookings/' + bookingId + '/schedule');
+    // ...existing code...
     const result = await this.createPaymentScheduleForBookingUseCase.execute({
       bookingId,
     });
-    console.log('[PaymentsController] Respuesta createScheduleForBooking:', result);
+    // ...existing code...
     return result;
   }
 
@@ -50,11 +50,11 @@ export class PaymentsController {
   async getMilestonesForBooking(
     @Param('bookingId') bookingId: string,
   ) {
-    console.log('[PaymentsController] GET /payments/bookings/' + bookingId + '/milestones');
+    // ...existing code...
     const result = await this.getPaymentMilestonesForBookingQuery.execute({
       bookingId,
     });
-    console.log('[PaymentsController] Respuesta getMilestonesForBooking:', result);
+    // ...existing code...
     return result;
   }
 }

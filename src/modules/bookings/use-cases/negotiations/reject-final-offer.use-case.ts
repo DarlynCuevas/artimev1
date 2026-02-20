@@ -8,6 +8,14 @@ import {
 import { NegotiationMessageRepository } from '@/src/infrastructure/database/repositories/negotiation-message.repository';
 import { mapSenderToHandlerRole } from '../../domain/booking-handler.mapper';
 import { isSameSide, isArtistSideOwnerLocked } from '../../booking-turns';
+import { ArtistNotificationRepository } from '@/src/infrastructure/database/repositories/notifications/artist-notification.repository';
+import { VENUE_REPOSITORY } from '@/src/modules/venues/repositories/venue-repository.token';
+import type { VenueRepository } from '@/src/modules/venues/repositories/venue.repository.interface';
+import { PROMOTER_REPOSITORY } from '@/src/modules/promoter/repositories/promoter-repository.token';
+import type { PromoterRepository } from '@/src/modules/promoter/repositories/promoter.repository.interface';
+import { MANAGER_REPOSITORY } from '@/src/modules/managers/repositories/manager-repository.token';
+import type { ManagerRepository } from '@/src/modules/managers/repositories/manager.repository.interface';
+import { notifyBookingCounterpart } from '../../notifications/booking-notifications';
 
 @Injectable()
 export class RejectFinalOfferUseCase {
@@ -15,6 +23,13 @@ export class RejectFinalOfferUseCase {
     @Inject(BOOKING_REPOSITORY)
     private readonly bookingRepository: BookingRepository,
     private readonly negotiationMessageRepository: NegotiationMessageRepository,
+    private readonly notificationsRepo: ArtistNotificationRepository,
+    @Inject(VENUE_REPOSITORY)
+    private readonly venueRepository: VenueRepository,
+    @Inject(PROMOTER_REPOSITORY)
+    private readonly promoterRepository: PromoterRepository,
+    @Inject(MANAGER_REPOSITORY)
+    private readonly managerRepository: ManagerRepository,
   ) {}
 
   async execute(input: {
@@ -87,5 +102,15 @@ export class RejectFinalOfferUseCase {
     // Rechazo definitivo
     booking.changeStatus(BookingStatus.REJECTED);
     await this.bookingRepository.update(booking);
+
+    await notifyBookingCounterpart({
+      booking,
+      senderRole: input.senderRole,
+      type: 'BOOKING_REJECTED',
+      notificationsRepo: this.notificationsRepo,
+      venueRepository: this.venueRepository,
+      promoterRepository: this.promoterRepository,
+      managerRepository: this.managerRepository,
+    });
   }
 }

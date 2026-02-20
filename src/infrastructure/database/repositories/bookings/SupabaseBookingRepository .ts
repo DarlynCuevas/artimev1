@@ -9,7 +9,7 @@ import { Artist } from '@/src/modules/artists/entities/artist.entity';
 export class SupabaseBookingRepository {
 
   async findById(id: string): Promise<Booking | null> {
-    console.log('ide busqueda booking ', id);
+    // ...existing code...
 
     const { data, error } = await supabase
       .from('bookings')
@@ -90,7 +90,7 @@ export class SupabaseBookingRepository {
   }
 
   async save(booking: Booking): Promise<void> {
-    console.log('booking save ', booking);
+    // ...existing code...
 
     const persistence = {
       id: booking.id,
@@ -127,7 +127,7 @@ export class SupabaseBookingRepository {
   }
 
   async update(booking: Booking): Promise<void> {
-    await supabase
+    const { data, error } = await supabase
       .from('bookings')
       .update({
         status: booking.status,
@@ -140,7 +140,15 @@ export class SupabaseBookingRepository {
 
         updated_at: new Date(),
       })
-      .eq('id', booking.id);
+      .eq('id', booking.id)
+      .select('id');
+
+    if (error) {
+      throw new Error(`Error updating booking: ${error.message}`);
+    }
+    if (!data || data.length === 0) {
+      throw new Error('Error updating booking: no rows updated (possible RLS or permission issue)');
+    }
   }
 
   async findByArtistId(artistId: string): Promise<Booking[]> {
@@ -211,7 +219,7 @@ export class SupabaseBookingRepository {
   }
 
   async findByVenueId(venueId: string): Promise<Booking[]> {
-    console.log('ide busqueda booking ', venueId);
+    // ...existing code...
     const { data, error } = await supabase
       .from('bookings')
       .select('*')

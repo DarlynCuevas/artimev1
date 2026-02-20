@@ -1,4 +1,5 @@
 import { Module, forwardRef } from '@nestjs/common';
+import { SupabaseModule } from '@/src/infrastructure/database/supabase.module';
 import { ContractRepository } from '../../infrastructure/database/repositories/contract.repository';
 import { GenerateContractOnAcceptedUseCase } from './use-cases/generate-contract-on-accepted.usecase';
 import { SignContractUseCase } from './use-cases/sign-contract.use-case';
@@ -17,9 +18,11 @@ import { PromotersModule } from '../promoter/promoter.module';
 import { ManagersModule } from '../managers/managers.module';
 import { ContractTemplateMapper } from './mappers/contract-template.mapper';
 import { ContractPdfService } from './services/contract-pdf.service';
+import { ArtistNotificationRepository } from '@/src/infrastructure/database/repositories/notifications/artist-notification.repository';
 
 @Module({
   imports: [
+    SupabaseModule,
     forwardRef(() => BookingsModule),
     forwardRef(() => require('../payments/payments.module').PaymentsModule),
     forwardRef(() => ArtistsModule),
@@ -33,6 +36,7 @@ import { ContractPdfService } from './services/contract-pdf.service';
     ContractRepository,
     ContractTemplateMapper,
     ContractPdfService,
+    ArtistNotificationRepository,
     GenerateContractOnAcceptedUseCase,
     SignContractUseCase,
     GenerateContractUseCase,

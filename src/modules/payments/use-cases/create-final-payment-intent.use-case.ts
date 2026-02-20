@@ -17,9 +17,9 @@ export class CreateFinalPaymentIntentUseCase {
   async execute(input: {
     bookingId: string;
   }): Promise<{ clientSecret: string }> {
-    console.log('[CreateFinalPaymentIntentUseCase] Ejecutando con bookingId:', input.bookingId);
+    // ...existing code...
     const booking = await this.supabaseBookingRepository.findById(input.bookingId);
-    console.log('[CreateFinalPaymentIntentUseCase] Booking encontrado:', booking);
+    // ...existing code...
 
     if (!booking || booking.status !== BookingStatus.PAID_PARTIAL) {
       console.error('[CreateFinalPaymentIntentUseCase] Booking no elegible para pago final', { booking });
@@ -27,7 +27,7 @@ export class CreateFinalPaymentIntentUseCase {
     }
 
     const schedule = await this.paymentRepository.findScheduleByBookingId(booking.id);
-    console.log('[CreateFinalPaymentIntentUseCase] Schedule encontrado:', schedule);
+    // ...existing code...
 
     if (!schedule) {
       console.error('[CreateFinalPaymentIntentUseCase] No se encontró el payment schedule', { bookingId: booking.id });
@@ -35,10 +35,10 @@ export class CreateFinalPaymentIntentUseCase {
     }
 
     const milestones = await this.paymentRepository.findMilestonesByScheduleId(schedule.id);
-    console.log('[CreateFinalPaymentIntentUseCase] Milestones encontrados:', milestones);
+    // ...existing code...
 
     const finalMilestone = milestones.find((m) => m.type === PaymentMilestoneType.FINAL);
-    console.log('[CreateFinalPaymentIntentUseCase] Final milestone:', finalMilestone);
+    // ...existing code...
 
     if (!finalMilestone || finalMilestone.status !== PaymentMilestoneStatus.PENDING) {
       console.error('[CreateFinalPaymentIntentUseCase] Final milestone no pagable', { finalMilestone });
@@ -88,10 +88,10 @@ export class CreateFinalPaymentIntentUseCase {
       },
       idempotencyKey,
     });
-    console.log('[CreateFinalPaymentIntentUseCase] Intent creado:', intent);
+    // ...existing code...
 
     await this.paymentRepository.attachProviderPaymentId(finalMilestone.id, intent.providerPaymentId);
-    console.log('[CreateFinalPaymentIntentUseCase] ProviderPaymentId asociado:', intent.providerPaymentId);
+    // ...existing code...
 
     await this.paymentIntentRepository.save({
       provider: 'stripe',

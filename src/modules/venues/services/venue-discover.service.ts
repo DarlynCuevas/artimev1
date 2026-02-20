@@ -6,6 +6,7 @@ import type { ArtistRepository } from '../../artists/repositories/artist.reposit
 import { mapVenueToPublicDto } from '../mappers/venue-public.mapper'
 import type { VenueRepository } from '../repositories/venue.repository.interface'
 import { VENUE_REPOSITORY } from '../repositories/venue-repository.token'
+import { UsersService } from '../../users/services/users.service'
 
 @Injectable()
 export class VenueDiscoverService {
@@ -16,6 +17,7 @@ export class VenueDiscoverService {
     private readonly bookingRepo: BookingRepository,
     @Inject(VENUE_REPOSITORY)
     private readonly venueRepository: VenueRepository,
+    private readonly usersService: UsersService,
   ) {}
 
   async findAvailableArtists(filters: {
@@ -26,9 +28,24 @@ export class VenueDiscoverService {
     maxPrice?: number
     search?: string
   }) {
-    return this.artistRepo.findAvailableForDate(filters)
+    const artists = await this.artistRepo.findAvailableForDate(filters)
+    if (!artists?.length) return []
+
+    const withImages = await Promise.all(
+      artists.map(async (artist: any) => {
+        const profileImageUrl = artist.userId
+          ? await this.usersService.getSignedProfileImageUrlByUserId(artist.userId)
+          : null
+
+        return {
+          ...artist,
+          profileImageUrl,
+        }
+      }),
+    )
+
+    return withImages
   }
 
   
 }
-

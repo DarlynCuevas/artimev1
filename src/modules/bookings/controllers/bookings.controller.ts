@@ -221,8 +221,7 @@ async create(
     senderUserId: userId,
   });
 
-  // LOG: booking creado
-  console.log('Booking creado:', booking);
+  // ...existing code...
 
   return {
     id: booking.id,

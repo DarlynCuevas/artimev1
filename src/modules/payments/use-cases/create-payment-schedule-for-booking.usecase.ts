@@ -20,7 +20,7 @@ export class CreatePaymentScheduleForBookingUseCase {
     ) { }
 
     async execute(input: { bookingId: string }) {
-        console.log('[CreatePaymentScheduleForBookingUseCase] Ejecutando con bookingId:', input.bookingId);
+        // ...existing code...
         const booking = await this.bookingRepository.findById(input.bookingId);
         if (!booking) {
             throw new Error('Booking not found');
@@ -31,11 +31,11 @@ export class CreatePaymentScheduleForBookingUseCase {
 
         // 1. Ver si ya existe un schedule
         const existingSchedule = await this.paymentRepository.findScheduleByBookingId(input.bookingId);
-        console.log('[CreatePaymentScheduleForBookingUseCase] existingSchedule:', existingSchedule);
+        // ...existing code...
 
         if (existingSchedule) {
             const milestones = await this.paymentRepository.findMilestonesByScheduleId(existingSchedule.id);
-            console.log('[CreatePaymentScheduleForBookingUseCase] milestones encontrados:', milestones);
+            // ...existing code...
             if (milestones.length === 0) {
                 const milestoneId = uuid();
                 const milestone = new PaymentMilestone({
@@ -47,7 +47,7 @@ export class CreatePaymentScheduleForBookingUseCase {
                     requiresManualPayment: false,
                 });
                 await this.paymentRepository.saveMilestones([milestone], existingSchedule.id);
-                console.log('[CreatePaymentScheduleForBookingUseCase] milestone creado y guardado:', milestone);
+                // ...existing code...
             }
             return {
                 scheduleId: existingSchedule.id,
@@ -68,7 +68,7 @@ export class CreatePaymentScheduleForBookingUseCase {
             createdAt: new Date(),
         });
         await this.paymentRepository.saveSchedule(schedule);
-        console.log('[CreatePaymentScheduleForBookingUseCase] schedule creado y guardado:', schedule);
+        // ...existing code...
 
         const milestone = new PaymentMilestone({
             id: milestoneId,
@@ -79,7 +79,7 @@ export class CreatePaymentScheduleForBookingUseCase {
             requiresManualPayment: false,
         });
         await this.paymentRepository.saveMilestones([milestone], scheduleId);
-        console.log('[CreatePaymentScheduleForBookingUseCase] milestone creado y guardado:', milestone);
+        // ...existing code...
 
         return {
             scheduleId,

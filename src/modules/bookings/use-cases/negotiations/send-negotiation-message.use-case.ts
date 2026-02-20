@@ -15,6 +15,14 @@ import { NegotiationMessageRepository } from '../../../../infrastructure/databas
 import { mapSenderToHandlerRole } from '../../domain/booking-handler.mapper';
 import { isSameSide, isArtistSideOwnerLocked } from '../../booking-turns';
 import { SendFinalOfferUseCase } from './send-final-offer.use-case';
+import { ArtistNotificationRepository } from '@/src/infrastructure/database/repositories/notifications/artist-notification.repository';
+import { VENUE_REPOSITORY } from '@/src/modules/venues/repositories/venue-repository.token';
+import type { VenueRepository } from '@/src/modules/venues/repositories/venue.repository.interface';
+import { PROMOTER_REPOSITORY } from '@/src/modules/promoter/repositories/promoter-repository.token';
+import type { PromoterRepository } from '@/src/modules/promoter/repositories/promoter.repository.interface';
+import { MANAGER_REPOSITORY } from '@/src/modules/managers/repositories/manager-repository.token';
+import type { ManagerRepository } from '@/src/modules/managers/repositories/manager.repository.interface';
+import { notifyBookingCounterpart } from '../../notifications/booking-notifications';
 
 @Injectable()
 export class SendNegotiationMessageUseCase {
@@ -23,6 +31,13 @@ export class SendNegotiationMessageUseCase {
     private readonly bookingRepository: BookingRepository,
     private readonly negotiationMessageRepository: NegotiationMessageRepository,
     private readonly sendFinalOfferUseCase: SendFinalOfferUseCase,
+    private readonly notificationsRepo: ArtistNotificationRepository,
+    @Inject(VENUE_REPOSITORY)
+    private readonly venueRepository: VenueRepository,
+    @Inject(PROMOTER_REPOSITORY)
+    private readonly promoterRepository: PromoterRepository,
+    @Inject(MANAGER_REPOSITORY)
+    private readonly managerRepository: ManagerRepository,
   ) { }
 
   async execute(input: {
@@ -170,5 +185,15 @@ export class SendNegotiationMessageUseCase {
       createdAt: new Date(),
     });
     await this.negotiationMessageRepository.save(negotiationMessage);
+
+    await notifyBookingCounterpart({
+      booking,
+      senderRole: input.senderRole,
+      type: 'NEGOTIATION_MESSAGE_SENT',
+      notificationsRepo: this.notificationsRepo,
+      venueRepository: this.venueRepository,
+      promoterRepository: this.promoterRepository,
+      managerRepository: this.managerRepository,
+    });
   }
 }

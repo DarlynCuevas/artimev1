@@ -125,7 +125,7 @@ export class StripeWebhookService {
     }
 
     if (milestone.status === PaymentMilestoneStatus.PAID) {
-      console.log('[Webhook] Milestone ya está pagado');
+      // ...existing code...
       return;
     }
 

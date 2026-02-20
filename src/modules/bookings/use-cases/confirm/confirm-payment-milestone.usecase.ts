@@ -1,6 +1,15 @@
 import { Injectable, BadRequestException, NotFoundException, Inject } from '@nestjs/common';
 import { BookingStatus } from '../../booking-status.enum';
 import { StripePaymentProvider } from '@/src/infrastructure/payments/stripe-payment.provider';
+import { ArtistNotificationRepository } from '@/src/infrastructure/database/repositories/notifications/artist-notification.repository';
+import { VENUE_REPOSITORY } from '@/src/modules/venues/repositories/venue-repository.token';
+import type { VenueRepository } from '@/src/modules/venues/repositories/venue.repository.interface';
+import { PROMOTER_REPOSITORY } from '@/src/modules/promoter/repositories/promoter-repository.token';
+import type { PromoterRepository } from '@/src/modules/promoter/repositories/promoter.repository.interface';
+import { MANAGER_REPOSITORY } from '@/src/modules/managers/repositories/manager-repository.token';
+import type { ManagerRepository } from '@/src/modules/managers/repositories/manager.repository.interface';
+import { notifyBookingCounterpart } from '../../notifications/booking-notifications';
+import { NegotiationSenderRole } from '../../negotiations/negotiation-message.entity';
 import type { PaymentMilestoneRepository } from '@/src/modules/payments/payment-milestone.repository.interface';
 import type { BookingRepository } from '../../repositories/booking.repository.interface';
 import { BookingStateMachine } from '../../booking-state-machine';
@@ -14,6 +23,13 @@ export class ConfirmPaymentMilestoneUseCase {
         @Inject(PAYMENT_MILESTONE_REPOSITORY)
         private readonly milestoneRepository: PaymentMilestoneRepository,
         private readonly stripeProvider: StripePaymentProvider,
+        private readonly notificationsRepo: ArtistNotificationRepository,
+        @Inject(VENUE_REPOSITORY)
+        private readonly venueRepository: VenueRepository,
+        @Inject(PROMOTER_REPOSITORY)
+        private readonly promoterRepository: PromoterRepository,
+        @Inject(MANAGER_REPOSITORY)
+        private readonly managerRepository: ManagerRepository,
     ) { }
 
     async execute(input: {
@@ -97,5 +113,20 @@ export class ConfirmPaymentMilestoneUseCase {
 
         // 12. Persist booking
         await this.bookingRepository.save(booking);
+
+        const senderRole: NegotiationSenderRole = booking.promoterId
+            ? NegotiationSenderRole.PROMOTER
+            : NegotiationSenderRole.VENUE;
+        const paymentStatus = booking.status === BookingStatus.PAID_FULL ? 'FULL' : 'PARTIAL';
+        await notifyBookingCounterpart({
+            booking,
+            senderRole,
+            type: 'PAYMENT_CONFIRMED',
+            extraPayload: { paymentStatus },
+            notificationsRepo: this.notificationsRepo,
+            venueRepository: this.venueRepository,
+            promoterRepository: this.promoterRepository,
+            managerRepository: this.managerRepository,
+        });
     }
 }
