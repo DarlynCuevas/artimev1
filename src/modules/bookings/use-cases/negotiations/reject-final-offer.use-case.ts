@@ -7,6 +7,7 @@ import {
 } from '../../negotiations/negotiation-message.entity';
 import { NegotiationMessageRepository } from '@/src/infrastructure/database/repositories/negotiation-message.repository';
 import { mapSenderToHandlerRole } from '../../domain/booking-handler.mapper';
+import { isSameSide, isArtistSideOwnerLocked } from '../../booking-turns';
 
 @Injectable()
 export class RejectFinalOfferUseCase {
@@ -54,6 +55,19 @@ export class RejectFinalOfferUseCase {
       );
     }
 
+    if (
+      isArtistSideOwnerLocked({
+        currentRole: input.senderRole,
+        currentUserId: input.senderUserId,
+        ownerRole: booking.handledByRole,
+        ownerUserId: booking.handledByUserId,
+      })
+    ) {
+      throw new ForbiddenException(
+        'Este booking está siendo gestionado por la otra parte',
+      );
+    }
+
     // Asignar handler si aún no existe
     if (!booking.handledByRole) {
       booking = booking.assignHandler({
@@ -61,6 +75,13 @@ export class RejectFinalOfferUseCase {
         userId: input.senderUserId,
         at: new Date(),
       });
+    } else if (
+      isSameSide(booking.handledByRole, input.senderRole) &&
+      booking.handledByRole !== mapSenderToHandlerRole(input.senderRole)
+    ) {
+      throw new ForbiddenException(
+        'Este booking está siendo gestionado por la otra parte',
+      );
     }
 
     // Rechazo definitivo

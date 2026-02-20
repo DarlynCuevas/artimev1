@@ -1,4 +1,4 @@
-import { ForbiddenException, Inject, Injectable } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Inject, Injectable } from '@nestjs/common';
 import { BOOKING_REPOSITORY } from '../../repositories/booking-repository.token';
 import type { BookingRepository } from '../../repositories/booking.repository.interface';
 import { BookingStatus } from '../../booking-status.enum';
@@ -10,6 +10,7 @@ import { NegotiationMessageRepository } from '@/src/infrastructure/database/repo
 import { ARTIST_MANAGER_REPRESENTATION_REPOSITORY } from '../../../managers/repositories/artist-manager-representation.repository.token';
 import type { ArtistManagerRepresentationRepository } from '../../../managers/repositories/artist-manager-representation.repository.interface';
 import { mapSenderToHandlerRole } from '../../domain/booking-handler.mapper';
+import { isArtistSide, isSameSide, isArtistSideOwnerLocked } from '../../booking-turns';
 
 @Injectable()
 export class SendFinalOfferUseCase {
@@ -29,6 +30,10 @@ export class SendFinalOfferUseCase {
     proposedFee: number;
     message?: string;
   }): Promise<void> {
+    if (input.proposedFee == null || input.proposedFee <= 0) {
+      throw new BadRequestException('La oferta final requiere un importe válido');
+    }
+
     let booking = await this.bookingRepository.findById(input.bookingId);
     if (!booking) throw new ForbiddenException('Booking not found');
 
@@ -36,12 +41,11 @@ export class SendFinalOfferUseCase {
       throw new ForbiddenException('Ya existe una oferta final');
     }
 
-    const isArtistSide =
-      input.senderRole === 'ARTIST' || input.senderRole === 'MANAGER';
+    const senderIsArtistSide = isArtistSide(input.senderRole);
 
     // Venue / Promoter solo durante negociación
     if (
-      !isArtistSide &&
+      !senderIsArtistSide &&
       booking.status !== BookingStatus.NEGOTIATING
     ) {
       throw new ForbiddenException(
@@ -70,9 +74,31 @@ export class SendFinalOfferUseCase {
       throw new ForbiddenException('Ya existe una oferta final');
     }
 
+    const lastMessage = messages[messages.length - 1];
+    if (lastMessage) {
+      if (isSameSide(lastMessage.senderRole, input.senderRole)) {
+        throw new ForbiddenException('No es tu turno para enviar oferta final');
+      }
+    } else if (!senderIsArtistSide) {
+      throw new ForbiddenException('No es tu turno para enviar oferta final');
+    }
+
     // Handler solo para lado artista
-    if (isArtistSide) {
+    if (senderIsArtistSide) {
       const handlerRole = mapSenderToHandlerRole(input.senderRole);
+
+      if (
+        isArtistSideOwnerLocked({
+          currentRole: input.senderRole,
+          currentUserId: input.senderUserId,
+          ownerRole: booking.handledByRole,
+          ownerUserId: booking.handledByUserId,
+        })
+      ) {
+        throw new ForbiddenException(
+          'Este booking está siendo gestionado por la otra parte',
+        );
+      }
 
       if (!booking.handledByRole) {
         booking = booking.assignHandler({
@@ -80,7 +106,10 @@ export class SendFinalOfferUseCase {
           userId: input.senderUserId,
           at: new Date(),
         });
-      } else if (booking.handledByRole !== handlerRole) {
+      } else if (
+        isSameSide(booking.handledByRole, handlerRole) &&
+        booking.handledByRole !== handlerRole
+      ) {
         throw new ForbiddenException(
           'Este booking está siendo gestionado por la otra parte',
         );

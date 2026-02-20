@@ -15,12 +15,10 @@ export const BOOKING_TRANSITIONS: Record<
     BookingStatus.REJECTED,
     BookingStatus.CANCELLED,
     BookingStatus.FINAL_OFFER_SENT,
-    BookingStatus.ACCEPTED,
   ],
 
   [BookingStatus.NEGOTIATING]: [
     BookingStatus.CANCELLED,
-    BookingStatus.ACCEPTED,
     BookingStatus.REJECTED,
     BookingStatus.FINAL_OFFER_SENT,
   ],

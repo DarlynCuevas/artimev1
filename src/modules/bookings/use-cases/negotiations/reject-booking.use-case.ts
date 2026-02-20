@@ -4,6 +4,8 @@ import { NegotiationMessageRepository } from '@/src/infrastructure/database/repo
 import { BOOKING_REPOSITORY } from '../../repositories/booking-repository.token';
 import type { BookingRepository } from '../../repositories/booking.repository.interface';
 import { BookingStatus } from '../../booking-status.enum';
+import { NegotiationSenderRole } from '../../negotiations/negotiation-message.entity';
+import { isArtistSide, isSameSide } from '../../booking-turns';
 
 @Injectable()
 export class RejectBookingUseCase {
@@ -16,6 +18,7 @@ export class RejectBookingUseCase {
   async execute(input: {
     bookingId: string;
     senderUserId: string;
+    senderRole: NegotiationSenderRole;
   }): Promise<void> {
     const booking = await this.bookingRepository.findById(input.bookingId);
     if (!booking) {
@@ -47,6 +50,18 @@ export class RejectBookingUseCase {
     if (lastMessage && lastMessage.senderUserId === input.senderUserId) {
       throw new ForbiddenException(
         'No puedes rechazar tras haber respondido',
+      );
+    }
+
+    if (lastMessage) {
+      if (isSameSide(lastMessage.senderRole, input.senderRole)) {
+        throw new ForbiddenException(
+          'No es tu turno para rechazar la propuesta',
+        );
+      }
+    } else if (!isArtistSide(input.senderRole)) {
+      throw new ForbiddenException(
+        'No es tu turno para rechazar la propuesta',
       );
     }
 

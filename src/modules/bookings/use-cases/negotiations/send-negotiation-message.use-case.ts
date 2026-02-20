@@ -13,6 +13,8 @@ import {
 } from '../../negotiations/negotiation-message.entity';
 import { NegotiationMessageRepository } from '../../../../infrastructure/database/repositories/negotiation-message.repository';
 import { mapSenderToHandlerRole } from '../../domain/booking-handler.mapper';
+import { isSameSide, isArtistSideOwnerLocked } from '../../booking-turns';
+import { SendFinalOfferUseCase } from './send-final-offer.use-case';
 
 @Injectable()
 export class SendNegotiationMessageUseCase {
@@ -20,6 +22,7 @@ export class SendNegotiationMessageUseCase {
     @Inject(BOOKING_REPOSITORY)
     private readonly bookingRepository: BookingRepository,
     private readonly negotiationMessageRepository: NegotiationMessageRepository,
+    private readonly sendFinalOfferUseCase: SendFinalOfferUseCase,
   ) { }
 
   async execute(input: {
@@ -97,11 +100,36 @@ export class SendNegotiationMessageUseCase {
       );
     }
 
+    if (input.isFinalOffer) {
+      await this.sendFinalOfferUseCase.execute({
+        bookingId: booking.id,
+        senderRole: input.senderRole,
+        senderUserId: input.senderUserId,
+        senderManagerId: input.senderManagerId,
+        proposedFee: input.proposedFee as number,
+        message: input.message,
+      });
+      return;
+    }
+
     /**
      * 🎤 SOLO ARTISTA / MANAGER gestionan el booking
      */
     if (isArtistSide) {
       const handlerRole = mapSenderToHandlerRole(input.senderRole);
+
+      if (
+        isArtistSideOwnerLocked({
+          currentRole: input.senderRole,
+          currentUserId: input.senderUserId,
+          ownerRole: booking.handledByRole,
+          ownerUserId: booking.handledByUserId,
+        })
+      ) {
+        throw new ForbiddenException(
+          'Este booking está siendo gestionado por la otra parte',
+        );
+      }
 
       if (!booking.handledByRole) {
         const updatedBooking = booking.assignHandler({
@@ -110,8 +138,9 @@ export class SendNegotiationMessageUseCase {
         });
         await this.bookingRepository.update(updatedBooking);
       } else if (
-        booking.handledByRole !== handlerRole ||
-        booking.handledByUserId !== input.senderUserId
+        isSameSide(booking.handledByRole, handlerRole) &&
+        (booking.handledByRole !== handlerRole ||
+          booking.handledByUserId !== input.senderUserId)
       ) {
         throw new ForbiddenException(
           'Este booking está siendo gestionado por la otra parte',
@@ -130,14 +159,6 @@ export class SendNegotiationMessageUseCase {
     /**
      * 💾 Guardar mensaje
      */
-    console.log('[NEGOTIATION USECASE] Creando NegotiationMessage:', {
-      bookingId: booking.id,
-      senderRole: input.senderRole,
-      senderUserId: input.senderUserId,
-      message: input.message,
-      proposedFee: input.proposedFee,
-      isFinalOffer: input.isFinalOffer ?? false,
-    });
     const negotiationMessage = new NegotiationMessage({
       id: crypto.randomUUID(),
       bookingId: booking.id,
@@ -148,16 +169,6 @@ export class SendNegotiationMessageUseCase {
       isFinalOffer: input.isFinalOffer ?? false,
       createdAt: new Date(),
     });
-    console.log('[NEGOTIATION USECASE] NegotiationMessage instanciado:', negotiationMessage);
     await this.negotiationMessageRepository.save(negotiationMessage);
-    console.log('[NEGOTIATION USECASE] NegotiationMessage guardado en repositorio');
-
-    /**
-     * 🔚 Oferta final
-     */
-    if (input.isFinalOffer) {
-      booking.changeStatus(BookingStatus.FINAL_OFFER_SENT);
-      await this.bookingRepository.update(booking);
-    }
   }
 }

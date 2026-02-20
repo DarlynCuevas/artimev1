@@ -191,16 +191,7 @@ async create(
   @Req() req: AuthenticatedRequest,
   @Body() dto: CreateBookingDto,
 ): Promise<BookingResponseDto> {
-  console.log('[BookingsController.create] payload:', {
-    artistId: dto.artistId,
-    eventId: dto.eventId,
-    start_date: dto.start_date,
-    totalAmount: dto.totalAmount,
-    currency: dto.currency,
-  });
-  // LOG: contexto de usuario completo
   const { venueId, promoterId, userId } = req.userContext;
-  // LOG: valores clave
 
   if (!venueId && !promoterId) {
     throw new ForbiddenException('Only venues or promoters can create bookings');
@@ -352,9 +343,34 @@ async create(
     @Param('id') bookingId: string,
     @Req() req: AuthenticatedRequest,
   ) {
+    const { userId, venueId, artistId, managerId, promoterId } = req.userContext;
+
+    const booking = await this.bookingRepository.findById(bookingId);
+    if (!booking) throw new NotFoundException('Booking not found');
+
+    let senderRole: NegotiationSenderRole;
+
+    if (artistId && booking.artistId === artistId) {
+      senderRole = NegotiationSenderRole.ARTIST;
+    } else if (managerId) {
+      const represents = await this.representationRepository.existsActiveRepresentation({
+        artistId: booking.artistId,
+        managerId,
+      });
+      if (!represents) throw new ForbiddenException();
+      senderRole = NegotiationSenderRole.MANAGER;
+    } else if (venueId && booking.venueId === venueId) {
+      senderRole = NegotiationSenderRole.VENUE;
+    } else if (promoterId && booking.promoterId === promoterId) {
+      senderRole = NegotiationSenderRole.PROMOTER;
+    } else {
+      throw new ForbiddenException();
+    }
+
     await this.rejectBookingUseCase.execute({
       bookingId,
-      senderUserId: req.user.sub,
+      senderUserId: userId,
+      senderRole,
     });
   }
 

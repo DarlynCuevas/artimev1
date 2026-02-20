@@ -9,6 +9,7 @@ import { BookingStatus } from '../../booking-status.enum';
 import { NegotiationMessage, NegotiationSenderRole } from '../../negotiations/negotiation-message.entity';
 import { NegotiationMessageRepository } from '@/src/infrastructure/database/repositories/negotiation-message.repository';
 import { mapSenderToHandlerRole } from '../../domain/booking-handler.mapper';
+import { isSameSide, isArtistSideOwnerLocked } from '../../booking-turns';
 import { ARTIST_MANAGER_REPRESENTATION_REPOSITORY } from '../../../managers/repositories/artist-manager-representation.repository.token';
 import type { ArtistManagerRepresentationRepository } from '../../../managers/repositories/artist-manager-representation.repository.interface';
 import { GenerateContractUseCase } from '@/src/modules/contracts/use-cases/generate-contract.use-case';
@@ -80,13 +81,29 @@ export class AcceptFinalOfferUseCase {
     // Validar handler
     const handlerRole = mapSenderToHandlerRole(input.senderRole);
 
+    if (
+      isArtistSideOwnerLocked({
+        currentRole: input.senderRole,
+        currentUserId: input.senderUserId,
+        ownerRole: booking.handledByRole,
+        ownerUserId: booking.handledByUserId,
+      })
+    ) {
+      throw new ForbiddenException(
+        'Este booking está siendo gestionado por la otra parte',
+      );
+    }
+
     if (!booking.handledByRole) {
       booking = booking.assignHandler({
         role: handlerRole,
         userId: input.senderUserId,
         at: new Date(),
       });
-    } else if (booking.handledByRole !== handlerRole) {
+    } else if (
+      isSameSide(booking.handledByRole, handlerRole) &&
+      booking.handledByRole !== handlerRole
+    ) {
       throw new ForbiddenException(
         'Este booking está siendo gestionado por la otra parte',
       );
@@ -101,4 +118,3 @@ export class AcceptFinalOfferUseCase {
     await this.generateContractUseCase.execute(booking.id);
   }
 }
-
