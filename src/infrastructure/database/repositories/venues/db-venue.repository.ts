@@ -2,6 +2,7 @@ import { VenueEntity } from "@/src/modules/venues/entities/venue.entity";
 import { VenueRepository } from "@/src/modules/venues/repositories/venue.repository.interface";
 import { Injectable } from "@nestjs/common";
 import { supabase } from "../../supabase.client";
+import { BookingStatus } from "@/src/modules/bookings/booking-status.enum";
 
 
 @Injectable()
@@ -42,7 +43,7 @@ export class DbVenueRepository implements VenueRepository {
   }
 
   async findById(id: string): Promise<VenueEntity | null> {
-    
+
     const { data, error } = await supabase
       .from('venues')
       .select('*')
@@ -53,24 +54,24 @@ export class DbVenueRepository implements VenueRepository {
 
     return this.mapRowToEntity(data);
 
-    
+
   }
 
   async findForDiscover(filters?: {
-  city?: string;
-  genres?: string[];
-}): Promise<VenueEntity[]> {
-  let query = supabase
-    .from('venues')
-    .select('id, name, city, genres');
+    city?: string;
+    genres?: string[];
+  }): Promise<VenueEntity[]> {
+    let query = supabase
+      .from('venues')
+      .select('id, name, city, genres');
 
-  if (filters?.city) {
-    query = query.eq('city', filters.city);
-  }
+    if (filters?.city) {
+      query = query.eq('city', filters.city);
+    }
 
-  if (filters?.genres?.length) {
-    query = query.overlaps('genres', filters.genres);
-  }
+    if (filters?.genres?.length) {
+      query = query.overlaps('genres', filters.genres);
+    }
 
     const { data, error } = await query;
 
@@ -79,6 +80,41 @@ export class DbVenueRepository implements VenueRepository {
     }
 
     return (data ?? []).map((row) => this.mapRowToEntity(row));
+  }
+
+  async findBookedDates(
+    venueId: string,
+    from: string,
+    to: string,
+  ): Promise<string[]> {
+    if (!from || !to) {
+      throw new Error('Parámetros de fecha inválidos: from y to son requeridos');
+    }
+
+    const { data, error } = await supabase
+      .from('bookings')
+      .select('start_date')
+      .eq('venue_id', venueId)
+      .in('status', [
+        BookingStatus.ACCEPTED,
+        BookingStatus.CONTRACT_SIGNED,
+        BookingStatus.PAID_PARTIAL,
+        BookingStatus.PAID_FULL,
+        BookingStatus.COMPLETED,
+      ])
+      .gte('start_date', from)
+      .lte('start_date', to);
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    if (!data || data.length === 0) {
+      return [];
+    }
+
+    // Normalizamos a YYYY-MM-DD
+    return data.map((b) => b.start_date.slice(0, 10));
   }
 
   async createForUser(

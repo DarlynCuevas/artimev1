@@ -11,6 +11,12 @@ export interface VenueRepository {
     genres?: string[];
   }): Promise<VenueEntity[]>;
 
+  findBookedDates(
+    venueId: string,
+    from: string,
+    to: string,
+  ): Promise<string[]>;
+
   createForUser(
     userId: string,
     payload: Partial<Pick<VenueEntity,

@@ -81,4 +81,14 @@ export class VenueController {
     ) {
         return this.getInterestedArtistCallsUseCase.execute(req.userContext);
     }
+
+    @Public()
+    @Get(':id/availability')
+    async getAvailability(
+        @Param('id') venueId: string,
+        @Query('from') from: string,
+        @Query('to') to: string,
+    ) {
+        return this.venuesService.getAvailability(venueId, from, to);
+    }
 }
