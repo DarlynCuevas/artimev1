@@ -6,6 +6,7 @@ import { DbPaymentMilestoneRepository } from '../../infrastructure/database/repo
 import { StripeOnboardingController } from './controllers/stripe-onboarding.controller';
 import { StripeWebhookController } from './controllers/stripe-webhook.controller';
 import { CreateStripeAccountUseCase } from './use-cases/stripe/create-stripe-account.use-case';
+import { StartStripeOnboardingUseCase } from './use-cases/stripe/start-stripe-onboarding.use-case';
 import { StripeConnectService } from '../../infrastructure/payments/stripe-connect.service';
 import { StripeWebhookService } from '../../infrastructure/payments/stripe-webhook.service';
 import { ARTIST_REPOSITORY } from '../artists/repositories/artist-repository.token';
@@ -50,6 +51,7 @@ import { ExecuteCancellationRefundUseCase } from './use-cases/cancellation-refun
   controllers: [CancellationRefundsController,StripeOnboardingController, StripeWebhookController, PaymentsController, PayoutsController],
   providers: [
     CreateStripeAccountUseCase,
+    StartStripeOnboardingUseCase,
     StripeConnectService,
     StripeWebhookService,
     PayoutsQueryService,

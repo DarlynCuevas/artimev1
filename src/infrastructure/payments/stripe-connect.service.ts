@@ -1,10 +1,10 @@
 import { stripe } from './stripe.client';
 
 export class StripeConnectService {
-  async createExpressAccount(email: string) {
+  async createExpressAccount(email?: string | null) {
     return stripe.accounts.create({
       type: 'express',
-      email,
+      ...(email ? { email } : {}),
     });
   }
 
