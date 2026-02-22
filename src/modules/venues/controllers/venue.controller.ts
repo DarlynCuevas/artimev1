@@ -48,17 +48,18 @@ export class VenueController {
     @UseGuards(JwtAuthGuard, UserContextGuard)
     @Get('/dashboard')
     async getVenueDashboard(
-      @Req() req: AuthenticatedRequest,
+        @Req() req: AuthenticatedRequest,
     ) {
-      const { venueId } = req.userContext;
+        const { venueId } = req.userContext;
 
-      if (!venueId) {
-        throw new ForbiddenException('ONLY_VENUE');
-      }
+        if (!venueId) {
+            throw new ForbiddenException('ONLY_VENUE');
+        }
 
-      return this.venuesService.getVenueDashboard(venueId);
+        return this.venuesService.getVenueDashboard(venueId);
     }
 
+    @Public()
     @Get(':id')
     async getVenueById(@Param('id') id: string) {
         return this.venuesService.getPublicVenueProfile(id);
