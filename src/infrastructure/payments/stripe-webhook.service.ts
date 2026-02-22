@@ -2,11 +2,11 @@ import Stripe from 'stripe';
 import { stripe } from './stripe.client';
 import { Request } from 'express';
 import { Injectable } from '@nestjs/common';
+import type { SupabaseClient } from '@supabase/supabase-js';
+import { SUPABASE_CLIENT } from '../database/supabase.module';
 
 import { StripeOnboardingStatus } from '../../modules/payments/stripe/stripe-onboarding-status.enum';
-import type { ArtistRepository } from 'src/modules/artists/repositories/artist.repository.interface';
 import { Inject } from '@nestjs/common';
-import { ARTIST_REPOSITORY } from 'src/modules/artists/repositories/artist-repository.token';
 
 import { PaymentMilestoneStatus } from '../../modules/payments/payment-milestone-status.enum';
 import { PAYMENT_MILESTONE_REPOSITORY } from '../../modules/payments/payment-milestone-repository.token';
@@ -17,11 +17,17 @@ import { BookingStatus } from '../../modules/bookings/booking-status.enum';
 import { PAYMENT_INTENT_REPOSITORY } from '../../modules/payments/repositories/payment-intent.repository.token';
 import type { PaymentIntentRepository } from '../../modules/payments/repositories/payment-intent.repository.interface';
 
+type WebhookProcessingStatus = 'RECEIVED' | 'PROCESSED' | 'FAILED';
+type AccountUpdateResult = {
+  previousStatus: StripeOnboardingStatus | null;
+  newStatus: StripeOnboardingStatus;
+};
+
 @Injectable()
 export class StripeWebhookService {
   constructor(
-    @Inject(ARTIST_REPOSITORY)
-    private readonly artistRepository: ArtistRepository,
+    @Inject(SUPABASE_CLIENT)
+    private readonly supabase: SupabaseClient,
     @Inject(PAYMENT_MILESTONE_REPOSITORY)
     private readonly milestoneRepository: PaymentMilestoneRepository,
     @Inject(BOOKING_REPOSITORY)
@@ -47,61 +53,206 @@ export class StripeWebhookService {
       webhookSecret,
     );
 
-    if (event.type === 'account.updated') {
-      await this.handleAccountUpdated(event.data.object as Stripe.Account);
+    const accountId = this.extractAccountId(event);
+    const alreadyProcessed = await this.wasEventProcessed(event.id);
+    if (alreadyProcessed) {
+      return;
     }
-    if (event.type === 'payment_intent.succeeded') {
-      await this.handlePaymentIntentSucceeded(
-        event.data.object as Stripe.PaymentIntent,
-      );
-    }
-    if (event.type === 'payment_intent.created') {
-      await this.handlePaymentIntentCreated(
-        event.data.object as Stripe.PaymentIntent,
-      );
-    }
-    if (event.type === 'payment_intent.processing') {
-      await this.handlePaymentIntentProcessing(
-        event.data.object as Stripe.PaymentIntent,
-      );
-    }
-    if (event.type === 'payment_intent.canceled') {
-      await this.handlePaymentIntentCanceled(
-        event.data.object as Stripe.PaymentIntent,
-      );
-    }
-    if (event.type === 'payment_intent.payment_failed') {
-      await this.handlePaymentIntentFailed(
-        event.data.object as Stripe.PaymentIntent,
-      );
+
+    await this.upsertWebhookLog({
+      eventId: event.id,
+      eventType: event.type,
+      accountId,
+      processingStatus: 'RECEIVED',
+      payload: event,
+    });
+
+    try {
+      let accountUpdateResult: AccountUpdateResult | null = null;
+
+      if (event.type === 'account.updated') {
+        accountUpdateResult = await this.handleAccountUpdated(event.data.object as Stripe.Account);
+      }
+      if (event.type === 'payment_intent.succeeded') {
+        await this.handlePaymentIntentSucceeded(
+          event.data.object as Stripe.PaymentIntent,
+        );
+      }
+      if (event.type === 'payment_intent.created') {
+        await this.handlePaymentIntentCreated(
+          event.data.object as Stripe.PaymentIntent,
+        );
+      }
+      if (event.type === 'payment_intent.processing') {
+        await this.handlePaymentIntentProcessing(
+          event.data.object as Stripe.PaymentIntent,
+        );
+      }
+      if (event.type === 'payment_intent.canceled') {
+        await this.handlePaymentIntentCanceled(
+          event.data.object as Stripe.PaymentIntent,
+        );
+      }
+      if (event.type === 'payment_intent.payment_failed') {
+        await this.handlePaymentIntentFailed(
+          event.data.object as Stripe.PaymentIntent,
+        );
+      }
+
+      await this.upsertWebhookLog({
+        eventId: event.id,
+        eventType: event.type,
+        accountId,
+        processingStatus: 'PROCESSED',
+        previousOnboardingStatus: accountUpdateResult?.previousStatus ?? null,
+        newOnboardingStatus: accountUpdateResult?.newStatus ?? null,
+      });
+    } catch (error) {
+      await this.upsertWebhookLog({
+        eventId: event.id,
+        eventType: event.type,
+        accountId,
+        processingStatus: 'FAILED',
+        errorMessage: error instanceof Error ? error.message : 'Unknown webhook error',
+      });
+      throw error;
     }
   }
 
   private async handleAccountUpdated(
     account: Stripe.Account,
-  ) {
+  ): Promise<AccountUpdateResult> {
+    const previousStatus = await this.getCurrentOnboardingStatusByAccountId(account.id);
+    const onboardingStatus = this.resolveOnboardingStatus(account);
+    const connectedAt =
+      onboardingStatus === StripeOnboardingStatus.COMPLETED
+        ? new Date().toISOString()
+        : null;
 
-    if (!account.details_submitted) {
-      return;
+    await Promise.all([
+      this.updateStripeStatusByAccountId('artists', account.id, onboardingStatus, connectedAt),
+      this.updateStripeStatusByAccountId('venues', account.id, onboardingStatus, connectedAt),
+      this.updateStripeStatusByAccountId('promoters', account.id, onboardingStatus, connectedAt),
+      this.updateStripeStatusByAccountId('managers', account.id, onboardingStatus, connectedAt),
+    ]);
+
+    return {
+      previousStatus,
+      newStatus: onboardingStatus,
+    };
+  }
+
+  private resolveOnboardingStatus(account: Stripe.Account): StripeOnboardingStatus {
+    if (account.details_submitted && account.charges_enabled && account.payouts_enabled) {
+      return StripeOnboardingStatus.COMPLETED;
+    }
+    if (account.details_submitted || account.charges_enabled || account.payouts_enabled) {
+      return StripeOnboardingStatus.PENDING;
+    }
+    return StripeOnboardingStatus.NOT_STARTED;
+  }
+
+  private async updateStripeStatusByAccountId(
+    table: 'artists' | 'venues' | 'promoters' | 'managers',
+    stripeAccountId: string,
+    onboardingStatus: StripeOnboardingStatus,
+    connectedAt: string | null,
+  ): Promise<void> {
+    const updatePayload: Record<string, unknown> = {
+      stripe_onboarding_status: onboardingStatus,
+      updated_at: new Date().toISOString(),
+    };
+
+    if (connectedAt) {
+      updatePayload.stripe_connected_at = connectedAt;
     }
 
+    const { error } = await this.supabase
+      .from(table)
+      .update(updatePayload)
+      .eq('stripe_account_id', stripeAccountId);
 
-    const artist =
-      await this.artistRepository.findByStripeAccountId(
-        account.id,
-      );
+    if (error) {
+      console.warn(`[StripeWebhook] failed to update ${table} for account ${stripeAccountId}: ${error.message}`);
+    }
+  }
 
+  private extractAccountId(event: Stripe.Event): string | null {
+    if (event.type === 'account.updated') {
+      const account = event.data.object as Stripe.Account;
+      return account.id;
+    }
+    return typeof event.account === 'string' ? event.account : null;
+  }
 
-    if (!artist) {
-      return;
+  private async getCurrentOnboardingStatusByAccountId(
+    stripeAccountId: string,
+  ): Promise<StripeOnboardingStatus | null> {
+    const tables: Array<'artists' | 'venues' | 'promoters' | 'managers'> = [
+      'artists',
+      'venues',
+      'promoters',
+      'managers',
+    ];
+
+    for (const table of tables) {
+      const { data } = await this.supabase
+        .from(table)
+        .select('stripe_onboarding_status')
+        .eq('stripe_account_id', stripeAccountId)
+        .maybeSingle();
+
+      const status = data?.stripe_onboarding_status as StripeOnboardingStatus | undefined;
+      if (status) {
+        return status;
+      }
     }
 
-    artist.setStripeAccount({
-      stripeAccountId: account.id,
-      onboardingStatus: StripeOnboardingStatus.COMPLETED,
-    });
+    return null;
+  }
 
-    await this.artistRepository.update(artist);
+  private async wasEventProcessed(eventId: string): Promise<boolean> {
+    const { data } = await this.supabase
+      .from('stripe_webhook_events')
+      .select('processing_status')
+      .eq('event_id', eventId)
+      .maybeSingle();
+
+    return data?.processing_status === 'PROCESSED';
+  }
+
+  private async upsertWebhookLog(params: {
+    eventId: string;
+    eventType: string;
+    accountId: string | null;
+    processingStatus: WebhookProcessingStatus;
+    previousOnboardingStatus?: StripeOnboardingStatus | null;
+    newOnboardingStatus?: StripeOnboardingStatus | null;
+    errorMessage?: string | null;
+    payload?: Stripe.Event;
+  }): Promise<void> {
+    const now = new Date().toISOString();
+    const payload: Record<string, unknown> = {
+      event_id: params.eventId,
+      event_type: params.eventType,
+      account_id: params.accountId,
+      processing_status: params.processingStatus,
+      previous_onboarding_status: params.previousOnboardingStatus ?? null,
+      new_onboarding_status: params.newOnboardingStatus ?? null,
+      error_message: params.errorMessage ?? null,
+      updated_at: now,
+      ...(params.processingStatus === 'RECEIVED' ? { received_at: now } : {}),
+      ...(params.processingStatus !== 'RECEIVED' ? { processed_at: now } : {}),
+      ...(params.payload ? { payload: params.payload } : {}),
+    };
+
+    const { error } = await this.supabase
+      .from('stripe_webhook_events')
+      .upsert(payload, { onConflict: 'event_id' });
+
+    if (error) {
+      console.warn(`[StripeWebhook] failed to persist webhook log ${params.eventId}: ${error.message}`);
+    }
   }
 
   private async handlePaymentIntentSucceeded(
