@@ -12,6 +12,8 @@ import type { PromoterRepository } from '../promoter/repositories/promoter.repos
 import { PROMOTER_REPOSITORY } from '../promoter/repositories/promoter-repository.token';
 import type { ManagerRepository } from '../managers/repositories/manager.repository.interface';
 import { MANAGER_REPOSITORY } from '../managers/repositories/manager-repository.token';
+import { Reflector } from '@nestjs/core';
+import { IS_PUBLIC_KEY } from '@/src/shared/public.decorator';
 
 export type UserContext = {
   userId: string;
@@ -25,6 +27,7 @@ export type UserContext = {
 @Injectable()
 export class UserContextGuard implements CanActivate {
   constructor(
+    private readonly reflector: Reflector,
     @Inject(ARTIST_REPOSITORY)
     private readonly artistsRepository: ArtistRepository,
     @Inject(VENUE_REPOSITORY)
@@ -36,6 +39,15 @@ export class UserContextGuard implements CanActivate {
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
+    const isPublic = this.reflector.getAllAndOverride<boolean>(
+      IS_PUBLIC_KEY,
+      [context.getHandler(), context.getClass()],
+    );
+
+    if (isPublic) {
+      return true;
+    }
+
     const request = context.switchToHttp().getRequest();
 
     // Esto viene del JwtStrategy (Supabase -> sub)

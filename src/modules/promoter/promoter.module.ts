@@ -16,6 +16,8 @@ import { ArtistsModule } from '../artists/artists.module';
 import { VenuesModule } from '../venues/venues.module';
 import { BookingsModule } from '../bookings/bookings.module';
 import { DbPromoterRepository } from '@/src/infrastructure/database/repositories/promoter/DbPromoterRepository ';
+import { PromoterGalleryRepository } from '@/src/infrastructure/database/repositories/promoter/promoter-gallery.repository';
+import { PromoterVideoRepository } from '@/src/infrastructure/database/repositories/promoter/promoter-video.repository';
 import { ManagersModule } from '../managers/managers.module';
 import { UserContextModule } from '../auth/user-context/user-context.module';
 import { UsersModule } from '../users/users.module';
@@ -38,6 +40,8 @@ import { UsersModule } from '../users/users.module';
     GetPromoterProfileQuery,
     UpdatePromoterProfileUseCase,
     GetPromoterDashboardUseCase,
+    PromoterGalleryRepository,
+    PromoterVideoRepository,
     {
       provide: PROMOTER_REPOSITORY,
       useClass: DbPromoterRepository,
