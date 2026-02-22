@@ -7,6 +7,7 @@ import { StripeOnboardingController } from './controllers/stripe-onboarding.cont
 import { StripeWebhookController } from './controllers/stripe-webhook.controller';
 import { CreateStripeAccountUseCase } from './use-cases/stripe/create-stripe-account.use-case';
 import { StartStripeOnboardingUseCase } from './use-cases/stripe/start-stripe-onboarding.use-case';
+import { GetStripeOnboardingStatusUseCase } from './use-cases/stripe/get-stripe-onboarding-status.use-case';
 import { StripeConnectService } from '../../infrastructure/payments/stripe-connect.service';
 import { StripeWebhookService } from '../../infrastructure/payments/stripe-webhook.service';
 import { ARTIST_REPOSITORY } from '../artists/repositories/artist-repository.token';
@@ -52,6 +53,7 @@ import { ExecuteCancellationRefundUseCase } from './use-cases/cancellation-refun
   providers: [
     CreateStripeAccountUseCase,
     StartStripeOnboardingUseCase,
+    GetStripeOnboardingStatusUseCase,
     StripeConnectService,
     StripeWebhookService,
     PayoutsQueryService,
