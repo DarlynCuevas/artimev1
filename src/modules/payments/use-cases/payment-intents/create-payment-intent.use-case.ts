@@ -1,9 +1,9 @@
 import { Injectable, Inject } from '@nestjs/common';
 import { PAYMENT_PROVIDER } from '../../providers/payment-provider.token';
 import type { PaymentProvider } from '../../providers/payment-provider.interface';
-// Importa el repositorio de bookings y el repositorio de payment intents si existe
-// import { BOOKING_REPOSITORY } from '../../../bookings/repositories/booking-repository.token';
-// import type { BookingRepository } from '../../../bookings/repositories/booking.repository.interface';
+import { BOOKING_REPOSITORY } from '../../../bookings/repositories/booking-repository.token';
+import type { BookingRepository } from '../../../bookings/repositories/booking.repository.interface';
+import { NotFoundException } from '@nestjs/common';
 // import { PAYMENT_INTENT_REPOSITORY } from '../../repositories/payment-intent-repository.token';
 // import type { PaymentIntentRepository } from '../../repositories/payment-intent.repository.interface';
 
@@ -12,22 +12,27 @@ export class CreatePaymentIntentUseCase {
   constructor(
     @Inject(PAYMENT_PROVIDER)
     private readonly paymentProvider: PaymentProvider,
-    // @Inject(BOOKING_REPOSITORY)
-    // private readonly bookingRepository: BookingRepository,
+    @Inject(BOOKING_REPOSITORY)
+    private readonly bookingRepository: BookingRepository,
     // @Inject(PAYMENT_INTENT_REPOSITORY)
     // private readonly paymentIntentRepository: PaymentIntentRepository,
-  ) {}
+  ) { }
 
   async execute(input: { bookingId: string }): Promise<{ clientSecret: string }> {
-    // 1. Buscar el booking y calcular el importe (a implementar)
-    // const booking = await this.bookingRepository.findById(input.bookingId);
-    // const amount = calcularImporte(booking);
-    // const currency = booking.currency;
+    // 1. Buscar el booking y calcular el importe
+    const booking = await this.bookingRepository.findById(input.bookingId);
+    if (!booking) {
+      throw new NotFoundException(`Booking con id ${input.bookingId} no encontrado`);
+    }
+
+    // Stripe espera el importe en la unidad mínima de la moneda (por ejemplo, céntimos para EUR)
+    const amountInCents = Math.round(booking.totalAmount * 100);
+    const currency = booking.currency?.toLowerCase() || 'eur';
 
     // 2. Crear el PaymentIntent en Stripe
     const paymentIntent = await this.paymentProvider.createPaymentIntent({
-      amount: 0, // TODO: poner el importe real
-      currency: 'eur', // TODO: poner la moneda real
+      amount: amountInCents,
+      currency: currency,
       metadata: {
         bookingId: input.bookingId,
       },
