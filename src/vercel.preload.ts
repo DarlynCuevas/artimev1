@@ -28,3 +28,29 @@ import './infrastructure/database/repositories/representation/supabase-represent
 import './infrastructure/database/repositories/split-summary.repository';
 import './infrastructure/database/repositories/venues/db-venue.repository';
 import './infrastructure/database/repositories/venues/venue-artist-call.repository';
+
+// Module files referenced by infrastructure via value imports in some repositories.
+import './modules/artists/entities/artist.entity';
+import './modules/artists/types/artist-booking-conditions';
+import './modules/bookings/booking-status.enum';
+import './modules/bookings/cancellations/economic-executions/cancellation-economic-execution.entity';
+import './modules/bookings/cancellations/economic-executions/repositories/cancellation-economic-execution.repository.interface';
+import './modules/bookings/cancellations/resolutions/cancellation-resolution.entity';
+import './modules/bookings/cancellations/resolutions/repositories/cancellation-resolution.repository.interface';
+import './modules/contracts/enum/contractStatus.enum';
+import './modules/events/entities/event.entity';
+import './modules/events/entities/event-invitation.entity';
+import './modules/events/enums/event-status.enum';
+import './modules/events/enums/event-visibility.enum';
+import './modules/events/repositories/event-invitation.repository';
+import './modules/events/repositories/event.repository';
+import './modules/managers/entities/artist-manager-representation.entity';
+import './modules/managers/entities/manager.entity';
+import './modules/managers/repositories/artist-manager-representation.repository.interface';
+import './modules/managers/repositories/manager.repository.interface';
+import './modules/payments/repositories/payment.repository.interface';
+import './modules/payments/repositories/payout.repository';
+import './modules/representations/repositories/representation-contract.repository.interface';
+import './modules/representations/repositories/representation-request.repository.interface';
+import './modules/venues/entities/venue.entity';
+import './modules/venues/repositories/venue.repository.interface';

@@ -4,7 +4,7 @@
 import { supabase } from '../../supabase.client';
 import { Booking } from '../../../../modules/bookings/booking.entity';
 import { BookingStatus } from '../../../../modules/bookings/booking-status.enum';
-import { Artist } from '@/src/modules/artists/entities/artist.entity';
+import { Artist } from '../../../../modules/artists/entities/artist.entity';
 
 export class SupabaseBookingRepository {
 
