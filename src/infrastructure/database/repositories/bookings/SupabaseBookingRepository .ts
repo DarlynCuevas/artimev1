@@ -76,6 +76,7 @@ export class SupabaseBookingRepository {
       managerId: data.manager_id,
       managerCommissionPercentage: data.manager_commission_percentage,
       totalAmount: data.total_amount,
+      allIn: data.all_in,
 
 
       handledByRole: data.handled_by_role ?? null,
@@ -103,6 +104,7 @@ export class SupabaseBookingRepository {
 
       currency: booking.currency,
       total_amount: booking.totalAmount,
+      all_in: booking.allIn,
 
       artist_stripe_account_id: booking.artistStripeAccountId,
       manager_stripe_account_id: booking.managerStripeAccountId,
@@ -133,6 +135,7 @@ export class SupabaseBookingRepository {
         status: booking.status,
 
         total_amount: booking.totalAmount,
+        all_in: booking.allIn,
 
         handled_by_role: booking.handledByRole,
         handled_by_user_id: booking.handledByUserId,
@@ -207,6 +210,7 @@ export class SupabaseBookingRepository {
         managerId: row.manager_id,
         managerCommissionPercentage: row.manager_commission_percentage,
         totalAmount: row.total_amount,
+        allIn: row.all_in,
         handledByRole: row.handled_by_role ?? null,
         handledByUserId: row.handled_by_user_id ?? null,
         handledAt: row.handled_at ? new Date(row.handled_at) : null,
@@ -259,6 +263,7 @@ export class SupabaseBookingRepository {
         createdAt: new Date(row.created_at),
         currency: row.currency,
         totalAmount: row.total_amount,
+        allIn: row.all_in,
         start_date: row.start_date,
 
         artistStripeAccountId: row.artist_stripe_account_id,
@@ -343,6 +348,7 @@ export class SupabaseBookingRepository {
         createdAt: new Date(row.created_at),
         currency: row.currency,
         totalAmount: row.total_amount,
+        allIn: row.all_in,
         start_date: row.start_date,
 
         artistStripeAccountId: row.artist_stripe_account_id,
@@ -403,6 +409,7 @@ export class SupabaseBookingRepository {
         start_date: row.start_date,
         currency: row.currency,
         totalAmount: row.total_amount,
+        allIn: row.all_in,
 
         handledByRole: row.handled_by_role ?? null,
         handledByUserId: row.handled_by_user_id ?? null,
@@ -473,6 +480,7 @@ export class SupabaseBookingRepository {
         start_date: row.start_date,
         currency: row.currency,
         totalAmount: row.total_amount,
+        allIn: row.all_in,
 
         handledByRole: row.handled_by_role ?? null,
         handledByUserId: row.handled_by_user_id ?? null,
@@ -622,6 +630,7 @@ export class SupabaseBookingRepository {
         start_date: row.start_date,
         currency: row.currency ?? 'EUR',
         totalAmount: row.total_amount ?? 0,
+        allIn: row.all_in,
         handledByRole: row.handled_by_role ?? null,
         handledByUserId: row.handled_by_user_id ?? null,
         handledAt: row.handled_at ? new Date(row.handled_at) : null,

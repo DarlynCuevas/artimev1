@@ -21,6 +21,7 @@ interface BookingProps {
   managerId?: string;
   managerCommissionPercentage?: number;
   totalAmount: number;
+  allIn?: boolean;
   eventId?: string | null;
   eventName?: string | null;
   artistStripeAccountId?: string | null;
@@ -118,6 +119,15 @@ export class Booking {
     this.props.updatedAt = new Date();
   }
 
+  get allIn(): boolean {
+    return Boolean(this.props.allIn);
+  }
+
+  updateAllIn(value: boolean): void {
+    this.props.allIn = value;
+    this.props.updatedAt = new Date();
+  }
+
   get handledByRole(): BookingHandlerRole | null {
     return this.props.handledByRole;
   }
@@ -210,4 +220,3 @@ export class Booking {
 
 
 }
-

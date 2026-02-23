@@ -14,6 +14,7 @@ interface NegotiationMessageProps {
   senderUserId: string;
   message?: string;
   proposedFee?: number;
+  allIn?: boolean;
   isFinalOffer: boolean;
   createdAt: Date;
 }
@@ -49,6 +50,10 @@ export class NegotiationMessage {
     return this.props.proposedFee;
   }
 
+  get allIn(): boolean {
+    return Boolean(this.props.allIn);
+  }
+
   get isFinalOffer(): boolean {
     return this.props.isFinalOffer;
   }
@@ -57,4 +62,3 @@ export class NegotiationMessage {
     return this.props.createdAt;
   }
 }
-

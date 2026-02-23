@@ -120,6 +120,7 @@ export class BookingsController {
       status: booking.status,
       currency: booking.currency,
       totalAmount: booking.totalAmount,
+      allIn: booking.allIn,
       paidPercent,
       managerId: booking.managerId ?? null,
       start_date: booking.start_date,
@@ -172,6 +173,7 @@ export class BookingsController {
       status: booking.status,
           currency: booking.currency,
           totalAmount: booking.totalAmount,
+          allIn: booking.allIn,
           paidPercent,
           start_date: booking.start_date,
       handledAt: booking.handledAt ? booking.handledAt.toISOString() : null,
@@ -213,6 +215,7 @@ async create(
     eventId: dto.eventId,
     currency: dto.currency,
     totalAmount: dto.totalAmount,
+    allIn: dto.allIn,
     start_date: dto.start_date,
     message: dto.message,
     senderRole: promoterId
@@ -231,6 +234,7 @@ async create(
     status: booking.status,
     currency: booking.currency,
     totalAmount: booking.totalAmount,
+    allIn: booking.allIn,
     start_date: booking.start_date,
     messagesCount: 0,
     lastMessage: null,
@@ -279,11 +283,11 @@ async create(
 
   // NEGOTIATIONS
   @UseGuards(JwtAuthGuard, UserContextGuard)
-  @Post(':id/negotiations/messages')
+@Post(':id/negotiations/messages')
   async sendNegotiationMessage(
     @Req() req: AuthenticatedRequest,
     @Param('id') bookingId: string,
-    @Body() body: { message: string; proposedFee?: number },
+    @Body() body: { message: string; proposedFee?: number; allIn?: boolean },
   ) {
     const { userId, venueId, artistId, managerId, promoterId } = req.userContext;
 
@@ -316,6 +320,7 @@ async create(
       senderRole,
       message: body.message,
       proposedFee: body.proposedFee,
+      allIn: body.allIn,
     });
 
     return { ok: true };
@@ -334,6 +339,7 @@ async create(
       senderUserId: m.senderUserId,
       message: m.message,
       proposedFee: m.proposedFee,
+      allIn: m.allIn,
       isFinalOffer: m.isFinalOffer,
       createdAt: m.createdAt,
     }));
@@ -384,6 +390,7 @@ async create(
     @Body() body: {
       proposedFee: number;
       message?: string;
+      allIn?: boolean;
     },
   ) {
     const { userId, venueId, artistId, managerId, promoterId } = req.userContext;
@@ -416,6 +423,7 @@ async create(
       senderManagerId: managerId,
       senderRole,
       proposedFee: body.proposedFee,
+      allIn: body.allIn,
       message: body.message,
     });
 

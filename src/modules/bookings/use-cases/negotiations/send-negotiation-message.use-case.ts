@@ -47,6 +47,7 @@ export class SendNegotiationMessageUseCase {
     senderManagerId?: string | null;
     message?: string;
     proposedFee?: number;
+    allIn?: boolean;
     isFinalOffer?: boolean;
   }): Promise<void> {
     const booking = await this.bookingRepository.findById(input.bookingId);
@@ -122,6 +123,7 @@ export class SendNegotiationMessageUseCase {
         senderUserId: input.senderUserId,
         senderManagerId: input.senderManagerId,
         proposedFee: input.proposedFee as number,
+        allIn: input.allIn,
         message: input.message,
       });
       return;
@@ -181,6 +183,7 @@ export class SendNegotiationMessageUseCase {
       senderUserId: input.senderUserId,
       message: input.message,
       proposedFee: input.proposedFee,
+      allIn: input.allIn,
       isFinalOffer: input.isFinalOffer ?? false,
       createdAt: new Date(),
     });

@@ -15,6 +15,7 @@ export class NegotiationMessageRepository {
       sender_user_id: message.senderUserId,
       message: message.message ?? null,
       proposed_fee: message.proposedFee ?? null,
+      all_in: message.allIn,
       is_final_offer: message.isFinalOffer,
       created_at: message.createdAt,
     };
@@ -45,6 +46,7 @@ export class NegotiationMessageRepository {
         senderUserId: row.sender_user_id,
         message: row.message,
         proposedFee: row.proposed_fee,
+        allIn: row.all_in,
         isFinalOffer: row.is_final_offer,
         createdAt: new Date(row.created_at),
       }),
@@ -73,6 +75,7 @@ async findLastByBookingId(
     senderUserId: data.sender_user_id,
     message: data.message,
     proposedFee: data.proposed_fee,
+    allIn: data.all_in,
     isFinalOffer: data.is_final_offer,
     createdAt: new Date(data.created_at),
   });

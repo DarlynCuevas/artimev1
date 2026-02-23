@@ -83,6 +83,7 @@ export class BookingService {
 
     currency?: string;
     totalAmount?: number;
+    allIn?: boolean;
     start_date?: string;
 
     message?: string;
@@ -142,6 +143,7 @@ export class BookingService {
       status: BookingStatus.PENDING,
       currency: params.currency,
       totalAmount: params.totalAmount,
+      allIn: Boolean(params.allIn),
       start_date: params.start_date,
       //  IMPORTANTE: sin handler al crear
       handledByRole: null,
@@ -162,6 +164,7 @@ export class BookingService {
       senderRole: params.senderRole,
       senderUserId: params.senderUserId,
       proposedFee: booking.totalAmount,
+      allIn: booking.allIn,
       message: params.message,
       isFinalOffer: false,
       createdAt: new Date(),

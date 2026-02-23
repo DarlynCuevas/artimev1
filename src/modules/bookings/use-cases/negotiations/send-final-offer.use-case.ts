@@ -43,6 +43,7 @@ export class SendFinalOfferUseCase {
     senderUserId: string;
     senderManagerId?: string | null;
     proposedFee: number;
+    allIn?: boolean;
     message?: string;
   }): Promise<void> {
     if (input.proposedFee == null || input.proposedFee <= 0) {
@@ -137,6 +138,7 @@ export class SendFinalOfferUseCase {
       senderRole: input.senderRole,
       senderUserId: input.senderUserId,
       proposedFee: input.proposedFee,
+      allIn: input.allIn,
       message: input.message,
       isFinalOffer: true,
       createdAt: new Date(),

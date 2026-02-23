@@ -126,6 +126,7 @@ export class AcceptFinalOfferUseCase {
 
     // ACEPTACIÓN REAL
     booking.updateTotalAmount(finalOffer.proposedFee);
+    booking.updateAllIn(finalOffer.allIn);
     booking.changeStatus(BookingStatus.ACCEPTED);
     await this.bookingRepository.update(booking);
 
