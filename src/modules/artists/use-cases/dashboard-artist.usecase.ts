@@ -16,8 +16,12 @@ export class GetArtistDashboardUseCase {
     const today = new Date();
     const monthStart = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1));
     const monthEnd = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth() + 1, 0));
+    const previousMonthStart = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth() - 1, 1));
+    const previousMonthEnd = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 0));
     const monthStartIso = monthStart.toISOString().slice(0, 10);
     const monthEndIso = monthEnd.toISOString().slice(0, 10);
+    const previousMonthStartIso = previousMonthStart.toISOString().slice(0, 10);
+    const previousMonthEndIso = previousMonthEnd.toISOString().slice(0, 10);
     const daysInMonth = monthEnd.getUTCDate();
 
     const rows = await this.bookingRepository.findActiveByArtistId(artistId);
@@ -55,13 +59,31 @@ export class GetArtistDashboardUseCase {
       (reservedDays.size + blockedDays.size) / Math.max(1, daysInMonth),
     );
 
+    const confirmedStatuses = [
+      'CONTRACT_SIGNED',
+      'PAID_PARTIAL',
+      'PAID_FULL',
+      'COMPLETED',
+    ];
+
     const confirmedIncome = bookings
-      .filter((b) =>
-        ['CONTRACT_SIGNED', 'PAID_PARTIAL', 'PAID_FULL', 'COMPLETED'].includes(
-          b.status,
-        ),
-      )
+      .filter((b) => confirmedStatuses.includes(b.status))
       .reduce((sum, b) => sum + (b.totalAmount ?? 0), 0);
+
+    const currentMonthConfirmedIncome = bookings
+      .filter((b) => b.start_date && b.start_date >= monthStartIso && b.start_date <= monthEndIso)
+      .filter((b) => confirmedStatuses.includes(b.status))
+      .reduce((sum, b) => sum + (b.totalAmount ?? 0), 0);
+
+    const previousMonthConfirmedIncome = bookings
+      .filter((b) => b.start_date && b.start_date >= previousMonthStartIso && b.start_date <= previousMonthEndIso)
+      .filter((b) => confirmedStatuses.includes(b.status))
+      .reduce((sum, b) => sum + (b.totalAmount ?? 0), 0);
+
+    const confirmedIncomeMoMPercent =
+      previousMonthConfirmedIncome > 0
+        ? ((currentMonthConfirmedIncome - previousMonthConfirmedIncome) / previousMonthConfirmedIncome) * 100
+        : null;
 
     const expectedIncome = bookings
       .filter((b) => ['FINAL_OFFER_SENT', 'ACCEPTED'].includes(b.status))
@@ -75,6 +97,7 @@ export class GetArtistDashboardUseCase {
         upcomingBookingsCount: bookings.length,
         expectedIncome,
         confirmedIncome,
+        confirmedIncomeMoMPercent,
         pendingActionsCount: bookings.filter((b) =>
           ['PENDING', 'NEGOTIATING', 'FINAL_OFFER_SENT'].includes(b.status),
         ).length,

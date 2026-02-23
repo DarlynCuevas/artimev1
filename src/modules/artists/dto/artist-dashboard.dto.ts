@@ -4,6 +4,7 @@ export type ArtistDashboardDto = {
     upcomingBookingsCount: number;
     expectedIncome: number;
     confirmedIncome: number;
+    confirmedIncomeMoMPercent: number | null;
     pendingActionsCount: number;
     forecastIncome: number;
     occupancyRate: number; // 0-1
