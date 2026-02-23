@@ -66,26 +66,59 @@ async function bootstrap() {
   // Vercel sets VERCEL_URL without protocol.
   if (process.env.VERCEL_URL) addOrigin(`https://${process.env.VERCEL_URL}`);
 
+  const isAllowedOrigin = (origin: string) => {
+    if (allowAllOrigins) return true;
+
+    const normalized = normalizeOrigin(origin) ?? origin;
+    if (allowedOrigins.has(normalized)) return true;
+
+    try {
+      const hostname = new URL(normalized).hostname;
+      if (hostname.endsWith('.vercel.app')) return true;
+    } catch {
+      // ignore parse failures
+    }
+
+    return false;
+  };
+
+  // Defensive CORS layer for serverless/preflight edge cases.
+  app.use((req: any, res: any, next: any) => {
+    const originHeader = req.headers?.origin;
+    if (!originHeader || typeof originHeader !== 'string') {
+      return next();
+    }
+
+    if (!isAllowedOrigin(originHeader)) {
+      return next();
+    }
+
+    res.header('Access-Control-Allow-Origin', originHeader);
+    res.header('Vary', 'Origin');
+    res.header('Access-Control-Allow-Credentials', 'true');
+    res.header('Access-Control-Allow-Headers', 'Authorization, Content-Type, Accept, Origin, X-Requested-With');
+    res.header('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS');
+
+    if (req.method === 'OPTIONS') {
+      return res.status(204).send();
+    }
+
+    return next();
+  });
+
   app.enableCors({
     origin: (origin, callback) => {
       // Allow non-browser requests (no origin)
       if (!origin) return callback(null, true);
 
-      if (allowAllOrigins) return callback(null, true);
-
-      const normalized = normalizeOrigin(origin) ?? origin;
-      if (allowedOrigins.has(normalized)) return callback(null, true);
-      // Allow Vercel frontends/previews explicitly (temporary-safe for deployment testing).
-      try {
-        const hostname = new URL(normalized).hostname;
-        if (hostname.endsWith('.vercel.app')) return callback(null, true);
-      } catch {
-        // ignore parse failures
-      }
+      if (isAllowedOrigin(origin)) return callback(null, true);
 
       return callback(new Error('CORS not allowed'), false);
     },
     credentials: true,
+    methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Authorization', 'Content-Type', 'Accept', 'Origin', 'X-Requested-With'],
+    optionsSuccessStatus: 204,
   });
   app.use(
     '/payments/stripe/webhook',
