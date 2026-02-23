@@ -1,10 +1,26 @@
-import 'tsconfig-paths/register';
 import 'dotenv/config';
 import { NestFactory } from '@nestjs/core';
 import * as bodyParser from 'body-parser';
-import { AppModule } from './app.module';
+import * as path from 'path';
+import Module = require('module');
+
+// Vercel runtime may not include tsconfig.json, so we map '@/src/*' at runtime.
+const originalResolveFilename = (Module as any)._resolveFilename;
+(Module as any)._resolveFilename = function (
+  request: string,
+  parent: unknown,
+  isMain: boolean,
+  options: unknown,
+) {
+  if (typeof request === 'string' && request.startsWith('@/src/')) {
+    const mappedRequest = path.join(__dirname, request.slice('@/src/'.length));
+    return originalResolveFilename.call(this, mappedRequest, parent, isMain, options);
+  }
+  return originalResolveFilename.call(this, request, parent, isMain, options);
+};
 
 async function bootstrap() {
+  const { AppModule } = require('./app.module');
   const app = await NestFactory.create(AppModule);
 
   // Configuración CRÍTICA para Stripe Webhook: raw body
