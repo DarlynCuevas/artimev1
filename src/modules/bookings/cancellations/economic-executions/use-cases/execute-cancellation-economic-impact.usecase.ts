@@ -5,7 +5,7 @@ import {
     NotFoundException,
     Inject,
 } from '@nestjs/common';
-import { v4 as uuid } from 'uuid';
+import { randomUUID } from 'node:crypto';
 
 import type { CancellationCaseRepository } from '../../repositories/cancellation-case.repository.interface';
 import type { CancellationResolutionRepository } from '../../resolutions/repositories/cancellation-resolution.repository.interface';
@@ -114,7 +114,7 @@ export class ExecuteCancellationEconomicImpactUseCase {
         }
         // 3️ Registrar ejecución económica
         const execution: CancellationEconomicExecution = {
-            id: uuid(),
+            id: randomUUID(),
             cancellationCaseId,
             resolutionType: 'REFUND',
             executedByUserId,

@@ -4,7 +4,7 @@ import {
   NotFoundException,
   ForbiddenException,
 } from '@nestjs/common';
-import { v4 as uuid } from 'uuid';
+import { randomUUID } from 'node:crypto';
 
 import { Inject } from '@nestjs/common';
 import type { CancellationCaseRepository } from '../../repositories/cancellation-case.repository.interface';
@@ -86,7 +86,7 @@ export class ResolveCancellationCaseUseCase {
       finalRefundAmount = refundAmount;
     }
     const resolution: CancellationResolution = {
-      id: uuid(),
+      id: randomUUID(),
       cancellationCaseId,
       resolutionType,
       refundAmount: finalRefundAmount,

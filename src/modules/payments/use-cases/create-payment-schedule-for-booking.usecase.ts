@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { v4 as uuid } from 'uuid';
+import { randomUUID } from 'node:crypto';
 
 import type { PaymentRepository } from '../repositories/payment.repository.interface';
 import type { BookingRepository } from '../../bookings/repositories/booking.repository.interface';
@@ -37,7 +37,7 @@ export class CreatePaymentScheduleForBookingUseCase {
             const milestones = await this.paymentRepository.findMilestonesByScheduleId(existingSchedule.id);
             // ...existing code...
             if (milestones.length === 0) {
-                const milestoneId = uuid();
+                const milestoneId = randomUUID();
                 const milestone = new PaymentMilestone({
                     id: milestoneId,
                     bookingId: input.bookingId,
@@ -56,8 +56,8 @@ export class CreatePaymentScheduleForBookingUseCase {
         }
 
         // 2. Si no existe, crearlo
-        const scheduleId = uuid();
-        const milestoneId = uuid();
+        const scheduleId = randomUUID();
+        const milestoneId = randomUUID();
 
         const schedule = new PaymentSchedule({
             id: scheduleId,

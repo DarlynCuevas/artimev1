@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { v4 as uuid } from 'uuid';
+import { randomUUID } from 'node:crypto';
 
 import { BookingStatus } from '../../booking-status.enum';
 import { BookingRepository } from '../../repositories/booking.repository.interface';
@@ -89,7 +89,7 @@ export class CancelBookingUseCase {
       : CancellationReviewStatus.NOT_REQUIRED;
 
     const cancellation = new CancellationRecord({
-      id: uuid(),
+      id: randomUUID(),
       bookingId,
       initiator,
       reason,
@@ -108,4 +108,3 @@ export class CancelBookingUseCase {
     return booking;
   }
 }
-
