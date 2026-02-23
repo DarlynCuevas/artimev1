@@ -7,6 +7,7 @@ import { FileInterceptor, AnyFilesInterceptor } from '@nestjs/platform-express';
 import { SUPABASE_CLIENT } from '@/src/infrastructure/database/supabase.module';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { memoryStorage } from 'multer';
+import { UserContextGuard } from '../../auth/user-context.guard';
 
 type RegisterPayload = {
   role: 'ARTIST' | 'VENUE' | 'PROMOTER' | 'MANAGER';
@@ -122,7 +123,7 @@ export class UsersController {
     });
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, UserContextGuard)
   @Post('profile-image')
   @UseInterceptors(
     FileInterceptor('file', {
@@ -146,6 +147,7 @@ export class UsersController {
     }
 
     const userId = req.user.sub;
+    const email = (req.user as any)?.email ?? null;
     const extension = file.originalname.split('.').pop()?.toLowerCase() ?? 'jpg';
     const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${extension}`;
     const storagePath = `users/${userId}/${fileName}`;
@@ -161,6 +163,31 @@ export class UsersController {
 
     if (uploadError) {
       throw new BadRequestException(uploadError.message);
+    }
+
+    const currentRoleFromMetadata =
+      typeof (req.user?.appMetadata as Record<string, unknown> | undefined)?.current_role === 'string'
+        ? String((req.user.appMetadata as Record<string, unknown>).current_role).toUpperCase()
+        : null;
+
+    const inferredRole =
+      req.userContext?.artistId ? 'ARTIST'
+        : req.userContext?.venueId ? 'VENUE'
+          : req.userContext?.promoterId ? 'PROMOTER'
+            : req.userContext?.managerId ? 'MANAGER'
+              : req.user?.isAdmin ? 'ADMIN'
+                : currentRoleFromMetadata;
+    const allowedRoles = new Set(['ARTIST', 'VENUE', 'PROMOTER', 'MANAGER', 'ADMIN']);
+    const normalizedRole = inferredRole && allowedRoles.has(inferredRole) ? inferredRole : null;
+
+    if (normalizedRole) {
+      const inferredDisplayName = email ? String(email).split('@')[0] : 'Usuario';
+      await this.usersService.ensureUserProfile({
+        userId,
+        email,
+        role: normalizedRole,
+        displayName: inferredDisplayName,
+      });
     }
 
     await this.usersService.updateProfileImage({

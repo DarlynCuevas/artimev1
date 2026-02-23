@@ -42,6 +42,29 @@ export class UsersService {
     return { ok: true };
   }
 
+  async ensureUserProfile(params: {
+    userId: string;
+    email?: string | null;
+    role: string;
+    displayName: string;
+  }) {
+    const { data, error } = await this.supabase
+      .from('users')
+      .select('id')
+      .eq('id', params.userId)
+      .maybeSingle();
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    if (data?.id) {
+      return { ok: true };
+    }
+
+    return this.upsertUserProfile(params);
+  }
+
   async updateProfileImage(params: { userId: string; imagePath: string | null }) {
     const { userId, imagePath } = params;
     // Use upsert so profile image works even if `users` row was deleted/recreated.

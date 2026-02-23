@@ -25,9 +25,13 @@ export class CreateArtistCallUseCase {
       throw new ForbiddenException('ONLY_VENUE');
     }
 
+    const venue = await this.venueRepo.findById(venueId);
+    const cityFilter = dto.city?.trim() || undefined;
+    const cityToStore = cityFilter ?? venue?.city ?? null;
+
     const eligibleArtists = await this.artistRepo.findAvailableForDate({
       date: dto.date,
-      city: dto.city,
+      city: cityFilter,
       genre: dto.filters?.genre,
       minPrice: dto.filters?.minPrice,
       maxPrice: dto.filters?.maxPrice,
@@ -37,11 +41,10 @@ export class CreateArtistCallUseCase {
     const call = await this.callRepo.createCall({
       venueId,
       date: dto.date,
-      city: dto.city ?? null,
+      city: cityToStore,
       filters: dto.filters ?? undefined,
     });
 
-    const venue = await this.venueRepo.findById(venueId);
     const offeredMaxPrice = dto.filters?.maxPrice;
     const offeredMinPrice = dto.filters?.minPrice;
 
@@ -52,7 +55,7 @@ export class CreateArtistCallUseCase {
         venueId,
         venueName: venue?.name,
         date: dto.date,
-        city: dto.city,
+        city: cityFilter,
         filters: dto.filters ?? {},
         offeredMaxPrice,
         offeredMinPrice,

@@ -3,6 +3,10 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { SUPABASE_CLIENT } from '@/src/infrastructure/database/supabase.module';
 
 type VerificationReviewStatus = 'VERIFIED' | 'REJECTED';
+type VerificationDocument = {
+  path: string;
+  url: string | null;
+};
 
 @Injectable()
 export class AdminService {
@@ -36,7 +40,30 @@ export class AdminService {
 
     const usersById = new Map((usersData ?? []).map((user) => [user.id, user]));
 
-    return rows.map((item) => {
+    const rowsWithDocuments = await Promise.all(rows.map(async (item) => {
+      const paths = Array.isArray(item.document_paths) ? item.document_paths.filter(Boolean) : [];
+      const documents: VerificationDocument[] = await Promise.all(
+        paths.map(async (path: string) => {
+          const { data: signedData, error: signedError } = await this.supabase.storage
+            .from('verification-documents')
+            .createSignedUrl(path, 60 * 60);
+
+          if (signedError) {
+            return { path, url: null };
+          }
+
+          return { path, url: signedData?.signedUrl ?? null };
+        }),
+      );
+
+      return {
+        item,
+        documents,
+        paths,
+      };
+    }));
+
+    return rowsWithDocuments.map(({ item, documents, paths }) => {
       const user = usersById.get(item.user_id);
       return {
         userId: item.user_id,
@@ -44,7 +71,8 @@ export class AdminService {
         submittedAt: item.submitted_at,
         reviewedAt: item.reviewed_at,
         rejectionReason: item.rejection_reason,
-        documentPaths: item.document_paths ?? [],
+        documentPaths: paths,
+        documents,
         user: {
           email: user?.email ?? null,
           displayName: user?.display_name ?? null,
@@ -109,4 +137,3 @@ export class AdminService {
     return { ok: true };
   }
 }
-
