@@ -24,6 +24,7 @@ import { GetInterestedArtistCallsUseCase } from './use-cases/get-interested-arti
 import { ManagersModule } from '../managers/managers.module';
 import { UserContextModule } from '../auth/user-context/user-context.module';
 import { UsersModule } from '../users/users.module';
+import { VenueSuggestionsService } from './services/venue-suggestions.service';
 
 @Module({
   imports: [SupabaseModule, OutboxModule, forwardRef(() => ArtistsModule), forwardRef(() => BookingsModule), forwardRef(() => PromotersModule), forwardRef(() => ManagersModule), forwardRef(() => UserContextModule), forwardRef(() => UsersModule)],
@@ -35,6 +36,7 @@ import { UsersModule } from '../users/users.module';
     GetVenueDashboardUseCase,
     CreateArtistCallUseCase,
     GetInterestedArtistCallsUseCase,
+    VenueSuggestionsService,
     VenueArtistCallRepository,
     {
       provide: ARTIST_REPOSITORY,
@@ -53,6 +55,6 @@ import { UsersModule } from '../users/users.module';
       useClass: DbVenueRepository,
     },
   ],
-  exports: [VenuesService, VENUE_REPOSITORY],
+  exports: [VenuesService, VENUE_REPOSITORY, VenueSuggestionsService],
 })
 export class VenuesModule {}

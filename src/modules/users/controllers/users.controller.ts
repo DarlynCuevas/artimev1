@@ -1,9 +1,9 @@
-import { Body, Controller, Post, Req, UseGuards, BadRequestException, Get, UploadedFile, UseInterceptors, Inject } from '@nestjs/common';
+import { Body, Controller, Post, Req, UseGuards, BadRequestException, Get, UploadedFile, UploadedFiles, UseInterceptors, Inject, Patch } from '@nestjs/common';
 import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 import type { AuthenticatedRequest } from '@/src/shared/authenticated-request';
 import { UsersService } from '../services/users.service';
 import { OnboardingService } from '../services/onboarding.service';
-import { FileInterceptor } from '@nestjs/platform-express';
+import { FileInterceptor, AnyFilesInterceptor } from '@nestjs/platform-express';
 import { SUPABASE_CLIENT } from '@/src/infrastructure/database/supabase.module';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { memoryStorage } from 'multer';
@@ -78,6 +78,7 @@ export class UsersController {
   ) {
     return this.onboardingService.createVenueProfile({
       userId: req.user.sub,
+      email: (req.user as any)?.email ?? null,
       name: body.name,
       city: body.city,
       capacity: body.capacity ?? null,
@@ -96,6 +97,7 @@ export class UsersController {
   ) {
     return this.onboardingService.createPromoterProfile({
       userId: req.user.sub,
+      email: (req.user as any)?.email ?? null,
       name: body.name,
       city: body.city,
     });
@@ -179,20 +181,62 @@ export class UsersController {
     @Req() req: AuthenticatedRequest,
   ) {
     const userId = req.user.sub;
-    const imagePath = await this.usersService.getProfileImagePath(userId);
+    const url = await this.usersService.getSignedProfileImageUrlByUserId(userId);
+    return { url };
+  }
 
-    if (!imagePath) {
-      return { url: null };
+  @UseGuards(JwtAuthGuard)
+  @Get('notification-preferences')
+  async getNotificationPreferences(@Req() req: AuthenticatedRequest) {
+    return this.usersService.getNotificationPreferencesByUserId(req.user.sub);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch('notification-preferences')
+  async updateNotificationPreferences(
+    @Req() req: AuthenticatedRequest,
+    @Body()
+    body: Partial<{
+      bookings: boolean;
+      payments: boolean;
+      messages: boolean;
+      system: boolean;
+      marketing: boolean;
+      suggestions: boolean;
+    }>,
+  ) {
+    return this.usersService.updateNotificationPreferencesByUserId(req.user.sub, body ?? {});
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('verification')
+  async getVerification(@Req() req: AuthenticatedRequest) {
+    return this.usersService.getVerificationInfoByUserId(req.user.sub);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('verification/upload')
+  @UseInterceptors(
+    AnyFilesInterceptor({
+      storage: memoryStorage(),
+      limits: { fileSize: 10 * 1024 * 1024 },
+      fileFilter: (_, file, cb) => {
+        if (file.mimetype.startsWith('image/') || file.mimetype === 'application/pdf') {
+          cb(null, true);
+        } else {
+          cb(new BadRequestException('INVALID_FILE_TYPE'), false);
+        }
+      },
+    }),
+  )
+  async uploadVerificationDocuments(
+    @Req() req: AuthenticatedRequest,
+    @UploadedFiles() files?: Array<any>,
+  ) {
+    if (!files || files.length === 0) {
+      throw new BadRequestException('FILE_REQUIRED');
     }
 
-    const { data, error } = await this.supabase.storage
-      .from('profile-images')
-      .createSignedUrl(imagePath, 60 * 60);
-
-    if (error) {
-      throw new BadRequestException(error.message);
-    }
-
-    return { url: data.signedUrl };
+    return this.usersService.uploadVerificationDocuments(req.user.sub, files);
   }
 }

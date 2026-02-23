@@ -8,6 +8,7 @@ import { GetArtistEventInvitationsQuery } from '../queries/get-artist-event-invi
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { Public } from '@/src/shared/public.decorator';
+import { UsersService } from '../../users/services/users.service';
 
 
 @Controller('artists')
@@ -15,6 +16,7 @@ export class ArtistsController {
   constructor(
     private readonly artistsService: ArtistsService,
     private readonly getArtistEventInvitationsQuery: GetArtistEventInvitationsQuery,
+    private readonly usersService: UsersService,
   ) { }
 
   @UseGuards(JwtAuthGuard)
@@ -38,8 +40,17 @@ export class ArtistsController {
     if (!artistId) {
       throw new ForbiddenException('USER_IS_NOT_ARTIST');
     }
+    const profile = await this.artistsService.getPublicArtistProfile(artistId);
 
-    return this.artistsService.getPublicArtistProfile(artistId);
+    // Fallback robusto: si artists.user_id no existe, usamos el auth user actual.
+    if (!profile.profileImageUrl) {
+      profile.profileImageUrl = await this.usersService.getSignedProfileImageUrlByUserId(req.user.sub);
+    }
+    if (!profile.isVerified) {
+      profile.isVerified = await this.usersService.isUserVerified(req.user.sub);
+    }
+
+    return profile;
   }
 
   @UseGuards(JwtAuthGuard, UserContextGuard)

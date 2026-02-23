@@ -4,6 +4,7 @@ import { ArtistsModule } from '../artists/artists.module';
 import { VenuesModule } from '../venues/venues.module';
 import { PromotersModule } from '../promoter/promoter.module';
 import { BookingsModule } from '../bookings/bookings.module';
+import { UsersModule } from '../users/users.module';
 
 import { ARTIST_MANAGER_REPRESENTATION_REPOSITORY } from './repositories/artist-manager-representation.repository.token';
 import { ArtistManagerRepresentationService } from './services/artist-manager-representation.service';
@@ -24,6 +25,7 @@ import { GetManagerActionBookingsUseCase } from './use-cases/get-manager-action-
     forwardRef(() => VenuesModule),
     forwardRef(() => PromotersModule),
     forwardRef(() => BookingsModule),
+    forwardRef(() => UsersModule),
   ],
   controllers: [ManagerController],
   providers: [

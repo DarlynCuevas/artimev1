@@ -30,6 +30,9 @@ export class GetPromoterProfileQuery {
     const profileImageUrl = promoter.user_id
       ? await this.usersService.getSignedProfileImageUrlByUserId(promoter.user_id)
       : null;
+    const isVerified = promoter.user_id
+      ? await this.usersService.isUserVerified(promoter.user_id)
+      : false;
 
     return {
       id: promoter.id,
@@ -42,6 +45,7 @@ export class GetPromoterProfileQuery {
       showPastEvents: promoter.show_past_events ?? null,
       createdAt: promoter.created_at,
       profileImageUrl,
+      isVerified,
     };
   }
 }

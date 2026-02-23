@@ -6,6 +6,30 @@ import { SUPABASE_CLIENT } from '@/src/infrastructure/database/supabase.module';
 export class OnboardingService {
   constructor(@Inject(SUPABASE_CLIENT) private readonly supabase: SupabaseClient) {}
 
+  private async ensureUserProfile(params: {
+    userId: string;
+    role: 'ARTIST' | 'VENUE' | 'PROMOTER' | 'MANAGER';
+    displayName: string;
+    email?: string | null;
+  }) {
+    const { userId, role, displayName, email } = params;
+    const { error } = await this.supabase
+      .from('users')
+      .upsert(
+        {
+          id: userId,
+          role,
+          display_name: displayName,
+          email: email ?? null,
+        },
+        { onConflict: 'id' },
+      );
+
+    if (error) {
+      throw new Error(error.message);
+    }
+  }
+
   async createArtistProfile(params: {
     userId: string;
     email?: string | null;
@@ -19,6 +43,13 @@ export class OnboardingService {
     if (!name || !city || !genres?.length || basePrice === undefined || basePrice === null) {
       throw new BadRequestException('MISSING_FIELDS');
     }
+
+    await this.ensureUserProfile({
+      userId,
+      role: 'ARTIST',
+      displayName: name,
+      email: email ?? null,
+    });
 
     const { data: existing } = await this.supabase
       .from('artists')
@@ -65,15 +96,23 @@ export class OnboardingService {
 
   async createVenueProfile(params: {
     userId: string;
+    email?: string | null;
     name: string;
     city: string;
     capacity?: number | null;
     address?: string | null;
   }) {
-    const { userId, name, city, capacity, address } = params;
+    const { userId, email, name, city, capacity, address } = params;
     if (!name || !city) {
       throw new BadRequestException('MISSING_FIELDS');
     }
+
+    await this.ensureUserProfile({
+      userId,
+      role: 'VENUE',
+      displayName: name,
+      email: email ?? null,
+    });
 
     const { data: existing } = await this.supabase
       .from('venues')
@@ -115,13 +154,21 @@ export class OnboardingService {
 
   async createPromoterProfile(params: {
     userId: string;
+    email?: string | null;
     name: string;
     city: string;
   }) {
-    const { userId, name, city } = params;
+    const { userId, email, name, city } = params;
     if (!name || !city) {
       throw new BadRequestException('MISSING_FIELDS');
     }
+
+    await this.ensureUserProfile({
+      userId,
+      role: 'PROMOTER',
+      displayName: name,
+      email: email ?? null,
+    });
 
     const { data: existing } = await this.supabase
       .from('promoters')
@@ -166,6 +213,13 @@ export class OnboardingService {
     if (!name) {
       throw new BadRequestException('MISSING_FIELDS');
     }
+
+    await this.ensureUserProfile({
+      userId,
+      role: 'MANAGER',
+      displayName: name,
+      email: email ?? null,
+    });
 
     const { data: existing } = await this.supabase
       .from('managers')

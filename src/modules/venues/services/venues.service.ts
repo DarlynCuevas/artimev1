@@ -39,7 +39,11 @@ export class VenuesService {
       throw new NotFoundException('VENUE_PROFILE_NOT_FOUND');
     }
 
-    return venue;
+    const isVerified = venue.userId
+      ? await this.usersService.isUserVerified(venue.userId)
+      : false;
+
+    return { ...venue, isVerified };
   }
 
   async upsertMyVenueProfile(userContext: UserContext, dto: UpdateVenueDto) {
@@ -64,7 +68,11 @@ export class VenuesService {
       ? await this.usersService.getSignedProfileImageUrlByUserId(venue.userId)
       : null;
 
-    return { ...mapVenueToPublicDto(venue), profileImageUrl };
+    const isVerified = venue.userId
+      ? await this.usersService.isUserVerified(venue.userId)
+      : false;
+
+    return { ...mapVenueToPublicDto(venue), profileImageUrl, isVerified };
   }
 
   async getAvailability(

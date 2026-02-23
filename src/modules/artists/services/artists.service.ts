@@ -61,6 +61,7 @@ export class ArtistsService {
     representationCommission: number | null;
     managerName?: string;
     profileImageUrl?: string | null;
+    isVerified?: boolean;
   }> {
     const artist = await this.artistRepository.findPublicProfileById(artistId);
 
@@ -100,6 +101,10 @@ export class ArtistsService {
       ? await this.usersService.getSignedProfileImageUrlByUserId(artist.userId)
       : null;
 
+    const isVerified = artist.userId
+      ? await this.usersService.isUserVerified(artist.userId)
+      : false;
+
     return {
       id: artist.id,
       name: artist.name,
@@ -118,6 +123,7 @@ export class ArtistsService {
       representationCommission,
       managerName,
       profileImageUrl,
+      isVerified,
     };
   }
 

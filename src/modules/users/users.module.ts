@@ -30,6 +30,7 @@ import { ManagersModule } from '../managers/managers.module';
   exports: [
     MeService,
     UsersService,
+    ArtistNotificationRepository,
   ],
 })
 export class UsersModule {}
