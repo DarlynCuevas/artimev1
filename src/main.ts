@@ -1,4 +1,4 @@
-
+import 'tsconfig-paths/register';
 import 'dotenv/config';
 import { NestFactory } from '@nestjs/core';
 import * as bodyParser from 'body-parser';
@@ -13,26 +13,35 @@ async function bootstrap() {
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   credentials: true,
 }); */
-const allowedOrigins = new Set([
-  'http://localhost:8080',
-  'http://localhost:3000',
-]);
+  // CORS:
+  // - Defaults to local-only (original dev setup).
+  // - In Vercel/prod, configure `CORS_ORIGINS` (comma-separated) and/or `FRONTEND_URL`.
+  //   Example: CORS_ORIGINS=https://artime-web.vercel.app
+  const allowedOrigins = new Set<string>(['http://localhost:8080', 'http://localhost:3000']);
 
-app.enableCors({
-  origin: (origin, callback) => {
-    // Allow non-browser requests (no origin)
-    if (!origin) {
-      return callback(null, true);
-    }
+  const addOrigin = (value?: string) => {
+    const trimmed = value?.trim();
+    if (!trimmed) return;
+    allowedOrigins.add(trimmed);
+  };
 
-    if (allowedOrigins.has(origin)) {
-      return callback(null, true);
-    }
+  for (const origin of (process.env.CORS_ORIGINS ?? '').split(',')) addOrigin(origin);
+  addOrigin(process.env.FRONTEND_URL);
 
-    return callback(new Error('CORS not allowed'), false);
-  },
-  credentials: true,
-});
+  // Vercel sets VERCEL_URL without protocol.
+  if (process.env.VERCEL_URL) addOrigin(`https://${process.env.VERCEL_URL}`);
+
+  app.enableCors({
+    origin: (origin, callback) => {
+      // Allow non-browser requests (no origin)
+      if (!origin) return callback(null, true);
+
+      if (allowedOrigins.has(origin)) return callback(null, true);
+
+      return callback(new Error('CORS not allowed'), false);
+    },
+    credentials: true,
+  });
   app.use(
     '/payments/stripe/webhook',
     bodyParser.raw({ type: 'application/json' }),
