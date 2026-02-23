@@ -12,6 +12,8 @@ export interface AuthenticatedRequest extends Request {
   user: {
     sub: string;
     email?: string;
+    isAdmin?: boolean;
+    appMetadata?: Record<string, unknown>;
   };
   userContext: UserContext;
 }

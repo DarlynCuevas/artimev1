@@ -12,6 +12,7 @@ export class BookingResponseDto {
   currency: string;
   totalAmount: number;
   allIn?: boolean;
+  artistConditionsSnapshot?: Record<string, any> | null;
   paidPercent?: number | null;
   eventId?: string | null;
   eventName?: string | null;

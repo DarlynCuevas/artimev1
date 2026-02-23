@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, Inject, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, Inject, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { ARTIST_REPOSITORY } from '../repositories/artist-repository.token';
 import type { ArtistRepository } from '../repositories/artist.repository.interface';
 import { supabase } from 'src/infrastructure/database/supabase.client';
@@ -17,6 +17,10 @@ import type { ManagerRepository } from '@/src/modules/managers/repositories/mana
 import { UsersService } from '../../users/services/users.service';
 import { ArtistGalleryRepository } from '@/src/infrastructure/database/repositories/artist/artist-gallery.repository';
 import { ArtistVideoRepository } from '@/src/infrastructure/database/repositories/artist/artist-video.repository';
+import {
+  normalizeArtistBookingConditions,
+  type ArtistBookingConditions,
+} from '../types/artist-booking-conditions';
 
 
 @Injectable()
@@ -115,6 +119,7 @@ export class ArtistsService {
       basePrice: artist.basePrice,
       currency: artist.currency,
       isNegotiable: artist.isNegotiable,
+      bookingConditions: normalizeArtistBookingConditions(artist.bookingConditions),
       managerId: artist.managerId,
       rating: artist.rating,
       canRequestRepresentation,
@@ -253,7 +258,11 @@ export class ArtistsService {
     return { ok: true };
   }
 
-  async updateArtistProfile(artistId: string, dto: UpdateArtistDto) {
+  async updateArtistProfile(
+    artistId: string,
+    dto: UpdateArtistDto,
+    opts?: { updatedByUserId?: string; updatedByRole?: 'ARTIST' | 'MANAGER' },
+  ) {
     await this.artistRepository.updateProfile(artistId, {
       name: dto.name,
       city: dto.city,
@@ -263,6 +272,14 @@ export class ArtistsService {
       basePrice: dto.basePrice,
       currency: dto.currency,
       isNegotiable: dto.isNegotiable,
+      bookingConditions:
+        dto.bookingConditions !== undefined
+          ? normalizeArtistBookingConditions(dto.bookingConditions)
+          : undefined,
+      bookingConditionsUpdatedByUserId:
+        dto.bookingConditions !== undefined ? (opts?.updatedByUserId ?? null) : undefined,
+      bookingConditionsUpdatedByRole:
+        dto.bookingConditions !== undefined ? (opts?.updatedByRole ?? null) : undefined,
       managerId: dto.managerId ?? null,
       rating: dto.rating,
     });
@@ -272,6 +289,84 @@ export class ArtistsService {
 
   async getArtistDashboard(artistId: string) {
     return this.getArtistDashboardUseCase.execute(artistId);
+  }
+
+  async getBookingConditionsByArtistId(artistId: string): Promise<ArtistBookingConditions> {
+    const artist = await this.artistRepository.findPublicProfileById(artistId);
+    if (!artist) {
+      throw new NotFoundException('ARTIST_NOT_FOUND');
+    }
+    return normalizeArtistBookingConditions(artist.bookingConditions);
+  }
+
+  async updateBookingConditionsAsArtist(params: {
+    artistId: string;
+    userId: string;
+    bookingConditions?: Partial<ArtistBookingConditions> | null;
+  }) {
+    const artist = await this.artistRepository.findPublicProfileById(params.artistId);
+    if (!artist) {
+      throw new NotFoundException('ARTIST_NOT_FOUND');
+    }
+
+    const normalized = normalizeArtistBookingConditions(params.bookingConditions);
+
+    await this.artistRepository.updateProfile(params.artistId, {
+      bookingConditions: normalized,
+      bookingConditionsUpdatedByRole: 'ARTIST',
+      bookingConditionsUpdatedByUserId: params.userId,
+    });
+
+    return {
+      artistId: params.artistId,
+      bookingConditions: normalized,
+      editableBy: 'ARTIST' as const,
+    };
+  }
+
+  async updateBookingConditionsAsManager(params: {
+    artistId: string;
+    managerId: string;
+    userId: string;
+    bookingConditions?: Partial<ArtistBookingConditions> | null;
+  }) {
+    await this.assertManagerRepresentsArtist(params.managerId, params.artistId);
+    const normalized = normalizeArtistBookingConditions(params.bookingConditions);
+
+    await this.artistRepository.updateProfile(params.artistId, {
+      bookingConditions: normalized,
+      bookingConditionsUpdatedByRole: 'MANAGER',
+      bookingConditionsUpdatedByUserId: params.userId,
+    });
+
+    return {
+      artistId: params.artistId,
+      bookingConditions: normalized,
+      editableBy: 'MANAGER' as const,
+    };
+  }
+
+  async managerCanEditArtist(managerId: string, artistId: string): Promise<boolean> {
+    const artist = await this.artistRepository.findPublicProfileById(artistId);
+    if (!artist) return false;
+    if (artist.managerId && artist.managerId === managerId) return true;
+    const activeContract = await this.contractRepo.findActiveByArtist(artistId);
+    return Boolean(activeContract?.managerId && activeContract.managerId === managerId);
+  }
+
+  private async assertManagerRepresentsArtist(managerId: string, artistId: string) {
+    const artist = await this.artistRepository.findPublicProfileById(artistId);
+    if (!artist) {
+      throw new NotFoundException('ARTIST_NOT_FOUND');
+    }
+
+    const directManagerMatch = Boolean(artist.managerId && artist.managerId === managerId);
+    if (directManagerMatch) return;
+
+    const activeContract = await this.contractRepo.findActiveByArtist(artistId);
+    if (activeContract?.managerId === managerId) return;
+
+    throw new ForbiddenException('MANAGER_NOT_ALLOWED_FOR_ARTIST');
   }
 
   private assertArtistIsComplete(artist: ArtistProps) {

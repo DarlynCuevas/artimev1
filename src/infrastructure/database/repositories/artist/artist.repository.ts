@@ -5,7 +5,7 @@ import { Artist } from '../../../../modules/artists/entities/artist.entity';
 import { StripeOnboardingStatus } from '../../../../modules/payments/stripe/stripe-onboarding-status.enum';
 import { BookingStatus } from '../../../../modules/bookings/booking-status.enum';
 import { supabase } from '../../supabase.client';
-import { format } from 'path';
+import type { ArtistBookingConditions } from '@/src/modules/artists/types/artist-booking-conditions';
 
 @Injectable()
 export class DbArtistRepository implements ArtistRepository {
@@ -189,6 +189,7 @@ export class DbArtistRepository implements ArtistRepository {
     bio?: string;
     format?: string;
     managerId?: string;
+    bookingConditions?: ArtistBookingConditions | null;
   } | null> {
     const { data, error } = await supabase
       .from('artists')
@@ -204,7 +205,8 @@ export class DbArtistRepository implements ArtistRepository {
             rating,
             bio,
             format,
-            manager_id
+            manager_id,
+            booking_conditions
           `)
       .eq('id', id)
       .maybeSingle();
@@ -226,6 +228,7 @@ export class DbArtistRepository implements ArtistRepository {
       bio: artist.bio ?? '',
       format: artist.format ?? '',
       managerId: artist.manager_id ?? undefined,
+      bookingConditions: (artist.booking_conditions as ArtistBookingConditions | null) ?? null,
     };
   }
 
@@ -376,6 +379,9 @@ export class DbArtistRepository implements ArtistRepository {
       isNegotiable?: boolean;
       managerId?: string | null;
       rating?: number;
+      bookingConditions?: ArtistBookingConditions | null;
+      bookingConditionsUpdatedByUserId?: string | null;
+      bookingConditionsUpdatedByRole?: 'ARTIST' | 'MANAGER' | null;
     },
   ): Promise<void> {
     const updatePayload: Record<string, any> = {
@@ -392,6 +398,14 @@ export class DbArtistRepository implements ArtistRepository {
     if (payload.isNegotiable !== undefined) updatePayload.is_negotiable = payload.isNegotiable;
     if (payload.managerId !== undefined) updatePayload.manager_id = payload.managerId;
     if (payload.rating !== undefined) updatePayload.rating = payload.rating;
+    if (payload.bookingConditions !== undefined) updatePayload.booking_conditions = payload.bookingConditions;
+    if (payload.bookingConditionsUpdatedByUserId !== undefined) {
+      updatePayload.booking_conditions_updated_by_user_id = payload.bookingConditionsUpdatedByUserId;
+      updatePayload.booking_conditions_updated_at = new Date();
+    }
+    if (payload.bookingConditionsUpdatedByRole !== undefined) {
+      updatePayload.booking_conditions_updated_by_role = payload.bookingConditionsUpdatedByRole;
+    }
 
     const { error } = await supabase
       .from('artists')

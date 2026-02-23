@@ -16,9 +16,10 @@ import { JwtAuthGuard } from './modules/auth/jwt-auth.guard';
 import { APP_GUARD } from '@nestjs/core';
 import { OutboxModule } from './modules/outbox/outbox.module';
 import { RepresentationsModule } from './modules/representations/representations.module';
+import { AdminModule } from './modules/admin/admin.module';
 
 @Module({
-  imports: [AuthModule, PaymentsModule, BookingsModule, EventsModule, ArtistsModule, VenuesModule, UsersModule, ManagersModule, OutboxModule, RepresentationsModule],
+  imports: [AuthModule, PaymentsModule, BookingsModule, EventsModule, ArtistsModule, VenuesModule, UsersModule, ManagersModule, OutboxModule, RepresentationsModule, AdminModule],
   controllers: [AppController],
   providers: [
     AppService,

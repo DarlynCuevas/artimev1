@@ -9,6 +9,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { Public } from '@/src/shared/public.decorator';
 import { UsersService } from '../../users/services/users.service';
+import type { ArtistBookingConditions } from '../types/artist-booking-conditions';
 
 
 @Controller('artists')
@@ -65,7 +66,59 @@ export class ArtistsController {
       throw new ForbiddenException('ONLY_ARTIST');
     }
 
-    return this.artistsService.updateArtistProfile(artistId, dto);
+    return this.artistsService.updateArtistProfile(artistId, dto, {
+      updatedByUserId: req.userContext.userId,
+      updatedByRole: 'ARTIST',
+    });
+  }
+
+  @UseGuards(JwtAuthGuard, UserContextGuard)
+  @Get(':id/booking-conditions')
+  async getArtistBookingConditions(
+    @Req() req: AuthenticatedRequest,
+    @Param('id') artistId: string,
+  ) {
+    const bookingConditions = await this.artistsService.getBookingConditionsByArtistId(artistId);
+
+    const canEditAsArtist = req.userContext.artistId === artistId;
+    const canEditAsManager = req.userContext.managerId
+      ? await this.artistsService.managerCanEditArtist(req.userContext.managerId, artistId)
+      : false;
+
+    return {
+      artistId,
+      bookingConditions,
+      editableBy: canEditAsArtist ? 'ARTIST' : canEditAsManager ? 'MANAGER' : null,
+    };
+  }
+
+  @UseGuards(JwtAuthGuard, UserContextGuard)
+  @Patch(':id/booking-conditions')
+  async updateArtistBookingConditions(
+    @Req() req: AuthenticatedRequest,
+    @Param('id') artistId: string,
+    @Body() body: { bookingConditions?: Partial<ArtistBookingConditions> | null },
+  ) {
+    const bookingConditions = body?.bookingConditions ?? null;
+
+    if (req.userContext.artistId && req.userContext.artistId === artistId) {
+      return this.artistsService.updateBookingConditionsAsArtist({
+        artistId,
+        userId: req.userContext.userId,
+        bookingConditions,
+      });
+    }
+
+    if (req.userContext.managerId) {
+      return this.artistsService.updateBookingConditionsAsManager({
+        artistId,
+        managerId: req.userContext.managerId,
+        userId: req.userContext.userId,
+        bookingConditions,
+      });
+    }
+
+    throw new ForbiddenException('ONLY_ARTIST_OR_ACTIVE_MANAGER');
   }
 
   @UseGuards(JwtAuthGuard, UserContextGuard)

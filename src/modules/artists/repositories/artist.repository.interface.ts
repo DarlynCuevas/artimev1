@@ -1,4 +1,5 @@
 import { Artist } from "../entities/artist.entity";
+import type { ArtistBookingConditions } from '../types/artist-booking-conditions';
 
 
 export interface ArtistRepository {
@@ -38,6 +39,7 @@ export interface ArtistRepository {
     rating?: number;
     managerId?: string;
     managerName?: string;
+    bookingConditions?: ArtistBookingConditions | null;
   } | null>;
 
   findByManagerId(managerId: string): Promise<Artist[]>;
@@ -60,6 +62,9 @@ export interface ArtistRepository {
       isNegotiable?: boolean;
       managerId?: string | null;
       rating?: number;
+      bookingConditions?: ArtistBookingConditions | null;
+      bookingConditionsUpdatedByUserId?: string | null;
+      bookingConditionsUpdatedByRole?: 'ARTIST' | 'MANAGER' | null;
     },
   ): Promise<void>;
 

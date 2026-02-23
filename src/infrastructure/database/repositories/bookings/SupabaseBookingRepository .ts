@@ -77,6 +77,7 @@ export class SupabaseBookingRepository {
       managerCommissionPercentage: data.manager_commission_percentage,
       totalAmount: data.total_amount,
       allIn: data.all_in,
+      artistConditionsSnapshot: data.artist_conditions_snapshot ?? null,
 
 
       handledByRole: data.handled_by_role ?? null,
@@ -105,6 +106,7 @@ export class SupabaseBookingRepository {
       currency: booking.currency,
       total_amount: booking.totalAmount,
       all_in: booking.allIn,
+      artist_conditions_snapshot: booking.artistConditionsSnapshot,
 
       artist_stripe_account_id: booking.artistStripeAccountId,
       manager_stripe_account_id: booking.managerStripeAccountId,
@@ -136,6 +138,7 @@ export class SupabaseBookingRepository {
 
         total_amount: booking.totalAmount,
         all_in: booking.allIn,
+        artist_conditions_snapshot: booking.artistConditionsSnapshot,
 
         handled_by_role: booking.handledByRole,
         handled_by_user_id: booking.handledByUserId,
@@ -211,6 +214,7 @@ export class SupabaseBookingRepository {
         managerCommissionPercentage: row.manager_commission_percentage,
         totalAmount: row.total_amount,
         allIn: row.all_in,
+        artistConditionsSnapshot: row.artist_conditions_snapshot ?? null,
         handledByRole: row.handled_by_role ?? null,
         handledByUserId: row.handled_by_user_id ?? null,
         handledAt: row.handled_at ? new Date(row.handled_at) : null,
@@ -264,6 +268,7 @@ export class SupabaseBookingRepository {
         currency: row.currency,
         totalAmount: row.total_amount,
         allIn: row.all_in,
+        artistConditionsSnapshot: row.artist_conditions_snapshot ?? null,
         start_date: row.start_date,
 
         artistStripeAccountId: row.artist_stripe_account_id,
@@ -349,6 +354,7 @@ export class SupabaseBookingRepository {
         currency: row.currency,
         totalAmount: row.total_amount,
         allIn: row.all_in,
+        artistConditionsSnapshot: row.artist_conditions_snapshot ?? null,
         start_date: row.start_date,
 
         artistStripeAccountId: row.artist_stripe_account_id,
@@ -410,6 +416,7 @@ export class SupabaseBookingRepository {
         currency: row.currency,
         totalAmount: row.total_amount,
         allIn: row.all_in,
+        artistConditionsSnapshot: row.artist_conditions_snapshot ?? null,
 
         handledByRole: row.handled_by_role ?? null,
         handledByUserId: row.handled_by_user_id ?? null,
@@ -561,6 +568,8 @@ export class SupabaseBookingRepository {
       start_date: data.start_date,
       currency: data.currency,
       totalAmount: data.total_amount,
+      allIn: data.all_in,
+      artistConditionsSnapshot: data.artist_conditions_snapshot ?? null,
 
       handledByRole: data.handled_by_role ?? null,
       handledByUserId: data.handled_by_user_id ?? null,
@@ -599,6 +608,8 @@ export class SupabaseBookingRepository {
         start_date,
         currency,
         total_amount,
+        all_in,
+        artist_conditions_snapshot,
         handled_by_role,
         handled_by_user_id,
         handled_at,
@@ -631,6 +642,7 @@ export class SupabaseBookingRepository {
         currency: row.currency ?? 'EUR',
         totalAmount: row.total_amount ?? 0,
         allIn: row.all_in,
+        artistConditionsSnapshot: row.artist_conditions_snapshot ?? null,
         handledByRole: row.handled_by_role ?? null,
         handledByUserId: row.handled_by_user_id ?? null,
         handledAt: row.handled_at ? new Date(row.handled_at) : null,

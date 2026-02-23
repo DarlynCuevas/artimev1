@@ -5,6 +5,7 @@ import { BookingStatus } from './booking-status.enum';
 import { BookingStateMachine } from './booking-state-machine';
 import { NegotiationSenderRole } from './negotiations/negotiation-message.entity';
 import { BookingHandlerRole } from './domain/booking-handler.mapper';
+import type { ArtistBookingConditions } from '../artists/types/artist-booking-conditions';
 
 interface BookingProps {
   id: string;
@@ -22,6 +23,7 @@ interface BookingProps {
   managerCommissionPercentage?: number;
   totalAmount: number;
   allIn?: boolean;
+  artistConditionsSnapshot?: ArtistBookingConditions | null;
   eventId?: string | null;
   eventName?: string | null;
   artistStripeAccountId?: string | null;
@@ -123,6 +125,10 @@ export class Booking {
     return Boolean(this.props.allIn);
   }
 
+  get artistConditionsSnapshot(): ArtistBookingConditions | null {
+    return this.props.artistConditionsSnapshot ?? null;
+  }
+
   updateAllIn(value: boolean): void {
     this.props.allIn = value;
     this.props.updatedAt = new Date();
@@ -203,6 +209,7 @@ export class Booking {
       status: this.status,
       currency: this.currency,
       totalAmount: this.totalAmount,
+      artistConditionsSnapshot: this.artistConditionsSnapshot,
       start_date: this.start_date,
       artistStripeAccountId: this.artistStripeAccountId,
       managerStripeAccountId: this.managerStripeAccountId,

@@ -7,6 +7,7 @@ import {
   IsString,
 } from 'class-validator';
 import { ArtistFormat } from '../enums/artist-format.enum';
+import type { ArtistBookingConditions } from '../types/artist-booking-conditions';
 
 export class CreateArtistDto {
     @IsNumber()
@@ -45,4 +46,6 @@ export class CreateArtistDto {
 
   @IsBoolean()
   isNegotiable: boolean;
+
+  bookingConditions?: ArtistBookingConditions;
 }

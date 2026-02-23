@@ -18,6 +18,10 @@ import type { ArtistManagerRepresentationRepository } from '@/src/modules/manage
 import { MANAGER_REPOSITORY } from '@/src/modules/managers/repositories/manager-repository.token';
 import type { ManagerRepository } from '@/src/modules/managers/repositories/manager.repository.interface';
 import { ArtistNotificationRepository } from '@/src/infrastructure/database/repositories/notifications/artist-notification.repository';
+import {
+  normalizeArtistBookingConditions,
+  type ArtistBookingConditions,
+} from '@/src/modules/artists/types/artist-booking-conditions';
 
 @Injectable()
 export class BookingService {
@@ -84,6 +88,7 @@ export class BookingService {
     currency?: string;
     totalAmount?: number;
     allIn?: boolean;
+    artistConditionsSnapshot?: ArtistBookingConditions | null;
     start_date?: string;
 
     message?: string;
@@ -144,6 +149,7 @@ export class BookingService {
       currency: params.currency,
       totalAmount: params.totalAmount,
       allIn: Boolean(params.allIn),
+      artistConditionsSnapshot: normalizeArtistBookingConditions(params.artistConditionsSnapshot),
       start_date: params.start_date,
       //  IMPORTANTE: sin handler al crear
       handledByRole: null,

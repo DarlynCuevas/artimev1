@@ -11,6 +11,6 @@ export class MeController {
   @UseGuards(JwtAuthGuard)
   @Get('me')
   async me(@Req() req: AuthenticatedRequest) {
-    return this.meService.resolveMe(req.user.sub);
+    return this.meService.resolveMe(req.user.sub, { isAdmin: req.user.isAdmin });
   }
 }

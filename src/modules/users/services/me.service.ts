@@ -14,7 +14,7 @@ export class MeService {
     private readonly managerService: ManagerService,
   ) {}
 
-  async resolveMe(userId: string) {
+  async resolveMe(userId: string, opts?: { isAdmin?: boolean }) {
     try {
       const [artist, venue, promoterEntity, manager] = await Promise.all([
         this.artistsService.findByUserId(userId),
@@ -31,6 +31,7 @@ export class MeService {
 
       return {
         userId,
+        isAdmin: Boolean(opts?.isAdmin),
         profiles: {
           artist: artist
             ? { id: artist.id, name: artist.name }
@@ -49,6 +50,7 @@ export class MeService {
     } catch (error) {
       return {
         userId,
+        isAdmin: Boolean(opts?.isAdmin),
         error: error?.message || 'Error interno en MeService',
       };
     }

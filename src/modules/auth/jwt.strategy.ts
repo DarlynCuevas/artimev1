@@ -24,10 +24,16 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   }
 
   async validate(payload: any) {
+    const appMetadata = payload.app_metadata ?? {};
+    const roles = Array.isArray(appMetadata.roles) ? appMetadata.roles : [];
+    const isAdmin = roles.includes('ADMIN');
+
     return {
       sub: payload.sub,
       role: payload.role,
       email: payload.email,
+      appMetadata,
+      isAdmin,
     };
   }
 }
