@@ -103,8 +103,6 @@ export class OutboxWorkerService implements OnModuleInit, OnModuleDestroy {
       date,
       city,
       filters,
-      offeredMaxPrice,
-      offeredMinPrice,
     } = event.payload ?? {};
 
     if (!Array.isArray(eligibleArtistIds) || eligibleArtistIds.length === 0) {
@@ -116,7 +114,7 @@ export class OutboxWorkerService implements OnModuleInit, OnModuleDestroy {
       eligibleArtistIds.map((artistId: string) => ({
         artistId,
         type: 'ARTIST_CALL_CREATED',
-        payload: { callId, venueId, venueName, date, city, filters, offeredMaxPrice, offeredMinPrice },
+        payload: { callId, venueId, venueName, date, city, filters },
       })),
     );
   }

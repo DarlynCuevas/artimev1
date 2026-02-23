@@ -42,6 +42,37 @@ export class RespondArtistCallUseCase {
 
     await this.notificationsRepo.markCallNotificationsRead({ userId: userContext.userId, callId });
 
+    if (response === 'INTERESTED') {
+      const { data: callData } = await this.supabase
+        .from('venue_artist_calls')
+        .select('id, venue_id, date, city, venue:venue_id ( id, name, user_id )')
+        .eq('id', callId)
+        .maybeSingle();
+
+      const venue = Array.isArray((callData as any)?.venue)
+        ? (callData as any)?.venue?.[0]
+        : (callData as any)?.venue;
+
+      if (venue?.user_id) {
+        await this.notificationsRepo.createManyByUser([
+          {
+            userId: venue.user_id,
+            role: 'VENUE',
+            type: 'ARTIST_CALL_ACCEPTED',
+            payload: {
+              callId,
+              venueId: venue.id ?? callData?.venue_id ?? null,
+              venueName: venue.name ?? null,
+              artistId: artist.id,
+              artistName: artist.name,
+              date: callData?.date ?? null,
+              city: callData?.city ?? null,
+            },
+          },
+        ]);
+      }
+    }
+
     return data;
   }
 }

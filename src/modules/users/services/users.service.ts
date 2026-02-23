@@ -67,17 +67,19 @@ export class UsersService {
 
   async updateProfileImage(params: { userId: string; imagePath: string | null }) {
     const { userId, imagePath } = params;
-    // Use upsert so profile image works even if `users` row was deleted/recreated.
-    const { error } = await this.supabase
+    const { data, error } = await this.supabase
       .from('users')
-      .upsert({
-        id: userId,
+      .update({
         profile_image_path: imagePath,
-        created_at: new Date().toISOString(),
-      }, { onConflict: 'id' });
+      })
+      .eq('id', userId)
+      .select('id');
 
     if (error) {
       throw new Error(error.message);
+    }
+    if (!data || data.length === 0) {
+      throw new Error('USER_PROFILE_NOT_FOUND');
     }
 
     return { ok: true };

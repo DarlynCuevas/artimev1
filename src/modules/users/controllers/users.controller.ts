@@ -7,7 +7,6 @@ import { FileInterceptor, AnyFilesInterceptor } from '@nestjs/platform-express';
 import { SUPABASE_CLIENT } from '@/src/infrastructure/database/supabase.module';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { memoryStorage } from 'multer';
-import { UserContextGuard } from '../../auth/user-context.guard';
 
 type RegisterPayload = {
   role: 'ARTIST' | 'VENUE' | 'PROMOTER' | 'MANAGER';
@@ -123,7 +122,7 @@ export class UsersController {
     });
   }
 
-  @UseGuards(JwtAuthGuard, UserContextGuard)
+  @UseGuards(JwtAuthGuard)
   @Post('profile-image')
   @UseInterceptors(
     FileInterceptor('file', {
@@ -148,6 +147,10 @@ export class UsersController {
 
     const userId = req.user.sub;
     const email = (req.user as any)?.email ?? null;
+    const requestedRoleFromBody =
+      typeof (req as any)?.body?.role === 'string'
+        ? String((req as any).body.role).toUpperCase()
+        : null;
     const extension = file.originalname.split('.').pop()?.toLowerCase() ?? 'jpg';
     const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${extension}`;
     const storagePath = `users/${userId}/${fileName}`;
@@ -170,13 +173,29 @@ export class UsersController {
         ? String((req.user.appMetadata as Record<string, unknown>).current_role).toUpperCase()
         : null;
 
-    const inferredRole =
-      req.userContext?.artistId ? 'ARTIST'
-        : req.userContext?.venueId ? 'VENUE'
-          : req.userContext?.promoterId ? 'PROMOTER'
-            : req.userContext?.managerId ? 'MANAGER'
-              : req.user?.isAdmin ? 'ADMIN'
-                : currentRoleFromMetadata;
+    const currentRoleFromToken =
+      typeof (req.user as any)?.role === 'string'
+        ? String((req.user as any).role).toUpperCase()
+        : null;
+
+    let inferredRole: string | null =
+      req.user?.isAdmin
+        ? 'ADMIN'
+        : requestedRoleFromBody ?? currentRoleFromMetadata ?? currentRoleFromToken;
+
+    if (!inferredRole) {
+      const [artist, venue, promoter, manager] = await Promise.all([
+        this.supabase.from('artists').select('id').eq('user_id', userId).maybeSingle(),
+        this.supabase.from('venues').select('id').eq('user_id', userId).maybeSingle(),
+        this.supabase.from('promoters').select('id').eq('user_id', userId).maybeSingle(),
+        this.supabase.from('managers').select('id').eq('user_id', userId).maybeSingle(),
+      ]);
+
+      if (artist.data?.id) inferredRole = 'ARTIST';
+      else if (venue.data?.id) inferredRole = 'VENUE';
+      else if (promoter.data?.id) inferredRole = 'PROMOTER';
+      else if (manager.data?.id) inferredRole = 'MANAGER';
+    }
     const allowedRoles = new Set(['ARTIST', 'VENUE', 'PROMOTER', 'MANAGER', 'ADMIN']);
     const normalizedRole = inferredRole && allowedRoles.has(inferredRole) ? inferredRole : null;
 

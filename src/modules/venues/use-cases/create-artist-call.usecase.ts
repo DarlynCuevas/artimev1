@@ -45,9 +45,6 @@ export class CreateArtistCallUseCase {
       filters: dto.filters ?? undefined,
     });
 
-    const offeredMaxPrice = dto.filters?.maxPrice;
-    const offeredMinPrice = dto.filters?.minPrice;
-
     await this.outboxRepo.enqueue({
       type: 'ARTIST_CALL_CREATED',
       payload: {
@@ -57,8 +54,6 @@ export class CreateArtistCallUseCase {
         date: dto.date,
         city: cityFilter,
         filters: dto.filters ?? {},
-        offeredMaxPrice,
-        offeredMinPrice,
         eligibleArtistIds: eligibleArtists.map((a) => a.artistId),
       },
     });
