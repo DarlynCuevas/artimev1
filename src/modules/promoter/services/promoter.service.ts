@@ -6,9 +6,9 @@ import { GetPromoterProfileQuery } from '../queries/get-promoter-profile.query';
 import { UpdatePromoterProfileUseCase } from '../use-cases/update-promoter-profile.usecase';
 import { GetEventsQuery } from '../../events/queries/get-events.query';
 import { GetPromoterDashboardUseCase } from '../use-cases/dashboard-promoter.usecase';
-import { PromoterGalleryRepository } from '@/src/infrastructure/database/repositories/promoter/promoter-gallery.repository';
-import { PromoterVideoRepository } from '@/src/infrastructure/database/repositories/promoter/promoter-video.repository';
-import { supabase } from '@/src/infrastructure/database/supabase.client';
+import { PromoterGalleryRepository } from '../../../infrastructure/database/repositories/promoter/promoter-gallery.repository';
+import { PromoterVideoRepository } from '../../../infrastructure/database/repositories/promoter/promoter-video.repository';
+import { supabase } from '../../../infrastructure/database/supabase.client';
 
 
 @Injectable()
