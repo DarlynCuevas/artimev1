@@ -3,6 +3,9 @@ import { NestFactory } from '@nestjs/core';
 import * as bodyParser from 'body-parser';
 import * as path from 'path';
 import Module = require('module');
+import './shared/public.decorator';
+import './shared/authenticated-request';
+import './shared/system-role.enum';
 
 // Vercel runtime may not include tsconfig.json, so we map '@/src/*' at runtime.
 const originalResolveFilename = (Module as any)._resolveFilename;
