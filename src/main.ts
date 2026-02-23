@@ -72,6 +72,13 @@ async function bootstrap() {
 
       const normalized = normalizeOrigin(origin) ?? origin;
       if (allowedOrigins.has(normalized)) return callback(null, true);
+      // Allow Vercel frontends/previews explicitly (temporary-safe for deployment testing).
+      try {
+        const hostname = new URL(normalized).hostname;
+        if (hostname.endsWith('.vercel.app')) return callback(null, true);
+      } catch {
+        // ignore parse failures
+      }
 
       return callback(new Error('CORS not allowed'), false);
     },
