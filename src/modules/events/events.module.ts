@@ -22,7 +22,7 @@ import { GetEventInvitationsQuery } from './queries/get-event-invitations.query'
 import { GetEventBookingsQuery } from './queries/get-event-bookings.query';
 
 import { SupabaseClient } from '@supabase/supabase-js';
-import { supabase } from '@/src/infrastructure/database/supabase.client';
+import { supabase } from '../../infrastructure/database/supabase.client';
 import { UpdateEventVisibilityUseCase } from './use-cases/update-event-visibility.usecase';
 import { UpdateEventBookingOrganizationUseCase } from './use-cases/update-event-booking-organization.usecase';
 import { LinkBookingToEventUseCase } from './use-cases/link-booking-to-event.usecase';

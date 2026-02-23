@@ -3,7 +3,6 @@ import { NestFactory } from '@nestjs/core';
 import * as bodyParser from 'body-parser';
 import * as path from 'path';
 import Module = require('module');
-import './vercel.preload';
 import './shared/public.decorator';
 import './shared/authenticated-request';
 import './shared/system-role.enum';
@@ -22,6 +21,8 @@ const originalResolveFilename = (Module as any)._resolveFilename;
   }
   return originalResolveFilename.call(this, request, parent, isMain, options);
 };
+
+require('./vercel.preload');
 
 async function bootstrap() {
   const { AppModule } = require('./app.module');

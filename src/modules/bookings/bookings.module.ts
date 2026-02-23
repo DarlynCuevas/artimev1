@@ -52,7 +52,7 @@ import { SupabaseEventInvitationRepository } from '@/src/infrastructure/database
 import { EVENT_REPOSITORY } from '../events/repositories/event.repository.token';
 import { SupabaseEventRepository } from '@/src/infrastructure/database/repositories/event/event.supabase.repository';
 import { SupabaseClient } from '@supabase/supabase-js';
-import { supabase } from '@/src/infrastructure/database/supabase.client';
+import { supabase } from '../../infrastructure/database/supabase.client';
 import { GetPaymentMilestonesForBookingQuery } from '../payments/queries/get-payment-milestones-for-booking.query';
 import { UserContextModule } from '../auth/user-context/user-context.module';
 import { ArtistNotificationRepository } from '@/src/infrastructure/database/repositories/notifications/artist-notification.repository';

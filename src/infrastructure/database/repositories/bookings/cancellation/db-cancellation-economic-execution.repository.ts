@@ -1,7 +1,7 @@
 import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { CancellationEconomicExecution } from '@/src/modules/bookings/cancellations/economic-executions/cancellation-economic-execution.entity';
 import { CancellationEconomicExecutionRepository } from '@/src/modules/bookings/cancellations/economic-executions/repositories/cancellation-economic-execution.repository.interface';
-import { supabase } from '@/src/infrastructure/database/supabase.client';
+import { supabase } from '../../../supabase.client';
 
 
 @Injectable()

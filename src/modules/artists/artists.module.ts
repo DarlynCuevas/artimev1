@@ -29,7 +29,7 @@ import { GetArtistEventInvitationsQuery } from './queries/get-artist-event-invit
 import { EVENT_REPOSITORY } from '../events/repositories/event.repository.token';
 import { SupabaseEventRepository } from '@/src/infrastructure/database/repositories/event/event.supabase.repository';
 import { SupabaseClient } from '@supabase/supabase-js';
-import { supabase } from '@/src/infrastructure/database/supabase.client';
+import { supabase } from '../../infrastructure/database/supabase.client';
 import { UserContextModule } from '../auth/user-context/user-context.module';
 import { REPRESENTATION_CONTRACT_REPOSITORY, REPRESENTATION_REQUEST_REPOSITORY } from '../representations/repositories/representation-repository.tokens';
 import { SupabaseRepresentationRequestRepository } from '@/src/infrastructure/database/repositories/representation/supabase-representation-request.repository';

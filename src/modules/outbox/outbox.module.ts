@@ -8,7 +8,7 @@ import { SupabaseEventRepository } from '@/src/infrastructure/database/repositor
 import { BOOKING_REPOSITORY } from '@/src/modules/bookings/repositories/booking-repository.token';
 import { SupabaseBookingRepository } from '../../infrastructure/database/repositories/bookings/SupabaseBookingRepository';
 import { SupabaseClient } from '@supabase/supabase-js';
-import { supabase } from '@/src/infrastructure/database/supabase.client';
+import { supabase } from '../../infrastructure/database/supabase.client';
 import { ARTIST_MANAGER_REPRESENTATION_REPOSITORY } from '@/src/modules/managers/repositories/artist-manager-representation.repository.token';
 import { DbArtistManagerRepresentationRepository } from '@/src/infrastructure/database/repositories/manager/artist-manager-representation.repository';
 import { MANAGER_REPOSITORY } from '@/src/modules/managers/repositories/manager-repository.token';

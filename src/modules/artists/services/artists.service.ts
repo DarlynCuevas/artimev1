@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException, Inject, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { ARTIST_REPOSITORY } from '../repositories/artist-repository.token';
 import type { ArtistRepository } from '../repositories/artist.repository.interface';
-import { supabase } from '@/src/infrastructure/database/supabase.client';
+import { supabase } from '../../../infrastructure/database/supabase.client';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { ArtistProps } from '../entities/artist.entity';
 import { CreateArtistDto } from '../dto/create-artist.dto';
