@@ -1,5 +1,5 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit, Inject } from '@nestjs/common';
-import { OutboxRepository, OutboxEvent } from '@/src/infrastructure/database/repositories/outbox/outbox.repository';
+import { OutboxRepository, OutboxEvent } from '../../infrastructure/database/repositories/outbox/outbox.repository';
 import { ArtistNotificationRepository } from '@/src/infrastructure/database/repositories/notifications/artist-notification.repository';
 import { EVENT_REPOSITORY } from '@/src/modules/events/repositories/event.repository.token';
 import type { EventRepository } from '@/src/modules/events/repositories/event.repository';

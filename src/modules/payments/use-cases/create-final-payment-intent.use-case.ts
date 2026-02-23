@@ -1,4 +1,4 @@
-import { SupabaseBookingRepository } from '../../../infrastructure/database/repositories/bookings/SupabaseBookingRepository ';
+import { SupabaseBookingRepository } from '../../../infrastructure/database/repositories/bookings/SupabaseBookingRepository';
 import { DbPaymentRepository } from '../../../infrastructure/database/repositories/payment.repository';
 import type { PaymentIntentRepository } from '../repositories/payment-intent.repository.interface';
 import { PaymentProvider } from '../providers/payment-provider.interface';

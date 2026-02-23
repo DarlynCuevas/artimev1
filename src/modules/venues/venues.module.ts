@@ -5,7 +5,7 @@ import { VenueDiscoverService } from './services/venue-discover.service'
 import { ARTIST_REPOSITORY } from '../artists/repositories/artist-repository.token';
 import { DbArtistRepository } from '../../infrastructure/database/repositories/artist/artist.repository';
 import { BOOKING_REPOSITORY } from '../bookings/repositories/booking-repository.token';
-import { SupabaseBookingRepository } from '../../infrastructure/database/repositories/bookings/SupabaseBookingRepository '; 
+import { SupabaseBookingRepository } from '../../infrastructure/database/repositories/bookings/SupabaseBookingRepository'; 
 import { PAYMENT_MILESTONE_REPOSITORY } from '../payments/payment-milestone-repository.token';
 import { DbPaymentMilestoneRepository } from '../../infrastructure/database/repositories/db-payment-milestone.repository';
 import { ArtistsModule } from '../artists/artists.module';

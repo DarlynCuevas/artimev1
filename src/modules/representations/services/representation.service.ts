@@ -3,7 +3,7 @@ import { ARTIST_REPOSITORY } from '@/src/modules/artists/repositories/artist-rep
 import type { ArtistRepository } from '@/src/modules/artists/repositories/artist.repository.interface';
 import { MANAGER_REPOSITORY } from '@/src/modules/managers/repositories/manager-repository.token';
 import type { ManagerRepository } from '@/src/modules/managers/repositories/manager.repository.interface';
-import { OutboxRepository } from '@/src/infrastructure/database/repositories/outbox/outbox.repository';
+import { OutboxRepository } from '../../../infrastructure/database/repositories/outbox/outbox.repository';
 import { REPRESENTATION_CONTRACT_REPOSITORY, REPRESENTATION_REQUEST_REPOSITORY } from '../repositories/representation-repository.tokens';
 import type { RepresentationRequestRepository } from '../repositories/representation-request.repository.interface';
 import type { RepresentationContractRepository } from '../repositories/representation-contract.repository.interface';

@@ -4,12 +4,12 @@ import { randomUUID } from 'crypto';
 import type { EventInvitationRepository } from '../repositories/event-invitation.repository';
 import { EventInvitation } from '../entities/event-invitation.entity';
 import { EVENT_INVITATION_REPOSITORY } from '../repositories/event-invitation.repository.token';
-import { OutboxRepository } from '@/src/infrastructure/database/repositories/outbox/outbox.repository';
-import { ARTIST_MANAGER_REPRESENTATION_REPOSITORY } from '@/src/modules/managers/repositories/artist-manager-representation.repository.token';
-import type { ArtistManagerRepresentationRepository } from '@/src/modules/managers/repositories/artist-manager-representation.repository.interface';
-import { MANAGER_REPOSITORY } from '@/src/modules/managers/repositories/manager-repository.token';
-import type { ManagerRepository } from '@/src/modules/managers/repositories/manager.repository.interface';
-import { ArtistNotificationRepository } from '@/src/infrastructure/database/repositories/notifications/artist-notification.repository';
+import { OutboxRepository } from '../../../infrastructure/database/repositories/outbox/outbox.repository';
+import { ARTIST_MANAGER_REPRESENTATION_REPOSITORY } from '../../managers/repositories/artist-manager-representation.repository.token';
+import type { ArtistManagerRepresentationRepository } from '../../managers/repositories/artist-manager-representation.repository.interface';
+import { MANAGER_REPOSITORY } from '../../managers/repositories/manager-repository.token';
+import type { ManagerRepository } from '../../managers/repositories/manager.repository.interface';
+import { ArtistNotificationRepository } from '../../../infrastructure/database/repositories/notifications/artist-notification.repository';
 
 export class SendInvitationUseCase {
   constructor(

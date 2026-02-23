@@ -4,7 +4,7 @@ import { ARTIST_REPOSITORY } from '../../artists/repositories/artist-repository.
 import type { ArtistRepository } from '../../artists/repositories/artist.repository.interface';
 import type { AuthenticatedRequest } from '@/src/shared/authenticated-request';
 import { CreateArtistCallDto } from '../dto/create-artist-call.dto';
-import { OutboxRepository } from '@/src/infrastructure/database/repositories/outbox/outbox.repository';
+import { OutboxRepository } from '../../../infrastructure/database/repositories/outbox/outbox.repository';
 import { VENUE_REPOSITORY } from '../repositories/venue-repository.token';
 import type { VenueRepository } from '../repositories/venue.repository.interface';
 

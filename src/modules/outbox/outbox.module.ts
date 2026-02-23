@@ -1,12 +1,12 @@
 import { Module } from '@nestjs/common';
 import { SupabaseModule } from '@/src/infrastructure/database/supabase.module';
-import { OutboxRepository } from '@/src/infrastructure/database/repositories/outbox/outbox.repository';
+import { OutboxRepository } from '../../infrastructure/database/repositories/outbox/outbox.repository';
 import { ArtistNotificationRepository } from '@/src/infrastructure/database/repositories/notifications/artist-notification.repository';
 import { OutboxWorkerService } from './outbox.worker';
 import { EVENT_REPOSITORY } from '@/src/modules/events/repositories/event.repository.token';
 import { SupabaseEventRepository } from '@/src/infrastructure/database/repositories/event/event.supabase.repository';
 import { BOOKING_REPOSITORY } from '@/src/modules/bookings/repositories/booking-repository.token';
-import { SupabaseBookingRepository } from '@/src/infrastructure/database/repositories/bookings/SupabaseBookingRepository ';
+import { SupabaseBookingRepository } from '../../infrastructure/database/repositories/bookings/SupabaseBookingRepository';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { supabase } from '@/src/infrastructure/database/supabase.client';
 import { ARTIST_MANAGER_REPRESENTATION_REPOSITORY } from '@/src/modules/managers/repositories/artist-manager-representation.repository.token';

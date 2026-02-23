@@ -12,7 +12,7 @@ import { EVENT_INVITATION_REPOSITORY } from '../../events/repositories/event-inv
 import type { EventInvitationRepository } from '../../events/repositories/event-invitation.repository';
 import { EVENT_REPOSITORY } from '../../events/repositories/event.repository.token';
 import type { EventRepository } from '../../events/repositories/event.repository';
-import { OutboxRepository } from '@/src/infrastructure/database/repositories/outbox/outbox.repository';
+import { OutboxRepository } from '../../../infrastructure/database/repositories/outbox/outbox.repository';
 import { ARTIST_MANAGER_REPRESENTATION_REPOSITORY } from '@/src/modules/managers/repositories/artist-manager-representation.repository.token';
 import type { ArtistManagerRepresentationRepository } from '@/src/modules/managers/repositories/artist-manager-representation.repository.interface';
 import { MANAGER_REPOSITORY } from '@/src/modules/managers/repositories/manager-repository.token';
