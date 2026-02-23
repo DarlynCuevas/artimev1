@@ -1,4 +1,4 @@
-import { Body, Controller, Post, Req, UseGuards, BadRequestException, Get, UploadedFile, UploadedFiles, UseInterceptors, Inject, Patch } from '@nestjs/common';
+import { Body, Controller, Post, Req, UseGuards, BadRequestException, Get, UploadedFile, UploadedFiles, UseInterceptors, Inject, Patch, Delete } from '@nestjs/common';
 import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 import type { AuthenticatedRequest } from '@/src/shared/authenticated-request';
 import { UsersService } from '../services/users.service';
@@ -238,5 +238,66 @@ export class UsersController {
     }
 
     return this.usersService.uploadVerificationDocuments(req.user.sub, files);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('fiscal')
+  async getFiscal(@Req() req: AuthenticatedRequest) {
+    return this.usersService.getFiscalDataByUserId(req.user.sub);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch('fiscal')
+  async updateFiscal(
+    @Req() req: AuthenticatedRequest,
+    @Body()
+    body: Partial<{
+      fiscalName: string;
+      taxId: string;
+      fiscalAddress: string;
+      fiscalCountry: string;
+      iban: string;
+    }>,
+  ) {
+    return this.usersService.updateFiscalDataByUserId(req.user.sub, body ?? {});
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('change-email')
+  async changeEmail(
+    @Req() req: AuthenticatedRequest,
+    @Body() body: { email?: string },
+  ) {
+    if (!body?.email) {
+      throw new BadRequestException('EMAIL_REQUIRED');
+    }
+    return this.usersService.changeEmailByUserId(req.user.sub, body.email);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('change-password')
+  async changePassword(
+    @Req() req: AuthenticatedRequest,
+    @Body() body: { currentPassword?: string; newPassword?: string },
+  ) {
+    if (!body?.newPassword) {
+      throw new BadRequestException('NEW_PASSWORD_REQUIRED');
+    }
+    return this.usersService.changePasswordByUserId(req.user.sub, {
+      currentPassword: body.currentPassword,
+      newPassword: body.newPassword,
+    });
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('sessions/close-others')
+  async closeOtherSessions(@Req() req: AuthenticatedRequest) {
+    return this.usersService.closeOtherSessionsByUserId(req.user.sub);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Delete('account')
+  async deleteAccount(@Req() req: AuthenticatedRequest) {
+    return this.usersService.deleteAccountByUserId(req.user.sub);
   }
 }

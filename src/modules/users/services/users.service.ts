@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable } from '@nestjs/common';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { SUPABASE_CLIENT } from '@/src/infrastructure/database/supabase.module';
 
@@ -253,5 +253,158 @@ export class UsersService {
       reviewedAt: null,
       rejectionReason: null,
     };
+  }
+
+  async getFiscalDataByUserId(userId: string): Promise<{
+    fiscalName: string;
+    taxId: string;
+    fiscalAddress: string;
+    fiscalCountry: string;
+    iban?: string | null;
+  }> {
+    const { data, error } = await this.supabase
+      .from('user_settings')
+      .select('fiscal_name,tax_id,fiscal_address,fiscal_country,iban')
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (error || !data) {
+      return {
+        fiscalName: '',
+        taxId: '',
+        fiscalAddress: '',
+        fiscalCountry: 'España',
+        iban: null,
+      };
+    }
+
+    return {
+      fiscalName: data.fiscal_name ?? '',
+      taxId: data.tax_id ?? '',
+      fiscalAddress: data.fiscal_address ?? '',
+      fiscalCountry: data.fiscal_country ?? 'España',
+      iban: data.iban ?? null,
+    };
+  }
+
+  async updateFiscalDataByUserId(
+    userId: string,
+    payload: Partial<{
+      fiscalName: string;
+      taxId: string;
+      fiscalAddress: string;
+      fiscalCountry: string;
+      iban: string;
+    }>,
+  ) {
+    const current = await this.getFiscalDataByUserId(userId);
+    const merged = {
+      fiscalName: payload.fiscalName ?? current.fiscalName,
+      taxId: payload.taxId ?? current.taxId,
+      fiscalAddress: payload.fiscalAddress ?? current.fiscalAddress,
+      fiscalCountry: payload.fiscalCountry ?? current.fiscalCountry,
+      iban: payload.iban ?? current.iban ?? null,
+    };
+
+    const { error } = await this.supabase
+      .from('user_settings')
+      .upsert(
+        {
+          user_id: userId,
+          fiscal_name: merged.fiscalName,
+          tax_id: merged.taxId,
+          fiscal_address: merged.fiscalAddress,
+          fiscal_country: merged.fiscalCountry,
+          iban: merged.iban,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: 'user_id' },
+      );
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    return merged;
+  }
+
+  async changeEmailByUserId(userId: string, email: string) {
+    const targetEmail = (email ?? '').trim().toLowerCase();
+    if (!targetEmail) {
+      throw new BadRequestException('EMAIL_REQUIRED');
+    }
+
+    const { error } = await (this.supabase.auth.admin as any).updateUserById(userId, {
+      email: targetEmail,
+      email_confirm: false,
+    });
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    await this.supabase
+      .from('users')
+      .upsert(
+        {
+          id: userId,
+          email: targetEmail,
+        },
+        { onConflict: 'id' },
+      );
+
+    return { ok: true };
+  }
+
+  async changePasswordByUserId(
+    userId: string,
+    payload: { currentPassword?: string; newPassword: string },
+  ) {
+    const newPassword = payload.newPassword ?? '';
+    if (newPassword.length < 8) {
+      throw new BadRequestException('PASSWORD_TOO_SHORT');
+    }
+
+    const { error } = await (this.supabase.auth.admin as any).updateUserById(userId, {
+      password: newPassword,
+    });
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    return { ok: true };
+  }
+
+  async closeOtherSessionsByUserId(userId: string) {
+    const { error } = await (this.supabase.auth.admin as any).signOut(userId, 'others');
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    return { ok: true };
+  }
+
+  async deleteAccountByUserId(userId: string) {
+    const cleanup = [
+      this.supabase.from('user_notification_preferences').delete().eq('user_id', userId),
+      this.supabase.from('user_settings').delete().eq('user_id', userId),
+      this.supabase.from('user_verifications').delete().eq('user_id', userId),
+      this.supabase.from('artists').delete().eq('user_id', userId),
+      this.supabase.from('venues').delete().eq('user_id', userId),
+      this.supabase.from('promoters').delete().eq('user_id', userId),
+      this.supabase.from('managers').delete().eq('user_id', userId),
+      this.supabase.from('users').delete().eq('id', userId),
+    ];
+
+    await Promise.allSettled(cleanup);
+
+    const { error } = await (this.supabase.auth.admin as any).deleteUser(userId, false);
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    return { ok: true };
   }
 }
