@@ -1,9 +1,4 @@
 {
-  "functions": {
-    "src/main.js": {
-      "includeFiles": "src/**/*.js"
-    }
-  },
   "headers": [
     {
       "source": "/(.*)",
