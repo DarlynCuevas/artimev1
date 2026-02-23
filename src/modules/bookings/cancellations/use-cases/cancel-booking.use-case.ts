@@ -5,7 +5,7 @@ import { BookingStatus } from '../../booking-status.enum';
 import { BookingRepository } from '../../repositories/booking.repository.interface';
 import { BOOKING_REPOSITORY } from '../../repositories/booking-repository.token';
 
-import { CancellationRepository } from 'src/infrastructure/database/repositories/cancellation.repository';
+import { CancellationRepository } from '@/src/infrastructure/database/repositories/cancellation.repository';
 import { CANCELLATION_REPOSITORY } from '../cancellation.repository.token';
 
 import { CancellationInitiator } from '../enums/cancellation-initiator.enum';

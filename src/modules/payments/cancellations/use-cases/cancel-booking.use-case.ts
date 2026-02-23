@@ -1,8 +1,8 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { randomUUID } from 'crypto';
-import { BOOKING_REPOSITORY } from 'src/modules/bookings/repositories/booking-repository.token';
-import type { BookingRepository } from 'src/modules/bookings/repositories/booking.repository.interface';
-import { BookingStatus } from 'src/modules/bookings/booking-status.enum';
+import { BOOKING_REPOSITORY } from '@/src/modules/bookings/repositories/booking-repository.token';
+import type { BookingRepository } from '@/src/modules/bookings/repositories/booking.repository.interface';
+import { BookingStatus } from '@/src/modules/bookings/booking-status.enum';
 import { CANCELLATION_REPOSITORY } from '../cancellation.repository.token';
 import type { CancellationRepository } from '../cancellation.repository';
 import { CancellationRecord } from '../cancellation-record.entity';

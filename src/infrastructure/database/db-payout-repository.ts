@@ -3,7 +3,7 @@ import { SupabaseClient } from '@supabase/supabase-js';
 import { SUPABASE_CLIENT } from './supabase.module';
 
 import { Payout, PayoutStatus } from '../../modules/payments/entities/payout.entity';
-import { PayoutRepository } from 'src/modules/payments/repositories/payout.repository';
+import { PayoutRepository } from '@/src/modules/payments/repositories/payout.repository';
 
 
 @Injectable()

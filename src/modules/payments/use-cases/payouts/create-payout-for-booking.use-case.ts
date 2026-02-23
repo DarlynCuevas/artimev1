@@ -3,9 +3,9 @@ import { Payout, PayoutStatus } from '../../entities/payout.entity';
 import { PAYOUT_REPOSITORY } from '../../repositories/payout.repository.token';
 import type { PayoutRepository } from '../../repositories/payout.repository';
 import { SplitCalculator } from '../../split/split-calculator.service';
-import { BOOKING_REPOSITORY } from 'src/modules/bookings/repositories/booking-repository.token';
-import type { BookingRepository } from 'src/modules/bookings/repositories/booking.repository.interface';
-import { BookingStatus } from 'src/modules/bookings/booking-status.enum';
+import { BOOKING_REPOSITORY } from '@/src/modules/bookings/repositories/booking-repository.token';
+import type { BookingRepository } from '@/src/modules/bookings/repositories/booking.repository.interface';
+import { BookingStatus } from '@/src/modules/bookings/booking-status.enum';
 const eligibleStatuses = [
     BookingStatus.COMPLETED,
     BookingStatus.PAID_FULL,

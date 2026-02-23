@@ -2,8 +2,8 @@ import { Injectable } from '@nestjs/common';
 import { SupabaseClient } from '@supabase/supabase-js';
 
 
-import { EventInvitation } from 'src/modules/events/entities/event-invitation.entity';
-import { EventInvitationRepository } from 'src/modules/events/repositories/event-invitation.repository';
+import { EventInvitation } from '@/src/modules/events/entities/event-invitation.entity';
+import { EventInvitationRepository } from '@/src/modules/events/repositories/event-invitation.repository';
 @Injectable()
 export class SupabaseEventInvitationRepository
   implements EventInvitationRepository

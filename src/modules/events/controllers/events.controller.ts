@@ -23,7 +23,7 @@ import { GetEventDetailQuery } from '../queries/get-event-detail.query';
 import { GetEventInvitationsQuery } from '../queries/get-event-invitations.query';
 
 import { CreateEventDto } from '../dto/create-event.dto';
-import type { AuthenticatedRequest } from 'src/shared/authenticated-request';
+import type { AuthenticatedRequest } from '@/src/shared/authenticated-request';
 import { EventStatus } from '../enums/event-status.enum';
 import { GetEventInterestedArtistsQuery } from '../queries/get-event-interested-artists.query';
 import { GetEventBookingsQuery } from '../queries/get-event-bookings.query';

@@ -1,9 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { SupabaseClient } from '@supabase/supabase-js';
-import { EventRepository } from 'src/modules/events/repositories/event.repository';
+import { EventRepository } from '@/src/modules/events/repositories/event.repository';
 
-import { EventEntity } from 'src/modules/events/entities/event.entity';
-import { EventStatus } from 'src/modules/events/enums/event-status.enum';
+import { EventEntity } from '@/src/modules/events/entities/event.entity';
+import { EventStatus } from '@/src/modules/events/enums/event-status.enum';
 import { EventVisibility } from '@/src/modules/events/enums/event-visibility.enum';
 
 @Injectable()

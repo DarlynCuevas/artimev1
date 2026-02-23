@@ -37,7 +37,7 @@ import { DbPayoutRepository } from '../../infrastructure/database/db-payout-repo
 import { DbPaymentIntentRepository } from '../../infrastructure/database/repositories/db-payment-intent.repository';
 import { SupabaseModule } from '../../infrastructure/database/supabase.module';
 import { CANCELLATION_REPOSITORY } from './cancellations/cancellation.repository.token';
-import { DbCancellationRepository } from 'src/infrastructure/database/repositories/db-cancellation.repository';
+import { DbCancellationRepository } from '@/src/infrastructure/database/repositories/db-cancellation.repository';
 import { CancelBookingUseCase } from './cancellations/use-cases/cancel-booking.use-case';
 import { PayoutResponseMapper } from './payouts/mappers/payout-response.mapper';
 import { PayoutsQueryService } from './payouts/queries/payouts-query.service';

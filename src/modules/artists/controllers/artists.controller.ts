@@ -1,7 +1,7 @@
 import { Controller, Get, Param, Query, Req, UseGuards, ForbiddenException, Patch, Body, Post, UploadedFile, UseInterceptors, BadRequestException, Delete } from '@nestjs/common';
 import { ArtistsService } from '../services/artists.service';
-import { JwtAuthGuard } from 'src/modules/auth/jwt-auth.guard';
-import type { AuthenticatedRequest } from 'src/shared/authenticated-request';
+import { JwtAuthGuard } from '@/src/modules/auth/jwt-auth.guard';
+import type { AuthenticatedRequest } from '@/src/shared/authenticated-request';
 import { UserContextGuard } from '../../auth/user-context.guard';
 import { UpdateArtistDto } from '../dto/update-artist.dto';
 import { GetArtistEventInvitationsQuery } from '../queries/get-artist-event-invitations.query';

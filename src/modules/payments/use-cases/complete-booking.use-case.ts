@@ -1,7 +1,7 @@
 // complete-booking.use-case.ts
 
-import { BookingStatus } from "src/modules/bookings/booking-status.enum";
-import { Booking } from "src/modules/bookings/booking.entity";
+import { BookingStatus } from "@/src/modules/bookings/booking-status.enum";
+import { Booking } from "@/src/modules/bookings/booking.entity";
 
 
 

@@ -2,9 +2,9 @@ import { Controller, Get, Param, NotFoundException, Post, Req, Body, UseGuards, 
 import type { Response } from 'express';
 import { BookingResponseDto } from '../dto/booking-response.dto';
 import { BookingService } from '../service/booking.service';
-import type { AuthenticatedRequest } from 'src/shared/authenticated-request';
+import type { AuthenticatedRequest } from '@/src/shared/authenticated-request';
 import { CreateBookingDto } from '../dto/create-booking.dto';
-import { JwtAuthGuard } from 'src/modules/auth/jwt-auth.guard';
+import { JwtAuthGuard } from '@/src/modules/auth/jwt-auth.guard';
 import { CancelBookingDto } from '../dto/cancel-booking.dto';
 import { CancellationInitiator } from '../cancellations/enums/cancellation-initiator.enum';
 import { CancelBookingUseCase } from '../cancellations/use-cases/cancel-booking.use-case';
