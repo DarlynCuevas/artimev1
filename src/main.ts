@@ -18,11 +18,27 @@ async function bootstrap() {
   // - In Vercel/prod, configure `CORS_ORIGINS` (comma-separated) and/or `FRONTEND_URL`.
   //   Example: CORS_ORIGINS=https://artime-web.vercel.app
   const allowedOrigins = new Set<string>(['http://localhost:8080', 'http://localhost:3000']);
+  const allowAllOrigins = (process.env.CORS_ORIGINS ?? '').trim() === '*';
+
+  const normalizeOrigin = (value?: string) => {
+    const trimmed = value?.trim();
+    if (!trimmed) return null;
+
+    // Common mistake in env vars: wrap value in quotes.
+    const unquoted = trimmed.replace(/^['"]|['"]$/g, '');
+
+    try {
+      return new URL(unquoted).origin;
+    } catch {
+      // If it's not a valid URL, ignore it (safer than allowing arbitrary strings).
+      return null;
+    }
+  };
 
   const addOrigin = (value?: string) => {
-    const trimmed = value?.trim();
-    if (!trimmed) return;
-    allowedOrigins.add(trimmed);
+    const normalized = normalizeOrigin(value);
+    if (!normalized) return;
+    allowedOrigins.add(normalized);
   };
 
   for (const origin of (process.env.CORS_ORIGINS ?? '').split(',')) addOrigin(origin);
@@ -36,7 +52,10 @@ async function bootstrap() {
       // Allow non-browser requests (no origin)
       if (!origin) return callback(null, true);
 
-      if (allowedOrigins.has(origin)) return callback(null, true);
+      if (allowAllOrigins) return callback(null, true);
+
+      const normalized = normalizeOrigin(origin) ?? origin;
+      if (allowedOrigins.has(normalized)) return callback(null, true);
 
       return callback(new Error('CORS not allowed'), false);
     },
