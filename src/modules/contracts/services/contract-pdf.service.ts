@@ -3,7 +3,7 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 import puppeteer from 'puppeteer';
 
-type TemplateData = Record<string, string>;
+type TemplateData = Record<string, unknown>;
 
 @Injectable()
 export class ContractPdfService {
@@ -52,14 +52,14 @@ export class ContractPdfService {
 
     if (html.includes('{{rows}}')) {
       const rows = Object.entries(templateData ?? {})
-        .map(([key, value]) => `<tr><td>${escapeHtml(key)}</td><td>${escapeHtml(value ?? '---')}</td></tr>`)
+        .map(([key, value]) => `<tr><td>${escapeHtml(key)}</td><td>${escapeHtml(normalizeTemplateValue(value))}</td></tr>`)
         .join('');
       return html.replace('{{rows}}', rows || '<tr><td>Estado</td><td>Sin datos</td></tr>');
     }
 
     html = html.replace(/\{\{(\w+)\}\}/g, (_, key: string) => {
-      const value = templateData[key];
-      return value && value.trim() ? escapeHtml(value) : '---';
+      const value = normalizeTemplateValue(templateData[key]);
+      return value.trim() ? escapeHtml(value) : '---';
     });
 
     return html;
@@ -96,8 +96,20 @@ export class ContractPdfService {
   }
 }
 
-function escapeHtml(value: string): string {
-  return value
+function normalizeTemplateValue(value: unknown): string {
+  if (value === null || value === undefined) return '';
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
+}
+
+function escapeHtml(value: unknown): string {
+  const safeValue = normalizeTemplateValue(value);
+  return safeValue
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
