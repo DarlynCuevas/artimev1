@@ -17,9 +17,23 @@ import { APP_GUARD } from '@nestjs/core';
 import { OutboxModule } from './modules/outbox/outbox.module';
 import { RepresentationsModule } from './modules/representations/representations.module';
 import { AdminModule } from './modules/admin/admin.module';
+import { ContractsModule } from './modules/contracts/contracts.module';
 
 @Module({
-  imports: [AuthModule, PaymentsModule, BookingsModule, EventsModule, ArtistsModule, VenuesModule, UsersModule, ManagersModule, OutboxModule, RepresentationsModule, AdminModule],
+  imports: [
+    AuthModule,
+    PaymentsModule,
+    BookingsModule,
+    EventsModule,
+    ArtistsModule,
+    VenuesModule,
+    UsersModule,
+    ManagersModule,
+    OutboxModule,
+    RepresentationsModule,
+    AdminModule,
+    ContractsModule,
+  ],
   controllers: [AppController],
   providers: [
     AppService,

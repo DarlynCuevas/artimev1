@@ -38,11 +38,74 @@ export class ContractRepository {
         status: contract.status,
         signed_at: contract.signedAt,
         signed_by_role: contract.signedByRole,
+        snapshot_data: contract.snapshotData,
         conditions_accepted: contract.conditionsAccepted,
         conditions_accepted_at: contract.conditionsAcceptedAt ?? null,
         conditions_version: contract.conditionsVersion ?? null,
       })
       .eq('id', contract.id);
+  }
+
+  async patchDocusignState(params: {
+    contractId: string;
+    patch: Record<string, unknown>;
+    markSigned?: boolean;
+  }): Promise<void> {
+    const { data, error } = await supabase
+      .from('contracts')
+      .select('snapshot_data')
+      .eq('id', params.contractId)
+      .maybeSingle();
+
+    if (error || !data) {
+      throw new Error('Contract not found');
+    }
+
+    const snapshotData = (data.snapshot_data ?? {}) as Record<string, unknown>;
+    const existingDocusign = (snapshotData.docusign ?? {}) as Record<string, unknown>;
+
+    const mergedSnapshot = {
+      ...snapshotData,
+      docusign: {
+        ...existingDocusign,
+        ...params.patch,
+      },
+    };
+
+    const updatePayload: Record<string, unknown> = {
+      snapshot_data: mergedSnapshot,
+    };
+
+    if (params.markSigned) {
+      updatePayload.status = ContractStatus.SIGNED;
+      updatePayload.signed_at = new Date().toISOString();
+      updatePayload.signed_by_role = 'DOCUSIGN';
+      updatePayload.conditions_accepted = true;
+      updatePayload.conditions_accepted_at = new Date().toISOString();
+    }
+
+    const { error: updateError } = await supabase
+      .from('contracts')
+      .update(updatePayload)
+      .eq('id', params.contractId);
+
+    if (updateError) {
+      throw new Error(updateError.message);
+    }
+  }
+
+  async findByDocusignEnvelopeId(envelopeId: string): Promise<Contract | null> {
+    const { data, error } = await supabase
+      .from('contracts')
+      .select('*')
+      .contains('snapshot_data', { docusign: { envelopeId } })
+      .maybeSingle();
+
+    if (error || !data) {
+      return null;
+    }
+
+    return Contract.fromPersistence(data);
   }
 
 
