@@ -66,17 +66,16 @@ export class ContractPdfService {
   }
 
   async generatePdfBuffer(templateData: TemplateData): Promise<Buffer> {
-    const html = await this.renderHtml(templateData);
-    const launchOptions: Parameters<typeof puppeteer.launch>[0] = {
-      headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox'],
-    };
-    if (process.env.PUPPETEER_EXECUTABLE_PATH) {
-      launchOptions.executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
-    }
-    const browser = await puppeteer.launch(launchOptions);
-
     try {
+      const html = await this.renderHtml(templateData);
+      const launchOptions: Parameters<typeof puppeteer.launch>[0] = {
+        headless: true,
+        args: ['--no-sandbox', '--disable-setuid-sandbox'],
+      };
+      if (process.env.PUPPETEER_EXECUTABLE_PATH) {
+        launchOptions.executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
+      }
+      const browser = await puppeteer.launch(launchOptions);
       const page = await browser.newPage();
       await page.setContent(html, { waitUntil: 'networkidle0' });
       const pdf = await page.pdf({
@@ -89,9 +88,11 @@ export class ContractPdfService {
           left: '18mm',
         },
       });
-      return Buffer.from(pdf);
-    } finally {
       await browser.close();
+      return Buffer.from(pdf);
+    } catch (error) {
+      console.error('[ContractPdfService] Puppeteer failed, using fallback PDF:', error);
+      return buildFallbackPdf(templateData);
     }
   }
 }
@@ -115,4 +116,54 @@ function escapeHtml(value: unknown): string {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
+}
+
+function escapePdfText(value: string): string {
+  return value.replace(/\\/g, '\\\\').replace(/\(/g, '\\(').replace(/\)/g, '\\)');
+}
+
+function buildFallbackPdf(templateData: TemplateData): Buffer {
+  const pairs = Object.entries(templateData ?? {}).slice(0, 28);
+  const lines = [
+    'Contrato firmado - ARTIME',
+    '',
+    ...(pairs.length
+      ? pairs.map(([key, value]) => `${key}: ${normalizeTemplateValue(value) || '---'}`)
+      : ['Sin datos de contrato']),
+  ];
+
+  const content = [
+    'BT',
+    '/F1 11 Tf',
+    '50 790 Td',
+    ...lines.map((line, index) =>
+      `${index === 0 ? '' : '0 -16 Td '}(${escapePdfText(line.slice(0, 110))}) Tj`,
+    ),
+    'ET',
+  ].join('\n');
+
+  const objects = [
+    '1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n',
+    '2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n',
+    '3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>\nendobj\n',
+    '4 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n',
+    `5 0 obj\n<< /Length ${Buffer.byteLength(content, 'utf8')} >>\nstream\n${content}\nendstream\nendobj\n`,
+  ];
+
+  let pdf = '%PDF-1.4\n';
+  const xrefPositions: number[] = [0];
+  for (const objectText of objects) {
+    xrefPositions.push(Buffer.byteLength(pdf, 'utf8'));
+    pdf += objectText;
+  }
+
+  const xrefStart = Buffer.byteLength(pdf, 'utf8');
+  pdf += `xref\n0 ${objects.length + 1}\n`;
+  pdf += '0000000000 65535 f \n';
+  for (let index = 1; index <= objects.length; index += 1) {
+    pdf += `${String(xrefPositions[index]).padStart(10, '0')} 00000 n \n`;
+  }
+  pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefStart}\n%%EOF`;
+
+  return Buffer.from(pdf, 'utf8');
 }
