@@ -10,6 +10,7 @@ import { SupabaseBookingRepository } from '../../infrastructure/database/reposit
 import { GetContractByBookingUseCase } from './use-cases/get-contract-by-booking.use-case';
 
 import { ContractsController } from './controllers/contracts.controller';
+import { DocusignWebhookController } from './controllers/docusign-webhook.controller';
 import { CreatePaymentScheduleForBookingUseCase } from '../payments/use-cases/create-payment-schedule-for-booking.usecase';
 import { ArtistsModule } from '../artists/artists.module';
 import { VenuesModule } from '../venues/venues.module';
@@ -19,6 +20,7 @@ import { ManagersModule } from '../managers/managers.module';
 import { ContractTemplateMapper } from './mappers/contract-template.mapper';
 import { ContractPdfService } from './services/contract-pdf.service';
 import { ArtistNotificationRepository } from '@/src/infrastructure/database/repositories/notifications/artist-notification.repository';
+import { DocusignService } from './services/docusign.service';
 
 @Module({
   imports: [
@@ -31,11 +33,12 @@ import { ArtistNotificationRepository } from '@/src/infrastructure/database/repo
     forwardRef(() => ManagersModule),
     UserContextModule,
   ],
-  controllers: [ContractsController],
+  controllers: [ContractsController, DocusignWebhookController],
   providers: [
     ContractRepository,
     ContractTemplateMapper,
     ContractPdfService,
+    DocusignService,
     ArtistNotificationRepository,
     GenerateContractOnAcceptedUseCase,
     SignContractUseCase,
@@ -52,6 +55,7 @@ import { ArtistNotificationRepository } from '@/src/infrastructure/database/repo
     SignContractUseCase,
     GenerateContractUseCase,
     ContractPdfService,
+    DocusignService,
     BOOKING_REPOSITORY,
     CreatePaymentScheduleForBookingUseCase,
   ],
