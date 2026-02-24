@@ -38,7 +38,6 @@ export class ContractRepository {
         status: contract.status,
         signed_at: contract.signedAt,
         signed_by_role: contract.signedByRole,
-        snapshot_data: contract.snapshotData,
         conditions_accepted: contract.conditionsAccepted,
         conditions_accepted_at: contract.conditionsAcceptedAt ?? null,
         conditions_version: contract.conditionsVersion ?? null,
