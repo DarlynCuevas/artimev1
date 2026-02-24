@@ -21,6 +21,8 @@ interface CreatePaymentIntentForMilestoneOutput {
   status?: string;
 }
 
+const toMinorUnits = (amount: number) => Math.round(amount * 100);
+
 @Injectable()
 export class CreatePaymentIntentForMilestoneUseCase {
   constructor(
@@ -123,7 +125,7 @@ export class CreatePaymentIntentForMilestoneUseCase {
     ) => {
       const intent =
         await this.paymentProvider.createPaymentIntent({
-          amount: milestone.amount,
+          amount: toMinorUnits(milestone.amount),
           currency: booking.currency,
           metadata: {
             payerId,

@@ -6,6 +6,8 @@ import { BookingStatus } from '../../bookings/booking-status.enum';
 import { PaymentMilestoneType } from '../payment-milestone.entity';
 import { PaymentMilestoneStatus } from '../payment-milestone-status.enum';
 
+const toMinorUnits = (amount: number) => Math.round(amount * 100);
+
 export class CreateFinalPaymentIntentUseCase {
   constructor(
     private readonly supabaseBookingRepository: SupabaseBookingRepository,
@@ -79,7 +81,7 @@ export class CreateFinalPaymentIntentUseCase {
     }
 
     const intent = await this.paymentProvider.createPaymentIntent({
-      amount: finalMilestone.amount,
+      amount: toMinorUnits(finalMilestone.amount),
       currency: schedule.currency,
       metadata: {
         bookingId: booking.id,
