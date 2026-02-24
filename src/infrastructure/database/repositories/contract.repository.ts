@@ -41,6 +41,7 @@ export class ContractRepository {
         conditions_accepted: contract.conditionsAccepted,
         conditions_accepted_at: contract.conditionsAcceptedAt ?? null,
         conditions_version: contract.conditionsVersion ?? null,
+        snapshot_data: contract.snapshotData,
       })
       .eq('id', contract.id);
   }

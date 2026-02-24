@@ -19,6 +19,7 @@ import { ManagersModule } from '../managers/managers.module';
 import { ContractTemplateMapper } from './mappers/contract-template.mapper';
 import { ContractPdfService } from './services/contract-pdf.service';
 import { ArtistNotificationRepository } from '@/src/infrastructure/database/repositories/notifications/artist-notification.repository';
+import { DocusignService } from './services/docusign.service';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { ArtistNotificationRepository } from '@/src/infrastructure/database/repo
     ContractRepository,
     ContractTemplateMapper,
     ContractPdfService,
+    DocusignService,
     ArtistNotificationRepository,
     GenerateContractOnAcceptedUseCase,
     SignContractUseCase,
