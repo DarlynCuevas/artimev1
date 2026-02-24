@@ -10,6 +10,7 @@ import { ARTIST_REPOSITORY } from '../../../artists/repositories/artist-reposito
 import { PAYMENT_PROVIDER } from '../../providers/payment-provider.token';
 import { PAYMENT_INTENT_REPOSITORY } from '../../repositories/payment-intent.repository.token';
 import { StripeOnboardingStatus } from '../../stripe/stripe-onboarding-status.enum';
+import { StripeConnectService } from '@/src/infrastructure/payments/stripe-connect.service';
 
 interface CreatePaymentIntentForMilestoneInput {
   paymentMilestoneId: string;
@@ -33,6 +34,7 @@ export class CreatePaymentIntentForMilestoneUseCase {
     private readonly paymentProvider: PaymentProvider,
     @Inject(PAYMENT_INTENT_REPOSITORY)
     private readonly paymentIntentRepository: PaymentIntentRepository,
+    private readonly stripeConnectService: StripeConnectService,
   ) {}
 
   async execute(
@@ -72,11 +74,28 @@ export class CreatePaymentIntentForMilestoneUseCase {
         throw new Error('Artist not found');
       }
 
-      if (
-        artist.stripeOnboardingStatus !==
-        StripeOnboardingStatus.COMPLETED
-      ) {
-        throw new Error('Artist cannot receive payments');
+      if (artist.stripeOnboardingStatus !== StripeOnboardingStatus.COMPLETED) {
+        if (!artist.stripeAccountId) {
+          throw new Error('Artist cannot receive payments');
+        }
+
+        const stripeAccount = await this.stripeConnectService.getAccount(
+          artist.stripeAccountId,
+        );
+        const realOnboardingStatus =
+          this.stripeConnectService.resolveOnboardingStatus(stripeAccount);
+
+        if (realOnboardingStatus !== artist.stripeOnboardingStatus) {
+          artist.setStripeAccount({
+            stripeAccountId: artist.stripeAccountId,
+            onboardingStatus: realOnboardingStatus,
+          });
+          await this.artistRepository.update(artist);
+        }
+
+        if (realOnboardingStatus !== StripeOnboardingStatus.COMPLETED) {
+          throw new Error('Artist cannot receive payments');
+        }
       }
 
       const payerId =
