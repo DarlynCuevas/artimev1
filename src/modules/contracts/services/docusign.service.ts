@@ -313,11 +313,19 @@ export class DocusignService {
       .eq('id', userId)
       .maybeSingle();
 
-    if (error || !data?.email) {
-      return null;
+    const emailFromUsers = data?.email?.trim() ?? '';
+    if (!error && emailFromUsers) {
+      return emailFromUsers;
     }
 
-    return data.email;
+    // Fallback for legacy profiles not synced into public.users.
+    const authResult = await supabase.auth.admin.getUserById(userId);
+    const emailFromAuth = authResult.data?.user?.email?.trim() ?? '';
+    if (emailFromAuth) {
+      return emailFromAuth;
+    }
+
+    return null;
   }
 
   private async downloadCombinedDocument(envelopeId: string): Promise<Buffer> {
