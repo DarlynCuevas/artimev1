@@ -2,6 +2,7 @@ import { ForbiddenException, Inject, Injectable, NotFoundException } from '@nest
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { SUPABASE_CLIENT } from '@/src/infrastructure/database/supabase.module';
 import { StripeOnboardingStatus } from '../../stripe/stripe-onboarding-status.enum';
+import { StripeConnectService } from '@/src/infrastructure/payments/stripe-connect.service';
 
 type StripeRole = 'ARTIST' | 'VENUE' | 'PROMOTER' | 'MANAGER';
 
@@ -28,7 +29,10 @@ type StripeProfileRow = {
 
 @Injectable()
 export class GetStripeOnboardingStatusUseCase {
-  constructor(@Inject(SUPABASE_CLIENT) private readonly supabase: SupabaseClient) {}
+  constructor(
+    @Inject(SUPABASE_CLIENT) private readonly supabase: SupabaseClient,
+    private readonly stripeConnectService: StripeConnectService,
+  ) {}
 
   async execute(input: Input): Promise<Output> {
     const table = this.resolveTable(input.role);
@@ -48,13 +52,35 @@ export class GetStripeOnboardingStatusUseCase {
       throw new ForbiddenException('PROFILE_ACCESS_DENIED');
     }
 
-    const onboardingStatus = row.stripe_onboarding_status ?? StripeOnboardingStatus.NOT_STARTED;
+    let onboardingStatus = row.stripe_onboarding_status ?? StripeOnboardingStatus.NOT_STARTED;
+    const stripeAccountId = row.stripe_account_id ?? null;
+
+    if (stripeAccountId && onboardingStatus !== StripeOnboardingStatus.COMPLETED) {
+      const account = await this.stripeConnectService.getAccount(stripeAccountId);
+      const realStatus = this.stripeConnectService.resolveOnboardingStatus(account);
+
+      if (realStatus !== onboardingStatus) {
+        onboardingStatus = realStatus;
+        const patch: Record<string, unknown> = {
+          stripe_onboarding_status: realStatus,
+          updated_at: new Date().toISOString(),
+        };
+        if (realStatus === StripeOnboardingStatus.COMPLETED) {
+          patch.stripe_connected_at = new Date().toISOString();
+        }
+        await this.supabase
+          .from(table)
+          .update(patch)
+          .eq('id', input.profileId);
+      }
+    }
+
     return {
       role: input.role,
       profileId: input.profileId,
-      stripeAccountId: row.stripe_account_id ?? null,
+      stripeAccountId,
       onboardingStatus,
-      isConnected: Boolean(row.stripe_account_id),
+      isConnected: Boolean(stripeAccountId),
     };
   }
 
@@ -73,4 +99,3 @@ export class GetStripeOnboardingStatusUseCase {
     }
   }
 }
-
