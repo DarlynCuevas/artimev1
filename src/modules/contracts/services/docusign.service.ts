@@ -254,19 +254,23 @@ export class DocusignService {
         throw new Error('Promoter signer not found for DocuSign');
       }
 
-      const promoterEmail =
-        data?.email ??
-        (data?.user_id ? await this.getUserEmail(data.user_id) : null);
+      const promoterEmailResult = data?.email
+        ? { email: data.email, debug: 'source=promoters.email' }
+        : data?.user_id
+          ? await this.getUserEmail(data.user_id)
+          : { email: null, debug: 'missing_user_id' };
 
-      if (!promoterEmail) {
-        throw new Error('Promoter signer is missing email for DocuSign');
+      if (!promoterEmailResult.email) {
+        throw new Error(
+          `Promoter signer is missing email for DocuSign (promoterId=${data.id}, user_id=${data.user_id ?? 'null'}, debug=${promoterEmailResult.debug})`,
+        );
       }
 
       return {
         recipientId: '2',
         role: 'COUNTERPARTY',
         name: data.name ?? 'Promoter',
-        email: promoterEmail,
+        email: promoterEmailResult.email,
         clientUserId: `promoter:${data.id}`,
       };
     }
@@ -282,14 +286,16 @@ export class DocusignService {
         throw new Error('Venue signer not found for DocuSign');
       }
 
-      const venueEmail =
-        data?.contact_email ??
-        (data?.user_id ? await this.getUserEmail(data.user_id) : null);
-      if (!venueEmail || !data?.id) {
+      const venueEmailResult = data?.contact_email
+        ? { email: data.contact_email, debug: 'source=venues.contact_email' }
+        : data?.user_id
+          ? await this.getUserEmail(data.user_id)
+          : { email: null, debug: 'missing_user_id' };
+      if (!venueEmailResult.email || !data?.id) {
         const venueId = data?.id ?? booking.venueId ?? 'unknown';
         const venueUserId = data?.user_id ?? 'null';
         throw new Error(
-          `Venue signer is missing email for DocuSign (venueId=${venueId}, user_id=${venueUserId}). ` +
+          `Venue signer is missing email for DocuSign (venueId=${venueId}, user_id=${venueUserId}, debug=${venueEmailResult.debug}). ` +
             'Set venues.contact_email or users.email for that user.',
         );
       }
@@ -298,7 +304,7 @@ export class DocusignService {
         recipientId: '2',
         role: 'COUNTERPARTY',
         name: data.name ?? 'Venue',
-        email: venueEmail,
+        email: venueEmailResult.email,
         clientUserId: `venue:${data.id}`,
       };
     }
@@ -306,7 +312,7 @@ export class DocusignService {
     throw new Error('Booking has no counterparty (venue/promoter) for DocuSign');
   }
 
-  private async getUserEmail(userId: string): Promise<string | null> {
+  private async getUserEmail(userId: string): Promise<{ email: string | null; debug: string }> {
     const { data, error } = await supabase
       .from('users')
       .select('email')
@@ -315,17 +321,21 @@ export class DocusignService {
 
     const emailFromUsers = data?.email?.trim() ?? '';
     if (!error && emailFromUsers) {
-      return emailFromUsers;
+      return { email: emailFromUsers, debug: 'source=users.email' };
     }
 
     // Fallback for legacy profiles not synced into public.users.
     const authResult = await supabase.auth.admin.getUserById(userId);
     const emailFromAuth = authResult.data?.user?.email?.trim() ?? '';
     if (emailFromAuth) {
-      return emailFromAuth;
+      return { email: emailFromAuth, debug: 'source=auth.users' };
     }
 
-    return null;
+    const debugParts: string[] = [];
+    if (error) debugParts.push(`users_error=${error.message}`);
+    if (!emailFromUsers) debugParts.push('users_empty');
+    if (authResult.error) debugParts.push(`auth_error=${authResult.error.message}`);
+    return { email: null, debug: debugParts.join(';') || 'unknown' };
   }
 
   private async downloadCombinedDocument(envelopeId: string): Promise<Buffer> {
