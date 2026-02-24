@@ -35,7 +35,7 @@ export class SignContractUseCase {
     private readonly promoterRepository: PromoterRepository,
     @Inject(MANAGER_REPOSITORY)
     private readonly managerRepository: ManagerRepository,
-  ) { }
+  ) {}
 
   async execute(input: {
     contractId: string;
@@ -45,38 +45,27 @@ export class SignContractUseCase {
     conditionsAccepted: boolean;
     conditionsVersion?: string;
   }): Promise<void> {
+    const contract = await this.contractRepository.findById(input.contractId);
+    if (!contract) throw new NotFoundException('Contract not found');
 
-    // 1. Cargar contrato por ID
-    const contract = await this.contractRepository.findById(
-      input.contractId,
-    );
+    const booking = await this.bookingRepository.findById(contract.bookingId);
+    if (!booking) throw new NotFoundException('Booking not found');
 
-    if (!contract) {
-      throw new NotFoundException('Contract not found');
+    // Este use case es solo para firma manual interna.
+    // Si el contrato está en flujo DocuSign, el cierre lo hace el webhook al COMPLETED.
+    const hasDocusignEnvelope = Boolean(contract.snapshotData?.docusign?.envelopeId);
+    if (hasDocusignEnvelope) {
+      throw new BadRequestException('Contract must be signed via DocuSign flow');
     }
 
-    // 2. Validar estado del contrato
     if (contract.status !== ContractStatus.DRAFT) {
       throw new BadRequestException('Contract is not signable');
     }
 
-    // 3. Cargar booking asociado al contrato
-    const booking = await this.bookingRepository.findById(
-      contract.bookingId,
-    );
-
-    if (!booking) {
-      throw new NotFoundException('Booking not found');
-    }
-
-    // 4. Validar estado del booking
     if (booking.status !== BookingStatus.ACCEPTED) {
-      throw new BadRequestException(
-        'Booking is not ready for contract signing',
-      );
+      throw new BadRequestException('Booking is not ready for contract signing');
     }
 
-    // 5. Validar permisos (v1)
     const isAllowed =
       (input.artistId && booking.artistId === input.artistId) ||
       (input.managerId && booking.managerId === input.managerId) ||
@@ -84,12 +73,13 @@ export class SignContractUseCase {
       booking.managerId === input.userId;
 
     if (!isAllowed) {
-      throw new ForbiddenException(
-        'You are not allowed to sign this contract',
-      );
+      throw new ForbiddenException('You are not allowed to sign this contract');
     }
 
-    // 6. Firmar contrato
+    if (!input.conditionsAccepted) {
+      throw new BadRequestException('Contract conditions must be accepted');
+    }
+
     contract.sign({
       signedByUserId: input.userId,
       signedAt: new Date(),
@@ -101,17 +91,18 @@ export class SignContractUseCase {
     }
 
     await this.contractRepository.update(contract);
-    await this.createPaymentScheduleForBookingUseCase.execute({
-      bookingId: booking.id,
-    })
 
-    // 7. Actualizar booking
     booking.status = BookingStatus.CONTRACT_SIGNED;
     await this.bookingRepository.save(booking);
+
+    await this.createPaymentScheduleForBookingUseCase.execute({
+      bookingId: booking.id,
+    });
 
     const senderRole: NegotiationSenderRole = input.managerId
       ? NegotiationSenderRole.MANAGER
       : NegotiationSenderRole.ARTIST;
+
     await notifyBookingCounterpart({
       booking,
       senderRole,

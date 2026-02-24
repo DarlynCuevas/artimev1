@@ -8,6 +8,8 @@ import type { Booking } from '@/src/modules/bookings/booking.entity';
 import { BOOKING_REPOSITORY } from '@/src/modules/bookings/repositories/booking-repository.token';
 import type { BookingRepository } from '@/src/modules/bookings/repositories/booking.repository.interface';
 import { SignContractUseCase } from '../use-cases/sign-contract.use-case';
+import { BookingStatus } from '../../bookings/booking-status.enum';
+import { CreatePaymentScheduleForBookingUseCase } from '../../payments/use-cases/create-payment-schedule-for-booking.usecase';
 
 type DocusignSigner = {
   recipientId: '1' | '2';
@@ -34,6 +36,8 @@ export class DocusignService {
     private readonly signContractUseCase: SignContractUseCase,
     @Inject(BOOKING_REPOSITORY)
     private readonly bookingRepository: BookingRepository,
+    private readonly createPaymentScheduleForBookingUseCase: CreatePaymentScheduleForBookingUseCase,
+
   ) { }
 
   async ensureEnvelope(contract: Contract, booking: Booking): Promise<EnvelopeState> {
@@ -160,6 +164,13 @@ export class DocusignService {
       webhookPayload: input.eventPayload ?? null,
     };
 
+
+    const recipients = this.extractRecipientStatuses(input.eventPayload);
+    patch.recipientStatuses = recipients;
+    patch.artistSignedAt = recipients.artist?.completedAt ?? null;
+    patch.counterpartySignedAt = recipients.counterparty?.completedAt ?? null;
+
+
     let markSigned = false;
 
     if (normalizedStatus === 'completed') {
@@ -169,45 +180,52 @@ export class DocusignService {
 
       const { error } = await supabase.storage
         .from(bucket)
-        .upload(path, pdf, {
-          contentType: 'application/pdf',
-          upsert: true,
-        });
+        .upload(path, pdf, { contentType: 'application/pdf', upsert: true });
 
-      if (error) {
-        throw new Error(`Failed to upload signed contract: ${error.message}`);
-      }
+      if (error) throw new Error(`Failed to upload signed contract: ${error.message}`);
 
       patch.signedPdfBucket = bucket;
       patch.signedPdfPath = path;
       patch.completedAt = new Date().toISOString();
-      markSigned = true;
 
+      // 1) contrato queda firmado al completar envelope (ambas firmas)
       await this.contractRepository.patchDocusignState({
         contractId: contract.id,
         patch,
-        markSigned,
+        markSigned: true,
       });
 
-      // Solo cuando todos han firmado (envelope COMPLETED) cambiamos el estado del booking
+      // 2) booking cambia aquí directamente (NO llames SignContractUseCase)
       const booking = await this.bookingRepository.findById(contract.bookingId);
       if (!booking) return;
-      await this.signContractUseCase.execute({
-        contractId: contract.id,
-        userId: 'DOCUSIGN_WEBHOOK',
-        artistId: booking.artistId,
-        managerId: booking.managerId,
-        conditionsAccepted: true,
-      });
-    } else {
-      // Si no está COMPLETED, solo actualizamos el snapshot del contrato
-      await this.contractRepository.patchDocusignState({
-        contractId: contract.id,
-        patch,
-        markSigned: false,
-      });
-    }
 
+      if (booking.status === BookingStatus.ACCEPTED) {
+        booking.status = BookingStatus.CONTRACT_SIGNED;
+        await this.bookingRepository.save(booking);
+      }
+
+      // 3) crear schedule de pagos aquí (o en un use case nuevo de "finalizar contrato firmado")
+      await this.createPaymentScheduleForBookingUseCase.execute({ bookingId: booking.id });
+
+      return;
+    }
+  }
+
+
+  private extractRecipientStatuses(payload: any): {
+    artist?: { status: string; completedAt?: string };
+    counterparty?: { status: string; completedAt?: string };
+  } {
+    const signers = payload?.data?.envelopeSummary?.recipients?.signers ?? [];
+    const out: any = {};
+    for (const s of signers) {
+      const role = String(s?.roleName ?? '').toUpperCase();
+      const status = String(s?.status ?? '').toLowerCase();
+      const completedAt = s?.completedDateTime ?? s?.signedDateTime ?? null;
+      if (role === 'ARTIST') out.artist = { status, completedAt: completedAt ?? undefined };
+      if (role === 'COUNTERPARTY') out.counterparty = { status, completedAt: completedAt ?? undefined };
+    }
+    return out;
   }
 
   resolveSignerForUser(params: {
