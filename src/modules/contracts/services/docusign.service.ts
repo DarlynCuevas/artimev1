@@ -1,290 +1,412 @@
-import { Inject, Injectable, InternalServerErrorException } from '@nestjs/common';
-import * as crypto from 'crypto';
-import { v4 as uuidv4 } from 'uuid';
+import { Injectable } from '@nestjs/common';
+import { createSign } from 'node:crypto';
 import { Contract } from '../contract.entity';
-import type { Booking } from '@/src/modules/bookings/booking.entity';
 import { ContractPdfService } from './contract-pdf.service';
-import { ContractTemplateMapper } from '../mappers/contract-template.mapper';
 import { ContractRepository } from '@/src/infrastructure/database/repositories/contract.repository';
-import { ARTIST_REPOSITORY } from '@/src/modules/artists/repositories/artist-repository.token';
-import type { ArtistRepository } from '@/src/modules/artists/repositories/artist.repository.interface';
-import { VENUE_REPOSITORY } from '@/src/modules/venues/repositories/venue-repository.token';
-import type { VenueRepository } from '@/src/modules/venues/repositories/venue.repository.interface';
-import { PROMOTER_REPOSITORY } from '@/src/modules/promoter/repositories/promoter-repository.token';
-import type { PromoterRepository } from '@/src/modules/promoter/repositories/promoter.repository.interface';
-import { MANAGER_REPOSITORY } from '@/src/modules/managers/repositories/manager-repository.token';
-import type { ManagerRepository } from '@/src/modules/managers/repositories/manager.repository.interface';
-import type { UserContext } from '@/src/modules/auth/user-context.guard';
+import { supabase } from '@/src/infrastructure/database/supabase.client';
+import type { Booking } from '@/src/modules/bookings/booking.entity';
 
-interface DocusignRecipient {
+type DocusignSigner = {
+  recipientId: '1' | '2';
   role: 'ARTIST' | 'COUNTERPARTY';
   name: string;
   email: string;
-  recipientId: string;
   clientUserId: string;
-}
+};
 
-interface EnsureEnvelopeResult {
+type EnvelopeState = {
   envelopeId: string;
   status: string;
-  recipients: DocusignRecipient[];
-}
+  recipients: DocusignSigner[];
+};
 
 @Injectable()
 export class DocusignService {
-  private readonly basePath = process.env.DOCUSIGN_BASE_PATH || 'https://demo.docusign.net/restapi';
-  private readonly authServer = process.env.DOCUSIGN_AUTH_SERVER || 'account-d.docusign.com';
-  private readonly accountId = process.env.DOCUSIGN_ACCOUNT_ID;
+  private accessToken: string | null = null;
+  private accessTokenExpiresAt = 0;
 
   constructor(
     private readonly contractPdfService: ContractPdfService,
-    private readonly contractTemplateMapper: ContractTemplateMapper,
     private readonly contractRepository: ContractRepository,
-    @Inject(ARTIST_REPOSITORY) private readonly artistRepository: ArtistRepository,
-    @Inject(VENUE_REPOSITORY) private readonly venueRepository: VenueRepository,
-    @Inject(PROMOTER_REPOSITORY) private readonly promoterRepository: PromoterRepository,
-    @Inject(MANAGER_REPOSITORY) private readonly managerRepository: ManagerRepository,
   ) {}
 
-  async ensureEnvelope(contract: Contract, booking: Booking): Promise<EnsureEnvelopeResult> {
-    const existing = contract.snapshotData?.docusign as EnsureEnvelopeResult | undefined;
+  async ensureEnvelope(contract: Contract, booking: Booking): Promise<EnvelopeState> {
+    const existing = this.readEnvelopeState(contract);
     if (existing?.envelopeId) {
       return existing;
     }
 
-    if (!this.accountId) {
-      throw new Error('DOCUSIGN_ACCOUNT_ID missing');
-    }
+    const [artist, counterparty] = await Promise.all([
+      this.getArtistSigner(booking.artistId),
+      this.getCounterpartySigner(booking),
+    ]);
 
-    const accessToken = await this.getAccessToken();
-    const templateData = await this.contractTemplateMapper.mapFromBooking(booking);
-    const pdfBuffer = await this.contractPdfService.generatePdfBuffer(templateData);
+    const pdf = await this.contractPdfService.generatePdfBuffer(
+      (contract.snapshotData ?? {}) as Record<string, unknown>,
+    );
 
-    const artistRecipient = await this.buildArtistRecipient(booking);
-    const counterpartyRecipient = await this.buildCounterpartyRecipient(booking);
-    const recipients: DocusignRecipient[] = [artistRecipient, counterpartyRecipient].filter(Boolean) as DocusignRecipient[];
-
-    const envelopeDefinition = {
-      emailSubject: 'Contrato Artime',
+    const payload = {
+      emailSubject: `Contrato ARTIME #${contract.id}`,
+      status: 'sent',
       documents: [
         {
-          documentBase64: pdfBuffer.toString('base64'),
-          name: 'Contrato Artime.pdf',
+          documentBase64: pdf.toString('base64'),
+          name: `contract-${contract.id}.pdf`,
           fileExtension: 'pdf',
           documentId: '1',
         },
       ],
       recipients: {
-        signers: recipients.map((recipient) => ({
-          email: recipient.email,
-          name: recipient.name,
-          recipientId: recipient.recipientId,
-          routingOrder: '1',
-          clientUserId: recipient.clientUserId,
-        })),
+        signers: [
+          {
+            recipientId: artist.recipientId,
+            routingOrder: '1',
+            name: artist.name,
+            email: artist.email,
+            clientUserId: artist.clientUserId,
+            tabs: {
+              signHereTabs: [{ anchorString: '/firma_artista/', anchorUnits: 'pixels', anchorYOffset: '0', anchorXOffset: '0' }],
+            },
+          },
+          {
+            recipientId: counterparty.recipientId,
+            routingOrder: '1',
+            name: counterparty.name,
+            email: counterparty.email,
+            clientUserId: counterparty.clientUserId,
+            tabs: {
+              signHereTabs: [{ anchorString: '/firma_contratante/', anchorUnits: 'pixels', anchorYOffset: '0', anchorXOffset: '0' }],
+            },
+          },
+        ],
       },
-      status: 'sent',
-    } as any;
+      customFields: {
+        textCustomFields: [
+          { name: 'contractId', required: 'false', show: 'true', value: contract.id },
+          { name: 'bookingId', required: 'false', show: 'true', value: booking.id },
+        ],
+      },
+    };
 
-    const response = await this.apiFetch(`/v2.1/accounts/${this.accountId}/envelopes`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        'Content-Type': 'application/json',
+    const envelope = await this.apiRequest<{ envelopeId: string; status: string }>(
+      `/envelopes`,
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
       },
-      body: JSON.stringify(envelopeDefinition),
+    );
+
+    const state: EnvelopeState = {
+      envelopeId: envelope.envelopeId,
+      status: envelope.status,
+      recipients: [artist, counterparty],
+    };
+
+    await this.contractRepository.patchDocusignState({
+      contractId: contract.id,
+      patch: {
+        envelopeId: state.envelopeId,
+        status: state.status,
+        recipients: state.recipients,
+        lastSyncedAt: new Date().toISOString(),
+      },
     });
 
-    const envelopeId = response?.envelopeId ?? response?.envelope_id ?? uuidv4();
-    const status = response?.status ?? 'created';
+    return state;
+  }
 
-    const docusign = { envelopeId, status, recipients } satisfies EnsureEnvelopeResult;
-    (contract as any).snapshotData = {
-      ...(contract.snapshotData ?? {}),
-      docusign,
+  async createRecipientView(params: {
+    envelopeId: string;
+    signer: DocusignSigner;
+    returnUrl: string;
+    pingUrl?: string;
+  }): Promise<string> {
+    const body = {
+      authenticationMethod: 'none',
+      userName: params.signer.name,
+      email: params.signer.email,
+      recipientId: params.signer.recipientId,
+      clientUserId: params.signer.clientUserId,
+      returnUrl: params.returnUrl,
+      ...(params.pingUrl ? { pingUrl: params.pingUrl, pingFrequency: '600' } : {}),
     };
-    await this.contractRepository.update(contract);
 
-    return docusign;
+    const response = await this.apiRequest<{ url: string }>(
+      `/envelopes/${params.envelopeId}/views/recipient`,
+      { method: 'POST', body: JSON.stringify(body) },
+    );
+
+    return response.url;
+  }
+
+  async syncEnvelopeFromWebhook(input: {
+    envelopeId: string;
+    status: string;
+    eventPayload?: unknown;
+  }): Promise<void> {
+    const contract = await this.contractRepository.findByDocusignEnvelopeId(input.envelopeId);
+    if (!contract) return;
+
+    const normalizedStatus = String(input.status || '').toLowerCase();
+    const patch: Record<string, unknown> = {
+      status: normalizedStatus,
+      lastWebhookAt: new Date().toISOString(),
+      webhookPayload: input.eventPayload ?? null,
+    };
+
+    let markSigned = false;
+
+    if (normalizedStatus === 'completed') {
+      const pdf = await this.downloadCombinedDocument(input.envelopeId);
+      const path = `contracts/signed/${contract.id}/contract-${input.envelopeId}.pdf`;
+      const bucket = process.env.SUPABASE_SIGNED_CONTRACTS_BUCKET || 'contracts';
+
+      const { error } = await supabase.storage
+        .from(bucket)
+        .upload(path, pdf, {
+          contentType: 'application/pdf',
+          upsert: true,
+        });
+
+      if (error) {
+        throw new Error(`Failed to upload signed contract: ${error.message}`);
+      }
+
+      patch.signedPdfBucket = bucket;
+      patch.signedPdfPath = path;
+      patch.completedAt = new Date().toISOString();
+      markSigned = true;
+    }
+
+    await this.contractRepository.patchDocusignState({
+      contractId: contract.id,
+      patch,
+      markSigned,
+    });
   }
 
   resolveSignerForUser(params: {
     contract: Contract;
     booking: Booking;
-    userContext: UserContext;
-    userEmail?: string;
-  }): DocusignRecipient | null {
-    const docusign = params.contract.snapshotData?.docusign as { recipients?: DocusignRecipient[] } | undefined;
-    const recipients = docusign?.recipients ?? [];
-
-    const artistMatch =
-      (params.userContext.artistId && params.userContext.artistId === params.booking.artistId) ||
-      (params.userContext.managerId && params.userContext.managerId === params.booking.managerId);
-
-    if (artistMatch) {
-      const recipient = recipients.find((r) => r.role === 'ARTIST');
-      if (recipient) return recipient;
+    userContext: { artistId?: string; venueId?: string; promoterId?: string };
+  }): DocusignSigner | null {
+    const state = this.readEnvelopeState(params.contract);
+    if (!state?.recipients?.length) {
+      return null;
     }
 
-    const counterpartMatch =
-      (params.userContext.venueId && params.userContext.venueId === params.booking.venueId) ||
-      (params.userContext.promoterId && params.userContext.promoterId === params.booking.promoterId);
-
-    if (counterpartMatch) {
-      const recipient = recipients.find((r) => r.role === 'COUNTERPARTY');
-      if (recipient) return recipient;
+    if (params.userContext.artistId && params.userContext.artistId === params.booking.artistId) {
+      return state.recipients.find((signer) => signer.role === 'ARTIST') ?? null;
     }
 
-    if (params.userEmail) {
-      const recipient = recipients.find((r) => r.email?.toLowerCase() === params.userEmail!.toLowerCase());
-      if (recipient) return recipient;
+    if (params.userContext.venueId && params.booking.venueId && params.userContext.venueId === params.booking.venueId) {
+      return state.recipients.find((signer) => signer.role === 'COUNTERPARTY') ?? null;
+    }
+
+    if (params.userContext.promoterId && params.booking.promoterId && params.userContext.promoterId === params.booking.promoterId) {
+      return state.recipients.find((signer) => signer.role === 'COUNTERPARTY') ?? null;
     }
 
     return null;
   }
 
-  async createRecipientView(input: {
-    envelopeId: string;
-    signer: DocusignRecipient;
-    returnUrl: string;
-  }): Promise<string> {
-    if (!this.accountId) {
-      throw new Error('DOCUSIGN_ACCOUNT_ID missing');
-    }
-    const accessToken = await this.getAccessToken();
-
-    const body = {
-      returnUrl: input.returnUrl,
-      authenticationMethod: 'none',
-      clientUserId: input.signer.clientUserId,
-      userName: input.signer.name,
-      email: input.signer.email,
-      recipientId: input.signer.recipientId,
+  private readEnvelopeState(contract: Contract): EnvelopeState | null {
+    const docusign = (contract.snapshotData?.docusign ?? null) as
+      | { envelopeId?: string; status?: string; recipients?: DocusignSigner[] }
+      | null;
+    if (!docusign?.envelopeId) return null;
+    return {
+      envelopeId: docusign.envelopeId,
+      status: docusign.status ?? 'unknown',
+      recipients: Array.isArray(docusign.recipients) ? docusign.recipients : [],
     };
-
-    const response = await this.apiFetch(
-      `/v2.1/accounts/${this.accountId}/envelopes/${input.envelopeId}/views/recipient`,
-      {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(body),
-      },
-    );
-
-    const url = response?.url as string | undefined;
-    if (!url) {
-      throw new InternalServerErrorException('DocuSign did not return signing URL');
-    }
-    return url;
   }
 
-  private async buildArtistRecipient(booking: Booking): Promise<DocusignRecipient> {
-    const artist = booking.artistId ? await this.artistRepository.findById(booking.artistId) : null;
-    const manager = booking.managerId ? await this.managerRepository.findById(booking.managerId) : null;
-    const email = artist?.email || manager?.email || 'no-reply@artime.dev';
-    const name = manager?.name || artist?.name || booking.artistName || 'Artista';
+  private async getArtistSigner(artistId: string): Promise<DocusignSigner> {
+    const { data, error } = await supabase
+      .from('artists')
+      .select('id,name,email')
+      .eq('id', artistId)
+      .maybeSingle();
+
+    if (error || !data?.email) {
+      throw new Error('Artist signer is missing email for DocuSign');
+    }
 
     return {
-      role: 'ARTIST',
-      name,
-      email,
       recipientId: '1',
-      clientUserId: `artist-${booking.artistId ?? booking.managerId ?? 'unknown'}`,
+      role: 'ARTIST',
+      name: data.name ?? 'Artist',
+      email: data.email,
+      clientUserId: `artist:${data.id}`,
     };
   }
 
-  private async buildCounterpartyRecipient(booking: Booking): Promise<DocusignRecipient> {
-    const venue = booking.venueId ? await this.venueRepository.findById(booking.venueId) : null;
-    const promoter = booking.promoterId ? await this.promoterRepository.findById(booking.promoterId) : null;
+  private async getCounterpartySigner(booking: Booking): Promise<DocusignSigner> {
+    if (booking.promoterId) {
+      const { data, error } = await supabase
+        .from('promoters')
+        .select('id,name,email')
+        .eq('id', booking.promoterId)
+        .maybeSingle();
 
-    const email = venue?.contactEmail || 'no-reply@artime.dev';
-    const name = venue?.name || promoter?.name || booking.venueName || 'Contraparte';
+      if (error || !data?.email) {
+        throw new Error('Promoter signer is missing email for DocuSign');
+      }
 
-    return {
-      role: 'COUNTERPARTY',
-      name,
-      email,
-      recipientId: '2',
-      clientUserId: `counter-${booking.venueId ?? booking.promoterId ?? 'unknown'}`,
-    };
+      return {
+        recipientId: '2',
+        role: 'COUNTERPARTY',
+        name: data.name ?? 'Promoter',
+        email: data.email,
+        clientUserId: `promoter:${data.id}`,
+      };
+    }
+
+    if (booking.venueId) {
+      const { data, error } = await supabase
+        .from('venues')
+        .select('id,name,contact_email')
+        .eq('id', booking.venueId)
+        .maybeSingle();
+
+      const venueEmail = data?.contact_email ?? null;
+      if (error || !venueEmail || !data?.id) {
+        throw new Error('Venue signer is missing contact_email for DocuSign');
+      }
+
+      return {
+        recipientId: '2',
+        role: 'COUNTERPARTY',
+        name: data.name ?? 'Venue',
+        email: venueEmail,
+        clientUserId: `venue:${data.id}`,
+      };
+    }
+
+    throw new Error('Booking has no counterparty (venue/promoter) for DocuSign');
+  }
+
+  private async downloadCombinedDocument(envelopeId: string): Promise<Buffer> {
+    const token = await this.getAccessToken();
+    const url = `${this.basePath()}/envelopes/${envelopeId}/documents/combined`;
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: 'application/pdf',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`DocuSign download failed: ${response.status}`);
+    }
+
+    const buffer = await response.arrayBuffer();
+    return Buffer.from(buffer);
+  }
+
+  private async apiRequest<T>(
+    path: string,
+    init: { method: 'GET' | 'POST'; body?: string },
+  ): Promise<T> {
+    const token = await this.getAccessToken();
+    const response = await fetch(`${this.basePath()}${path}`, {
+      method: init.method,
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: init.body,
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(`DocuSign API error ${response.status}: ${text}`);
+    }
+
+    return (await response.json()) as T;
+  }
+
+  private basePath(): string {
+    const apiBase = process.env.DOCUSIGN_BASE_PATH || 'https://demo.docusign.net/restapi';
+    const accountId = process.env.DOCUSIGN_ACCOUNT_ID;
+    if (!accountId) throw new Error('DOCUSIGN_ACCOUNT_ID not set');
+    return `${apiBase.replace(/\/$/, '')}/v2.1/accounts/${accountId}`;
   }
 
   private async getAccessToken(): Promise<string> {
-    const integrationKey = process.env.DOCUSIGN_INTEGRATION_KEY;
-    const userId = process.env.DOCUSIGN_USER_ID;
-    const privateKeyPem = (process.env.DOCUSIGN_PRIVATE_KEY || '').replace(/\\n/g, '\n');
-
-    if (!integrationKey || !userId || !privateKeyPem) {
-      throw new Error('DocuSign credentials are missing');
+    if (this.accessToken && Date.now() < this.accessTokenExpiresAt - 30_000) {
+      return this.accessToken;
     }
 
-    const now = Math.floor(Date.now() / 1000);
-    const payload = {
-      iss: integrationKey,
-      sub: userId,
-      aud: this.authServer,
-      iat: now - 10,
-      exp: now + 60 * 60,
-      scope: 'signature impersonation',
-    };
-
-    const assertion = this.signJwt(payload, privateKeyPem);
-
-    const tokenResponse = await fetch(`https://${this.authServer}/oauth/token`, {
+    const assertion = this.buildJwtAssertion();
+    const authServer = process.env.DOCUSIGN_AUTH_SERVER || 'account-d.docusign.com';
+    const response = await fetch(`https://${authServer}/oauth/token`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
       body: new URLSearchParams({
         grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
         assertion,
       }),
     });
 
-    if (!tokenResponse.ok) {
-      const text = await tokenResponse.text();
-      throw new Error(`DocuSign auth failed: ${tokenResponse.status} ${text}`);
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(`DocuSign token error ${response.status}: ${text}`);
     }
 
-    const json = (await tokenResponse.json()) as { access_token?: string };
-    if (!json.access_token) {
-      throw new Error('DocuSign auth token missing');
-    }
-
-    return json.access_token;
+    const data = (await response.json()) as { access_token: string; expires_in: number };
+    this.accessToken = data.access_token;
+    this.accessTokenExpiresAt = Date.now() + (data.expires_in ?? 3000) * 1000;
+    return this.accessToken;
   }
 
-  private signJwt(payload: Record<string, any>, privateKeyPem: string): string {
-    const header = { alg: 'RS256', typ: 'JWT' };
-    const encode = (obj: Record<string, any>) =>
-      Buffer.from(JSON.stringify(obj)).toString('base64url');
+  private buildJwtAssertion(): string {
+    const integrationKey = process.env.DOCUSIGN_INTEGRATION_KEY;
+    const userId = process.env.DOCUSIGN_USER_ID;
+    const privateKeyRaw = process.env.DOCUSIGN_PRIVATE_KEY;
+    const authServer = process.env.DOCUSIGN_AUTH_SERVER || 'account-d.docusign.com';
 
-    const headerSegment = encode(header);
-    const payloadSegment = encode(payload);
-    const signingInput = `${headerSegment}.${payloadSegment}`;
-
-    const signer = crypto.createSign('RSA-SHA256');
-    signer.update(signingInput);
-    const signature = signer.sign(privateKeyPem, 'base64url');
-
-    return `${signingInput}.${signature}`;
-  }
-
-  private async apiFetch(path: string, init: RequestInit): Promise<any> {
-    const url = this.basePath.endsWith('/restapi')
-      ? `${this.basePath}${path}`
-      : `${this.basePath}/restapi${path}`;
-
-    const res = await fetch(url, init);
-    if (!res.ok) {
-      const text = await res.text();
-      throw new Error(`DocuSign API error ${res.status}: ${text}`);
+    if (!integrationKey || !userId || !privateKeyRaw) {
+      throw new Error('DocuSign credentials missing (integration key, user id, or private key)');
     }
-    const contentType = res.headers.get('content-type') || '';
-    if (contentType.includes('application/json')) {
-      return res.json();
-    }
-    return res.text();
+
+    const privateKey = privateKeyRaw.replace(/\\n/g, '\n');
+    const now = Math.floor(Date.now() / 1000);
+
+    const header = base64UrlEncode(
+      JSON.stringify({
+        alg: 'RS256',
+        typ: 'JWT',
+      }),
+    );
+    const payload = base64UrlEncode(
+      JSON.stringify({
+        iss: integrationKey,
+        sub: userId,
+        aud: authServer,
+        iat: now,
+        exp: now + 3600,
+        scope: 'signature impersonation',
+      }),
+    );
+
+    const unsigned = `${header}.${payload}`;
+    const signer = createSign('RSA-SHA256');
+    signer.update(unsigned);
+    signer.end();
+    const signature = signer.sign(privateKey, 'base64');
+    return `${unsigned}.${toBase64Url(signature)}`;
   }
+}
+
+function base64UrlEncode(input: string): string {
+  return toBase64Url(Buffer.from(input, 'utf8').toString('base64'));
+}
+
+function toBase64Url(input: string): string {
+  return input.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
 }
