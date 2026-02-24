@@ -286,7 +286,12 @@ export class DocusignService {
         data?.contact_email ??
         (data?.user_id ? await this.getUserEmail(data.user_id) : null);
       if (!venueEmail || !data?.id) {
-        throw new Error('Venue signer is missing email for DocuSign');
+        const venueId = data?.id ?? booking.venueId ?? 'unknown';
+        const venueUserId = data?.user_id ?? 'null';
+        throw new Error(
+          `Venue signer is missing email for DocuSign (venueId=${venueId}, user_id=${venueUserId}). ` +
+            'Set venues.contact_email or users.email for that user.',
+        );
       }
 
       return {
