@@ -69,12 +69,21 @@ export class ConfirmPaymentMilestoneUseCase {
 
         // 7. Stripe status
         if (pi.status !== 'succeeded') {
-            throw new BadRequestException('PaymentIntent not succeeded');
+            throw new BadRequestException(
+                `PaymentIntent not succeeded (status=${pi.status})`,
+            );
         }
 
-        // 8. Amount validation (Stripe amounts are in cents)
-        if (pi.amount !== milestone.amount) {
-            throw new BadRequestException('Payment amount mismatch');
+        // 8. Amount validation (Stripe amounts are in minor units / cents)
+        const expectedAmount = Math.round(milestone.amount * 100);
+        const settledAmount = pi.amount_received && pi.amount_received > 0
+            ? pi.amount_received
+            : pi.amount;
+
+        if (settledAmount !== expectedAmount) {
+            throw new BadRequestException(
+                `Payment amount mismatch (expected=${expectedAmount}, settled=${settledAmount})`,
+            );
         }
 
         // 9. Booking state validation
