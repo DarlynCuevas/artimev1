@@ -182,24 +182,31 @@ export class DocusignService {
       patch.signedPdfPath = path;
       patch.completedAt = new Date().toISOString();
       markSigned = true;
+
+      await this.contractRepository.patchDocusignState({
+        contractId: contract.id,
+        patch,
+        markSigned,
+      });
+
+      // Solo cuando todos han firmado (envelope COMPLETED) cambiamos el estado del booking
+      const booking = await this.bookingRepository.findById(contract.bookingId);
+      if (!booking) return;
+      await this.signContractUseCase.execute({
+        contractId: contract.id,
+        userId: 'DOCUSIGN_WEBHOOK',
+        artistId: booking.artistId,
+        managerId: booking.managerId,
+        conditionsAccepted: true,
+      });
+    } else {
+      // Si no está COMPLETED, solo actualizamos el snapshot del contrato
+      await this.contractRepository.patchDocusignState({
+        contractId: contract.id,
+        patch,
+        markSigned: false,
+      });
     }
-
-    await this.contractRepository.patchDocusignState({
-      contractId: contract.id,
-      patch,
-      markSigned,
-    });
-
-
-    const booking = await this.bookingRepository.findById(contract.bookingId);
-    if (!booking) return;
-    await this.signContractUseCase.execute({
-      contractId: contract.id,
-      userId: 'DOCUSIGN_WEBHOOK',
-      artistId: booking.artistId,
-      managerId: booking.managerId,
-      conditionsAccepted: true,
-    });
 
   }
 
