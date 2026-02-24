@@ -5,6 +5,7 @@ import { ContractPdfService } from './contract-pdf.service';
 import { ContractRepository } from '@/src/infrastructure/database/repositories/contract.repository';
 import { supabase } from '@/src/infrastructure/database/supabase.client';
 import type { Booking } from '@/src/modules/bookings/booking.entity';
+import { SignContractUseCase } from '../use-cases/sign-contract.use-case';
 
 type DocusignSigner = {
   recipientId: '1' | '2';
@@ -28,7 +29,8 @@ export class DocusignService {
   constructor(
     private readonly contractPdfService: ContractPdfService,
     private readonly contractRepository: ContractRepository,
-  ) {}
+    private readonly signContractUseCase: SignContractUseCase,
+  ) { }
 
   async ensureEnvelope(contract: Contract, booking: Booking): Promise<EnvelopeState> {
     const existing = this.readEnvelopeState(contract);
@@ -183,6 +185,15 @@ export class DocusignService {
       patch,
       markSigned,
     });
+    if (markSigned) {
+      await this.signContractUseCase.execute({
+        contractId: contract.id,
+        userId: 'DOCUSIGN_WEBHOOK', // o el identificador que decidas
+        conditionsAccepted: true,
+        // otros campos si son requeridos
+      });
+    }
+
   }
 
   resolveSignerForUser(params: {
@@ -296,7 +307,7 @@ export class DocusignService {
         const venueUserId = data?.user_id ?? 'null';
         throw new Error(
           `Venue signer is missing email for DocuSign (venueId=${venueId}, user_id=${venueUserId}, debug=${venueEmailResult.debug}). ` +
-            'Set venues.contact_email or users.email for that user.',
+          'Set venues.contact_email or users.email for that user.',
         );
       }
 
