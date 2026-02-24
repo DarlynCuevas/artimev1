@@ -7,17 +7,17 @@ import { supabase } from '@/src/infrastructure/database/supabase.client';
 import type { Booking } from '@/src/modules/bookings/booking.entity';
 import { BOOKING_REPOSITORY } from '@/src/modules/bookings/repositories/booking-repository.token';
 import type { BookingRepository } from '@/src/modules/bookings/repositories/booking.repository.interface';
-import { SignContractUseCase } from '../use-cases/sign-contract.use-case';
 import { BookingStatus } from '../../bookings/booking-status.enum';
 import { CreatePaymentScheduleForBookingUseCase } from '../../payments/use-cases/create-payment-schedule-for-booking.usecase';
 
 type DocusignSigner = {
   recipientId: '1' | '2';
-  role: 'ARTIST' | 'COUNTERPARTY';
+  role: 'ARTIST_SIDE' | 'COUNTERPARTY_SIDE';
   name: string;
   email: string;
   clientUserId: string;
 };
+
 
 type EnvelopeState = {
   envelopeId: string;
@@ -33,7 +33,6 @@ export class DocusignService {
   constructor(
     private readonly contractPdfService: ContractPdfService,
     private readonly contractRepository: ContractRepository,
-    private readonly signContractUseCase: SignContractUseCase,
     @Inject(BOOKING_REPOSITORY)
     private readonly bookingRepository: BookingRepository,
     private readonly createPaymentScheduleForBookingUseCase: CreatePaymentScheduleForBookingUseCase,
@@ -70,6 +69,7 @@ export class DocusignService {
         signers: [
           {
             recipientId: artist.recipientId,
+            roleName: artist.role,
             routingOrder: '1',
             name: artist.name,
             email: artist.email,
@@ -80,6 +80,7 @@ export class DocusignService {
           },
           {
             recipientId: counterparty.recipientId,
+            roleName: counterparty.role,
             routingOrder: '1',
             name: counterparty.name,
             email: counterparty.email,
@@ -154,76 +155,103 @@ export class DocusignService {
     status: string;
     eventPayload?: unknown;
   }): Promise<void> {
-    const contract = await this.contractRepository.findByDocusignEnvelopeId(input.envelopeId);
+    const contract = await this.contractRepository.findByDocusignEnvelopeId(
+      input.envelopeId,
+    );
     if (!contract) return;
 
     const normalizedStatus = String(input.status || '').toLowerCase();
+
     const patch: Record<string, unknown> = {
       status: normalizedStatus,
       lastWebhookAt: new Date().toISOString(),
       webhookPayload: input.eventPayload ?? null,
     };
 
-
     const recipients = this.extractRecipientStatuses(input.eventPayload);
-    patch.recipientStatuses = recipients;
-    patch.artistSignedAt = recipients.artist?.completedAt ?? null;
-    patch.counterpartySignedAt = recipients.counterparty?.completedAt ?? null;
+    const artistSideSigned = recipients.artistSide?.status === 'completed';
+    const counterpartySideSigned =
+      recipients.counterpartySide?.status === 'completed';
 
-
-    let markSigned = false;
+    patch.artistSideSigned = artistSideSigned;
+    patch.counterpartySideSigned = counterpartySideSigned;
+    patch.artistSignedAt = recipients.artistSide?.completedAt ?? null;
+    patch.counterpartySignedAt = recipients.counterpartySide?.completedAt ?? null;
+    patch.pendingSignatureOf =
+      artistSideSigned && !counterpartySideSigned
+        ? 'COUNTERPARTY_SIDE'
+        : counterpartySideSigned && !artistSideSigned
+          ? 'ARTIST_SIDE'
+          : null;
 
     if (normalizedStatus === 'completed') {
       const pdf = await this.downloadCombinedDocument(input.envelopeId);
       const path = `contracts/signed/${contract.id}/contract-${input.envelopeId}.pdf`;
       const bucket = process.env.SUPABASE_SIGNED_CONTRACTS_BUCKET || 'contracts';
 
-      const { error } = await supabase.storage
-        .from(bucket)
-        .upload(path, pdf, { contentType: 'application/pdf', upsert: true });
+      const { error } = await supabase.storage.from(bucket).upload(path, pdf, {
+        contentType: 'application/pdf',
+        upsert: true,
+      });
 
-      if (error) throw new Error(`Failed to upload signed contract: ${error.message}`);
+      if (error) {
+        throw new Error(`Failed to upload signed contract: ${error.message}`);
+      }
 
       patch.signedPdfBucket = bucket;
       patch.signedPdfPath = path;
       patch.completedAt = new Date().toISOString();
 
-      // 1) contrato queda firmado al completar envelope (ambas firmas)
       await this.contractRepository.patchDocusignState({
         contractId: contract.id,
         patch,
         markSigned: true,
       });
 
-      // 2) booking cambia aquí directamente (NO llames SignContractUseCase)
       const booking = await this.bookingRepository.findById(contract.bookingId);
       if (!booking) return;
 
       if (booking.status === BookingStatus.ACCEPTED) {
         booking.status = BookingStatus.CONTRACT_SIGNED;
         await this.bookingRepository.save(booking);
-      }
 
-      // 3) crear schedule de pagos aquí (o en un use case nuevo de "finalizar contrato firmado")
-      await this.createPaymentScheduleForBookingUseCase.execute({ bookingId: booking.id });
+        await this.createPaymentScheduleForBookingUseCase.execute({
+          bookingId: booking.id,
+        });
+      }
 
       return;
     }
+
+    await this.contractRepository.patchDocusignState({
+      contractId: contract.id,
+      patch,
+      markSigned: false,
+    });
   }
 
 
+
   private extractRecipientStatuses(payload: any): {
-    artist?: { status: string; completedAt?: string };
-    counterparty?: { status: string; completedAt?: string };
+    artistSide?: { status: string; completedAt?: string };
+    counterpartySide?: { status: string; completedAt?: string };
   } {
-    const signers = payload?.data?.envelopeSummary?.recipients?.signers ?? [];
+    const signers =
+      payload?.data?.envelopeSummary?.recipients?.signers ??
+      payload?.recipients?.signers ??
+      [];
     const out: any = {};
     for (const s of signers) {
-      const role = String(s?.roleName ?? '').toUpperCase();
+      const role = String(s?.roleName ?? s?.role ?? '').toUpperCase().trim();
       const status = String(s?.status ?? '').toLowerCase();
       const completedAt = s?.completedDateTime ?? s?.signedDateTime ?? null;
-      if (role === 'ARTIST') out.artist = { status, completedAt: completedAt ?? undefined };
-      if (role === 'COUNTERPARTY') out.counterparty = { status, completedAt: completedAt ?? undefined };
+      if (role === 'ARTIST_SIDE')
+        out.artistSide = { status, completedAt: completedAt ?? undefined };
+      if (role === 'COUNTERPARTY_SIDE')
+        out.counterpartySide = {
+          status,
+          completedAt: completedAt ?? undefined,
+        };
     }
     return out;
   }
@@ -231,27 +259,46 @@ export class DocusignService {
   resolveSignerForUser(params: {
     contract: Contract;
     booking: Booking;
-    userContext: { artistId?: string; venueId?: string; promoterId?: string };
+    userContext: {
+      artistId?: string;
+      managerId?: string;
+      venueId?: string;
+      promoterId?: string;
+    };
   }): DocusignSigner | null {
     const state = this.readEnvelopeState(params.contract);
-    if (!state?.recipients?.length) {
-      return null;
+    if (!state?.recipients?.length) return null;
+
+    const isArtistSide =
+      (params.userContext.artistId &&
+        params.userContext.artistId === params.booking.artistId) ||
+      (params.userContext.managerId &&
+        params.booking.managerId &&
+        params.userContext.managerId === params.booking.managerId);
+
+    if (isArtistSide) {
+      return (
+        state.recipients.find((s) => s.role === 'ARTIST_SIDE') ?? null
+      );
     }
 
-    if (params.userContext.artistId && params.userContext.artistId === params.booking.artistId) {
-      return state.recipients.find((signer) => signer.role === 'ARTIST') ?? null;
-    }
+    const isCounterpartySide =
+      (params.userContext.venueId &&
+        params.booking.venueId &&
+        params.userContext.venueId === params.booking.venueId) ||
+      (params.userContext.promoterId &&
+        params.booking.promoterId &&
+        params.userContext.promoterId === params.booking.promoterId);
 
-    if (params.userContext.venueId && params.booking.venueId && params.userContext.venueId === params.booking.venueId) {
-      return state.recipients.find((signer) => signer.role === 'COUNTERPARTY') ?? null;
-    }
-
-    if (params.userContext.promoterId && params.booking.promoterId && params.userContext.promoterId === params.booking.promoterId) {
-      return state.recipients.find((signer) => signer.role === 'COUNTERPARTY') ?? null;
+    if (isCounterpartySide) {
+      return (
+        state.recipients.find((s) => s.role === 'COUNTERPARTY_SIDE') ?? null
+      );
     }
 
     return null;
   }
+
 
   private readEnvelopeState(contract: Contract): EnvelopeState | null {
     const docusign = (contract.snapshotData?.docusign ?? null) as
@@ -278,7 +325,7 @@ export class DocusignService {
 
     return {
       recipientId: '1',
-      role: 'ARTIST',
+      role: 'ARTIST_SIDE',
       name: data.name ?? 'Artist',
       email: data.email,
       clientUserId: `artist:${data.id}`,
@@ -311,7 +358,7 @@ export class DocusignService {
 
       return {
         recipientId: '2',
-        role: 'COUNTERPARTY',
+        role: 'COUNTERPARTY_SIDE',
         name: data.name ?? 'Promoter',
         email: promoterEmailResult.email,
         clientUserId: `promoter:${data.id}`,
@@ -345,7 +392,7 @@ export class DocusignService {
 
       return {
         recipientId: '2',
-        role: 'COUNTERPARTY',
+        role: 'COUNTERPARTY_SIDE',
         name: data.name ?? 'Venue',
         email: venueEmailResult.email,
         clientUserId: `venue:${data.id}`,
