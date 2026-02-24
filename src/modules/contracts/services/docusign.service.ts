@@ -1,10 +1,12 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { createSign } from 'node:crypto';
 import { Contract } from '../contract.entity';
 import { ContractPdfService } from './contract-pdf.service';
 import { ContractRepository } from '@/src/infrastructure/database/repositories/contract.repository';
 import { supabase } from '@/src/infrastructure/database/supabase.client';
 import type { Booking } from '@/src/modules/bookings/booking.entity';
+import { BOOKING_REPOSITORY } from '@/src/modules/bookings/repositories/booking-repository.token';
+import type { BookingRepository } from '@/src/modules/bookings/repositories/booking.repository.interface';
 import { SignContractUseCase } from '../use-cases/sign-contract.use-case';
 
 type DocusignSigner = {
@@ -30,6 +32,8 @@ export class DocusignService {
     private readonly contractPdfService: ContractPdfService,
     private readonly contractRepository: ContractRepository,
     private readonly signContractUseCase: SignContractUseCase,
+    @Inject(BOOKING_REPOSITORY)
+    private readonly bookingRepository: BookingRepository,
   ) { }
 
   async ensureEnvelope(contract: Contract, booking: Booking): Promise<EnvelopeState> {
@@ -185,14 +189,17 @@ export class DocusignService {
       patch,
       markSigned,
     });
-    if (markSigned) {
-      await this.signContractUseCase.execute({
-        contractId: contract.id,
-        userId: 'DOCUSIGN_WEBHOOK', // o el identificador que decidas
-        conditionsAccepted: true,
-        // otros campos si son requeridos
-      });
-    }
+
+
+    const booking = await this.bookingRepository.findById(contract.bookingId);
+    if (!booking) return;
+    await this.signContractUseCase.execute({
+      contractId: contract.id,
+      userId: 'DOCUSIGN_WEBHOOK',
+      artistId: booking.artistId,
+      managerId: booking.managerId,
+      conditionsAccepted: true,
+    });
 
   }
 
