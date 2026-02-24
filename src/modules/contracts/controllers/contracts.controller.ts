@@ -89,7 +89,39 @@ export class ContractsController {
       });
 
       if (!signer) {
-        throw new ForbiddenException('You are not allowed to sign this contract in DocuSign');
+        const docusignRecipients =
+          (contract.snapshotData?.docusign?.recipients as Array<{
+            role?: string;
+            recipientId?: string;
+            clientUserId?: string;
+            email?: string;
+            name?: string;
+          }> | undefined) ?? [];
+
+        throw new ForbiddenException({
+          message: 'You are not allowed to sign this contract in DocuSign',
+          debug: {
+            userContext: req.userContext,
+            requestUser: {
+              sub: req.user?.sub,
+              email: req.user?.email,
+            },
+            booking: {
+              id: booking.id,
+              artistId: booking.artistId,
+              managerId: booking.managerId,
+              venueId: booking.venueId,
+              promoterId: booking.promoterId,
+            },
+            recipients: docusignRecipients.map((recipient) => ({
+              role: recipient.role ?? null,
+              recipientId: recipient.recipientId ?? null,
+              clientUserId: recipient.clientUserId ?? null,
+              email: recipient.email ?? null,
+              name: recipient.name ?? null,
+            })),
+          },
+        });
       }
 
       const defaultReturnUrl =
