@@ -246,11 +246,19 @@ export class DocusignService {
     if (booking.promoterId) {
       const { data, error } = await supabase
         .from('promoters')
-        .select('id,name,email')
+        .select('id,name,email,user_id')
         .eq('id', booking.promoterId)
         .maybeSingle();
 
-      if (error || !data?.email) {
+      if (error || !data) {
+        throw new Error('Promoter signer not found for DocuSign');
+      }
+
+      const promoterEmail =
+        data?.email ??
+        (data?.user_id ? await this.getUserEmail(data.user_id) : null);
+
+      if (!promoterEmail) {
         throw new Error('Promoter signer is missing email for DocuSign');
       }
 
@@ -258,7 +266,7 @@ export class DocusignService {
         recipientId: '2',
         role: 'COUNTERPARTY',
         name: data.name ?? 'Promoter',
-        email: data.email,
+        email: promoterEmail,
         clientUserId: `promoter:${data.id}`,
       };
     }
@@ -266,13 +274,19 @@ export class DocusignService {
     if (booking.venueId) {
       const { data, error } = await supabase
         .from('venues')
-        .select('id,name,contact_email')
+        .select('id,name,contact_email,user_id')
         .eq('id', booking.venueId)
         .maybeSingle();
 
-      const venueEmail = data?.contact_email ?? null;
-      if (error || !venueEmail || !data?.id) {
-        throw new Error('Venue signer is missing contact_email for DocuSign');
+      if (error || !data) {
+        throw new Error('Venue signer not found for DocuSign');
+      }
+
+      const venueEmail =
+        data?.contact_email ??
+        (data?.user_id ? await this.getUserEmail(data.user_id) : null);
+      if (!venueEmail || !data?.id) {
+        throw new Error('Venue signer is missing email for DocuSign');
       }
 
       return {
@@ -285,6 +299,20 @@ export class DocusignService {
     }
 
     throw new Error('Booking has no counterparty (venue/promoter) for DocuSign');
+  }
+
+  private async getUserEmail(userId: string): Promise<string | null> {
+    const { data, error } = await supabase
+      .from('users')
+      .select('email')
+      .eq('id', userId)
+      .maybeSingle();
+
+    if (error || !data?.email) {
+      return null;
+    }
+
+    return data.email;
   }
 
   private async downloadCombinedDocument(envelopeId: string): Promise<Buffer> {
